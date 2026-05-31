@@ -1,0 +1,15 @@
+<div class="card-body">
+  {% if doc.is_image %}
+    <img src="{{ doc.file.url }}" class="img-fluid mb-2" style="max-height:120px; object-fit:cover">
+  {% else %}
+    <div class="mb-2 text-center">
+      <i class="bi bi-file-earmark-text" style="font-size:48px"></i>
+    </div>
+  {% endif %}
+  <h6 class="card-title">{{ doc.title }}</h6>
+  <p class="small mb-2">{{ doc.description|truncatechars:80 }}</p>
+  <div class="d-flex justify-content-between">
+    <a class="btn btn-sm btn-outline-primary" href="{{ doc.file.url }}" target="_blank">View</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'members:download_doc' doc.id %}">Download</a>
+  </div>
+</div>

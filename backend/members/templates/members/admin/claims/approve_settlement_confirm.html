@@ -1,0 +1,124 @@
+{% extends "members/admin/admin_base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+
+  <div class="card shadow-lg border-0">
+
+    <!-- HEADER -->
+    <div class="card-header bg-success text-white">
+      <h5 class="mb-0">Review & Approve Settlement</h5>
+    </div>
+
+    <div class="card-body">
+
+      <!-- ============================= -->
+      <!-- BASIC INFO -->
+      <!-- ============================= -->
+      <p><strong>Claim:</strong> {{ settlement.claim }}</p>
+      <p><strong>Prepared By:</strong> {{ settlement.prepared_by }}</p>
+      <p><strong>Payment Request:</strong> #{{ settlement.claim.payment_request.id }}</p>
+
+      <!-- ============================= -->
+      <!-- SUMMARY -->
+      <!-- ============================= -->
+      <div class="row text-center mb-4">
+        <div class="col-md-4">
+          <small>Total Collected</small><br>
+          <strong>£{{ settlement.total_collected }}</strong>
+        </div>
+
+        <div class="col-md-4">
+          <small>Total Deductions</small><br>
+          <strong>£{{ settlement.total_deductions }}</strong>
+        </div>
+
+        <div class="col-md-4">
+          <small>Net Payout</small><br>
+          <strong>£{{ settlement.amount_paid }}</strong>
+        </div>
+      </div>
+
+      <!-- ============================= -->
+      <!-- DEDUCTIONS (READ-ONLY VIEW) -->
+      <!-- ============================= -->
+      <h6>Deductions</h6>
+
+      <table class="table table-sm mb-3">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th class="text-end">Amount (£)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in settlement.deduction_items.all %}
+          <tr>
+            <td>{{ d.title }}</td>
+            <td class="text-end">{{ d.amount }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="2">No deductions</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- ============================= -->
+      <!-- NOTES -->
+      <!-- ============================= -->
+      <div class="mb-3">
+        <label><strong>Prepared Notes</strong></label>
+        <div class="form-control bg-light">
+          {{ settlement.notes|default:"-" }}
+        </div>
+      </div>
+
+      <!-- ============================= -->
+      <!-- ACTIONS -->
+      <!-- ============================= -->
+      <div class="d-flex gap-2 flex-wrap">
+
+        <!-- EDIT BUTTON -->
+        <!-- Goes back to reconciliation screen -->
+        <a href="{% url 'members_admin:reconcile_claim' settlement.claim.payment_request.id %}"
+           class="btn btn-warning">
+           Edit Reconciliation
+        </a>
+
+        <!-- APPROVE BUTTON -->
+        <!-- Uses POST + confirmation -->
+        <form method="post"
+              action="{% url 'members_admin:approve_claim_settlement' settlement.id %}"
+              onsubmit="return confirmApproval();">
+          {% csrf_token %}
+
+          <button class="btn btn-success">
+            Approve & Finalise
+          </button>
+        </form>
+
+        <!-- CANCEL -->
+        <a href="{% url 'members_admin:claim_settlement_detail' settlement.id %}"
+           class="btn btn-secondary">
+           Cancel
+        </a>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function confirmApproval() {
+    return confirm(
+        "You are about to APPROVE this settlement.\n\n" +
+        "This action will:\n" +
+        "- Finalise the claim\n" +
+        "- Lock further edits\n\n" +
+        "Proceed?"
+    );
+}
+</script>
+
+{% endblock %}

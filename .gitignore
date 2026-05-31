@@ -1,0 +1,42 @@
+# Virtual Environment
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment files
+.env
+.env.*
+
+# SQLite
+db.sqlite3
+*.sqlite3
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# Logs
+*.log
+
+# Django collected static
+staticfiles/
+
+# Uploaded files
+media/
+
+# Local exports/reports
+FolderList.txt
+structure.txt
+structure.1
+tree.txt
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+payment_proofs/

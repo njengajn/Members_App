@@ -1,0 +1,23 @@
+<div class="modal fade" id="viewAllModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">All Documents</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          {% for doc in documents %}
+            <div class="col-sm-6 col-md-4 col-lg-3 text-center">
+              {% include "members/includes/file_preview_card.html" with doc=doc %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a class="btn btn-primary" href="{% url 'members:download_zip' %}">Download ZIP</a>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

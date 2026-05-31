@@ -1,0 +1,84 @@
+{% extends "members/base.html" %} {% block content %}
+
+<h2 class="mb-4">Claims Dashboard</h2>
+
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Member / Dependant</th>
+      <th>Status</th>
+      <th>Amount</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for claim in claims %}
+    <tr>
+      <td>{{ claim.id }}</td>
+      <td>
+        <strong>{{ claim.member.full_name }}</strong>
+        {% if claim.dependant %}
+        <br />
+        <small class="text-muted">
+          Dependant: {{ claim.dependant.full_name }}
+        </small>
+        {% endif %}
+      </td>
+
+      <td>{{ claim.status|title }}</td>
+      <td>{{ claim.amount }}</td>
+
+      <td class="d-flex gap-2">
+        <button
+          class="btn btn-sm btn-outline-secondary"
+          data-bs-toggle="collapse"
+          data-bs-target="#docs-{{ claim.id }}"
+        >
+          Documents ({{ claim.documents.count }})
+        </button>
+
+        {% if not claim.payment %}
+        <a
+          href="{% url 'members_admin:create_payment_request' %}?claim={{ claim.uid }}"
+          class="btn btn-sm btn-outline-success"
+        >
+          Create Payment
+        </a>
+        {% else %}
+        <span class="badge bg-success align-self-center"> Paid </span>
+        {% endif %}
+      </td>
+    </tr>
+
+    <tr class="collapse bg-light" id="docs-{{ claim.id }}">
+      <td colspan="5">
+        {% for doc in claim.documents.all %}
+        <div class="border rounded p-2 mb-2 d-flex justify-content-between">
+          <div>
+            <strong>{{ doc.title }}</strong>
+            <small class="d-block">Status: {{ doc.get_status_display }}</small>
+          </div>
+          <a
+            href="{{ doc.file.url }}"
+            target="_blank"
+            class="btn btn-sm btn-outline-primary"
+          >
+            View
+          </a>
+        </div>
+        {% empty %}
+        <em>No documents attached.</em>
+        {% endfor %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="5"><em>No claims found.</em></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

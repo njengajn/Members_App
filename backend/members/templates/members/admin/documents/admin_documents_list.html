@@ -1,0 +1,480 @@
+{% extends "members/admin/admin_base.html" %} 
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/documents-responsive.css' %}">
+
+<style>
+.table-container {
+    margin-top: 20px;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table th {
+    background: #f8f8f8;
+    padding: 10px;
+    text-align: left;
+    border-bottom: 2px solid #ddd;
+}
+
+.admin-table td {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+}
+
+.badge {
+    padding: 5px 10px;
+    border-radius: 6px;
+    color: white;
+    font-size: 12px;
+}
+
+.badge-pending { background: orange; }
+.badge-approved { background: green; }
+.badge-rejected { background: red; }
+
+.preview-thumb {
+    width: 60px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.action-links a {
+    margin-right: 10px;
+}
+
+/* REQUEST BOX */
+.request-box {
+    display: none;
+    margin-top: 15px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #f9f9f9;
+}
+
+@media (max-width: 768px) {
+
+    .page-header {
+
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .request-btn {
+
+        width: 100%;
+    }
+}
+
+</style>
+
+<h1>Documents for {{ member }}</h1>
+
+<div style="margin-bottom: 20px;">
+    <button class="button" onclick="toggleRequestBox()">
+        ➕ Request Document
+    </button>
+</div>
+<hr>
+
+<h4>Pending Requests</h4>
+
+<table class="admin-table">
+<thead>
+<tr>
+<th>Title</th>
+<th>Description</th>
+<th>Status</th>
+<th>Actions</th>
+</tr>
+</thead>
+
+<tbody>
+{% for r in requests %}
+<tr>
+<td>{{ r.title }}</td>
+<td>{{ r.description|default:"-" }}</td>
+<td>
+
+{% if r.completed or r.status == "completed" %}
+
+    <span class="badge badge-approved">
+
+        Completed
+
+    </span>
+
+{% else %}
+
+    <span class="badge badge-pending">
+
+        Pending
+
+    </span>
+
+{% endif %}
+
+</td>
+
+<!-- ACTIONS -->
+<td>
+
+{% if not r.completed and r.status != "completed" %}
+
+<form method="POST"
+      action="{% url 'members_admin:upload_requested_document_admin' r.id %}"
+      enctype="multipart/form-data"
+      style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+
+    {% csrf_token %}
+
+    <input type="file"
+           name="file"
+           required
+           class="form-control form-control-sm"
+           style="max-width:240px;">
+
+    <button type="submit"
+            class="btn btn-primary btn-sm">
+
+        Upload Document
+
+    </button>
+
+</form>
+
+{% else %}
+
+<span style="color:green; font-weight:600;">
+
+    ✔ Uploaded
+
+</span>
+
+{% endif %}
+
+</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="4">No requests</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<!-- ========================= -->
+<!-- REQUEST FORM (UPDATED) -->
+<!-- ========================= -->
+<div id="requestBox" class="request-box">
+
+    <form id="requestForm" method="POST"
+          action="{% url 'members_admin:request_document' member.id %}">
+
+        {% csrf_token %}
+
+        <!-- TITLE -->
+        <div style="margin-bottom:10px;">
+            <label class="fw-bold">Document Title</label>
+            <input type="text"
+                   name="title"
+                   id="requestTitle"
+                   class="form-control"
+                   placeholder="e.g. Passport, Bank Statement"
+                   required>
+        </div>
+
+        <!-- DESCRIPTION -->
+        <div style="margin-bottom:10px;">
+            <label class="fw-bold">Description / Instructions</label>
+            <textarea name="description"
+                      id="requestDescription"
+                      class="form-control"
+                      rows="3"
+                      placeholder="Provide details, requirements, format, etc."></textarea>
+        </div>
+
+        <div style="margin-top:10px;">
+            <button type="submit" class="btn btn-primary btn-sm">
+                Send Request
+            </button>
+
+            <button type="button"
+                    class="btn btn-secondary btn-sm"
+                    onclick="toggleRequestBox()">
+                Cancel
+            </button>
+        </div>
+
+    </form>
+
+</div>
+
+    <div class="table-responsive-documents">
+        <table class="documents-table">
+    <thead>
+        <tr>
+            <th style="width: 20%;">Title</th>
+            <th style="width: 15%;">Ref: Subject</th>
+            <th style="width: 15%;">Status</th>
+            <th style="width: 15%;">Uploaded</th>
+            <th style="width: 15%;">Preview</th>
+            <th style="width: 20%;">Actions</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for doc in documents %}
+        <tr>
+            <td>{{ doc.title }}</td>
+
+            <td>{{ doc.dependant|default:"Member" }}</td>
+
+            <td>
+                {% if doc.status == "pending" %}
+                    <span class="badge badge-pending">Pending</span>
+                {% elif doc.status == "approved" %}
+                    <span class="badge badge-approved">Approved</span>
+                {% else %}
+                    <span class="badge badge-rejected">Rejected</span>
+                {% endif %}
+            </td>
+
+            <td>{{ doc.uploaded_at|date:"Y-m-d H:i" }}</td>
+
+            <td>
+                {% if doc.file_type == "image" %}
+                    <img src="{{ doc.file.url }}" class="preview-thumb"
+                         onclick="openPreview('{{ doc.file.url }}', 'image')">
+                {% elif doc.file_type == "pdf" %}
+                    <button onclick="openPreview('{{ doc.file.url }}', 'pdf')">
+                        View PDF
+                    </button>
+                {% else %}
+                    <a href="{{ doc.file.url }}">Download</a>
+                {% endif %}
+            </td>
+
+            <!-- ================================================== -->
+            <!-- ACTIONS -->
+            <!-- ================================================== -->
+            <!--
+            Adds:
+            - Approve confirmation
+            - Reject confirmation
+            - Better button styling
+            - Prevents accidental clicks
+            -->
+            <!-- ================================================== -->
+
+        <td class="action-links">
+
+            <div style="
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+            ">
+
+                <!-- ====================================== -->
+                <!-- PENDING DOCUMENT -->
+                <!-- ====================================== -->
+
+                {% if doc.status == "pending" %}
+
+                    <!-- APPROVE -->
+                    <a href="{% url 'members_admin:admin_document_review' doc.id 'approve' %}"
+                    class="btn btn-sm btn-success"
+                    onclick="return confirmApprove();"
+                    style="white-space: nowrap;">
+
+                        ✔ Approve
+
+                    </a>
+
+                    <!-- REJECT -->
+                    <a href="{% url 'members_admin:admin_document_review' doc.id 'reject' %}"
+                    class="btn btn-sm btn-danger"
+                    onclick="return confirmReject();"
+                    style="white-space: nowrap;">
+
+                        ✖ Reject
+
+                    </a>
+
+                {% endif %}
+
+                <!-- ====================================== -->
+                <!-- APPROVED DOCUMENT -->
+                <!-- ====================================== -->
+
+                {% if doc.status == "approved" %}
+
+                    <!-- ARCHIVE -->
+                    {% if not doc.is_archived %}
+
+                    <a href="{% url 'members_admin:archive_document' doc.id %}"
+                    class="btn btn-sm btn-secondary"
+                    onclick="return confirmArchive();">
+
+                        Archive
+
+                    </a>
+
+                    {% endif %}
+
+                    <!-- DELETE -->
+                    <a href="{% url 'members_admin:delete_document' doc.id %}"
+                    class="btn btn-sm btn-dark"
+                    onclick="return confirmDelete();">
+
+                        Delete
+
+                    </a>
+
+                {% endif %}
+
+                <!-- ====================================== -->
+                <!-- REJECTED DOCUMENT -->
+                <!-- ====================================== -->
+
+                {% if doc.status == "rejected" %}
+
+                    <!-- ARCHIVE -->
+                    {% if not doc.is_archived %}
+
+                    <a href="{% url 'members_admin:archive_document' doc.id %}"
+                    class="btn btn-sm btn-secondary"
+                    onclick="return confirmArchive();">
+
+                        Archive
+
+                    </a>
+
+                    {% endif %}
+
+                    <!-- DELETE -->
+                    <a href="{% url 'members_admin:delete_document' doc.id %}"
+                    class="btn btn-sm btn-dark"
+                    onclick="return confirmDelete();">
+
+                        Delete
+
+                    </a>
+
+                {% endif %}
+
+            </div>
+
+        </td>
+
+        <!-- ================================================== -->
+        <!-- CONFIRMATION SCRIPTS -->
+        <!-- ================================================== -->
+
+       <script>
+
+        function confirmApprove() {
+
+            return confirm(
+                "This document will be APPROVED.\n\n" +
+                "The member will now see this document as approved.\n\n" +
+                "Do you want to continue?"
+            );
+        }
+
+        function confirmReject() {
+
+            return confirm(
+                "This document will be REJECTED.\n\n" +
+                "The member will be allowed to upload a replacement document.\n\n" +
+                "Do you want to continue?"
+            );
+        }
+
+        function confirmArchive() {
+
+            return confirm(
+                "Archive this document?\n\n" +
+                "Archived documents are hidden from active member views.\n\n" +
+                "Do you want to continue?"
+            );
+        }
+
+        function confirmDelete() {
+
+            return confirm(
+                "DELETE this document permanently?\n\n" +
+                "This action cannot be undone.\n\n" +
+                "Do you want to continue?"
+            );
+        }
+
+        </script>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6">No documents found</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- PREVIEW MODAL -->
+<div id="previewModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7);">
+    <div style="background:white; margin:5% auto; padding:20px; width:70%; position:relative;">
+        <span onclick="closePreview()" style="position:absolute; right:15px; cursor:pointer;">✖</span>
+        <div id="previewContent"></div>
+    </div>
+</div>
+
+<script>
+function openPreview(url, type) {
+    let modal = document.getElementById("previewModal");
+    let content = document.getElementById("previewContent");
+
+    if (type === "image") {
+        content.innerHTML = `<img src="${url}" style="max-width:100%">`;
+    } else if (type === "pdf") {
+        content.innerHTML = `<iframe src="${url}" width="100%" height="500px"></iframe>`;
+    }
+
+    modal.style.display = "block";
+}
+
+function closePreview() {
+    document.getElementById("previewModal").style.display = "none";
+}
+
+function toggleRequestBox() {
+    const box = document.getElementById("requestBox");
+    box.style.display = box.style.display === "none" ? "block" : "none";
+}
+
+/* CONFIRMATION */
+document.getElementById("requestForm").addEventListener("submit", function(e) {
+
+    const title = document.getElementById("requestTitle").value;
+    const desc = document.getElementById("requestDescription").value;
+
+    const confirmSend = confirm(
+        "Send document request?\n\n" +
+        "Member: {{ member.first_name }} {{ member.surname }}\n" +
+        "Title: " + title + "\n" +
+        (desc ? "Description: " + desc + "\n" : "")
+    );
+
+    if (!confirmSend) {
+        e.preventDefault();
+    }
+});
+</script>
+
+{% endblock %}

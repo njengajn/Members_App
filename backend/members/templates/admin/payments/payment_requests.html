@@ -1,0 +1,51 @@
+{% extends "admin/base_admin.html" %}
+
+{% block content %}
+<h2>Payment Request</h2>
+
+{% if payment_requests %}
+    <table border="1" cellpadding="6">
+        <thead>
+            <tr>
+                <th>UID</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Due Date</th>
+                <th>Member</th>
+                <th>Claim</th>
+                <th>Status</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pr in payment_requests %}
+                <tr>
+                    <td>{{ pr.uid }}</td>
+                    <td>{{ pr.get_request_type_display }}</td>
+                    <td>{{ pr.amount }}</td>
+                    <td>{{ pr.due_date|date:"Y-m-d" }}</td>
+                    <td>
+                        {% if pr.member %}
+                            {{ pr.member }}
+                        {% else %}
+                            All Members
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if pr.claim %}
+                            {{ pr.claim.uid }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>{{ pr.status }}</td>
+                    <td>{{ pr.created_at|date:"Y-m-d H:i" }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No payment requests found.</p>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,632 @@
+{% extends "members/admin/admin_base.html" %}
+{% block content %}
+
+<div class="container mt-4" style="max-width: 900px">
+
+  <!-- ===================================================== -->
+  <!-- PAGE HEADER -->
+  <!-- ===================================================== -->
+
+  <h3 class="mb-4">
+    Create Payment Request
+  </h3>
+
+  <form method="POST">
+
+    {% csrf_token %}
+
+    <!-- ===================================================== -->
+    <!-- REQUEST TYPE -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm mb-4 p-3">
+
+      <label class="form-label fw-bold">
+
+        Request Type
+
+      </label>
+
+      <select
+        name="request_type"
+        id="request_type"
+        class="form-select w-100 w-md-50"
+      >
+
+        <option value="membership">
+
+          Membership
+
+        </option>
+
+        <option value="subscription">
+
+          Subscription
+
+        </option>
+
+        <option value="claim">
+
+          Claim Settlement
+
+        </option>
+
+        <option value="other" selected>
+
+          Other
+
+        </option>
+
+      </select>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- CLAIM -->
+    <!-- ===================================================== -->
+
+    <div
+      class="card shadow-sm mb-4 p-3"
+      id="claim_block"
+      style="display:none;"
+    >
+
+      <label class="form-label fw-bold">
+
+        Select Approved Claim
+
+      </label>
+
+      <select
+        id="claim_select"
+        name="claim"
+        class="form-select"
+      >
+
+        <option value="">
+
+          -- Select Claim --
+
+        </option>
+
+        {% for claim in approved_claims %}
+
+        <option
+          value="{{ claim.id }}"
+          data-member="{{ claim.member.id }}"
+          data-member-name="{{ claim.member.first_name }} {{ claim.member.surname }}"
+          data-amount="{{ claim.amount }}"
+        >
+
+          Claim #{{ claim.id }}
+          —
+          {{ claim.member.first_name }}
+          {{ claim.member.surname }}
+
+        </option>
+
+        {% endfor %}
+
+      </select>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- TARGETING -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm mb-4 p-3">
+
+      <label class="form-label fw-bold">
+
+        Who Should Pay?
+
+      </label>
+
+      <select
+        id="target_mode"
+        name="target_mode"
+        class="form-select w-100 w-md-50 mb-3"
+      >
+
+        <option value="all">
+
+          All Members
+
+        </option>
+
+        <option value="single">
+
+          Single Member
+
+        </option>
+
+        <option value="selected">
+
+          Selected Members
+
+        </option>
+
+      </select>
+
+      <!-- SINGLE MEMBER -->
+
+      <div id="single_block">
+
+        <input
+          type="text"
+          id="member_search"
+          class="form-control mb-2"
+          placeholder="Search member..."
+        >
+
+        <select
+          name="member"
+          id="member_select"
+          class="form-select"
+          size="5"
+        >
+
+          {% for m in members %}
+
+          <option value="{{ m.id }}">
+
+            {{ m.first_name }}
+            {{ m.surname }}
+            ({{ m.member_uid }})
+
+          </option>
+
+          {% endfor %}
+
+        </select>
+
+      </div>
+
+      <!-- SELECTED MEMBERS -->
+
+      <div
+        id="multi_block"
+        style="display:none;"
+      >
+
+        <input
+          type="text"
+          id="multi_search"
+          class="form-control mb-2"
+          placeholder="Search members..."
+        >
+
+        <div class="mb-2">
+
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary"
+            onclick="selectAllMembers()"
+          >
+
+            Select All
+
+          </button>
+
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            onclick="clearAllMembers()"
+          >
+
+            Clear
+
+          </button>
+
+        </div>
+
+        <div
+          class="border rounded p-2"
+          style="max-height:200px;overflow:auto;"
+        >
+
+          {% for m in members %}
+
+          <div class="form-check member-item">
+
+            <input
+              type="checkbox"
+              name="selected_members"
+              value="{{ m.id }}"
+              class="form-check-input member-checkbox"
+            >
+
+            <label class="form-check-label">
+
+              {{ m.first_name }}
+              {{ m.surname }}
+              ({{ m.member_uid }})
+
+            </label>
+
+          </div>
+
+          {% endfor %}
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- PAYMENT METHOD -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm mb-4 p-3">
+
+      <label class="form-label fw-bold">
+
+        Payment Method
+
+      </label>
+
+      <select
+        name="payment_method"
+        class="form-select"
+        required
+      >
+
+        <option value="" disabled selected>
+
+          -- Select Payment Method --
+
+        </option>
+
+        <option value="manual">
+
+          Manual (Bank Transfer)
+
+        </option>
+
+        <option value="card">
+
+          Card Payment (Stripe)
+
+        </option>
+
+        <option value="both">
+
+          Both (User Chooses)
+
+        </option>
+
+      </select>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- NOTIFICATIONS -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm mb-4 p-3">
+
+      <label class="form-label fw-bold">
+
+        Notifications
+
+      </label>
+
+      <div class="form-check">
+
+        <input
+          type="checkbox"
+          class="form-check-input"
+          id="send_notifications"
+          name="send_notifications"
+          checked
+        >
+
+        <label
+          class="form-check-label"
+          for="send_notifications"
+        >
+
+          Notify members automatically
+
+        </label>
+
+      </div>
+
+      <small class="text-muted">
+
+        Untick if this request should be
+        created silently.
+
+      </small>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- DETAILS -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm mb-4 p-3">
+
+      <div class="row g-3">
+
+        <!-- TITLE -->
+
+        <div class="col-12">
+
+          <label class="form-label fw-bold">
+
+            Title
+
+          </label>
+
+          <input
+            type="text"
+            name="title"
+            class="form-control"
+            maxlength="150"
+            required
+          >
+
+        </div>
+
+        <!-- DESCRIPTION -->
+
+        <div class="col-12">
+
+          <label class="form-label fw-bold">
+
+            Description
+
+          </label>
+
+          <textarea
+            name="description"
+            id="description"
+            rows="4"
+            class="form-control bg-white border-secondary shadow-sm"
+          ></textarea>
+
+        </div>
+
+        <!-- AMOUNT -->
+
+        <div class="col-md-4">
+
+          <label class="form-label fw-bold">
+
+            Amount (£)
+
+          </label>
+
+          <input
+            type="number"
+            step="0.01"
+            min="0.01"
+            name="amount"
+            id="amount"
+            class="form-control"
+            required
+          >
+
+        </div>
+
+        <!-- DUE DATE -->
+
+        <div class="col-md-4">
+
+          <label class="form-label fw-bold">
+
+            Due Date
+
+          </label>
+
+          <input
+            type="date"
+            name="due_date"
+            class="form-control"
+            min="{{ today|date:'Y-m-d' }}"
+            required
+          >
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- ACTIONS -->
+
+    <div class="text-end">
+
+      <button
+        type="submit"
+        class="btn btn-success px-4"
+      >
+
+        Create Request
+
+      </button>
+
+    </div>
+
+  </form>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- JAVASCRIPT -->
+<!-- ===================================================== -->
+
+<script>
+
+const requestType =
+    document.getElementById("request_type");
+
+const claimBlock =
+    document.getElementById("claim_block");
+
+function toggleClaim() {
+
+    claimBlock.style.display =
+        requestType.value === "claim"
+        ? "block"
+        : "none";
+}
+
+requestType.addEventListener(
+    "change",
+    toggleClaim
+);
+
+toggleClaim();
+
+
+const mode =
+    document.getElementById("target_mode");
+
+const single =
+    document.getElementById("single_block");
+
+const multi =
+    document.getElementById("multi_block");
+
+function toggleMode() {
+
+    single.style.display =
+        mode.value === "single"
+        ? "block"
+        : "none";
+
+    multi.style.display =
+        mode.value === "selected"
+        ? "block"
+        : "none";
+}
+
+mode.addEventListener(
+    "change",
+    toggleMode
+);
+
+toggleMode();
+
+
+document.getElementById(
+    "member_search"
+).addEventListener(
+    "keyup",
+    function () {
+
+        let val =
+            this.value.toLowerCase();
+
+        document.querySelectorAll(
+            "#member_select option"
+        ).forEach((opt) => {
+
+            opt.style.display =
+                opt.text.toLowerCase()
+                    .includes(val)
+                ? ""
+                : "none";
+        });
+    }
+);
+
+
+document.getElementById(
+    "multi_search"
+).addEventListener(
+    "keyup",
+    function () {
+
+        let val =
+            this.value.toLowerCase();
+
+        document.querySelectorAll(
+            ".member-item"
+        ).forEach((el) => {
+
+            el.style.display =
+                el.innerText
+                    .toLowerCase()
+                    .includes(val)
+                ? ""
+                : "none";
+        });
+    }
+);
+
+
+function selectAllMembers() {
+
+    document
+        .querySelectorAll(
+            ".member-checkbox"
+        )
+        .forEach(
+            cb => cb.checked = true
+        );
+}
+
+
+function clearAllMembers() {
+
+    document
+        .querySelectorAll(
+            ".member-checkbox"
+        )
+        .forEach(
+            cb => cb.checked = false
+        );
+}
+
+
+/* =====================================================
+   CLAIM AUTO-FILL
+   Does NOT override targeting
+===================================================== */
+
+document.getElementById(
+    "claim_select"
+).addEventListener(
+    "change",
+    function () {
+
+        let opt =
+            this.options[
+                this.selectedIndex
+            ];
+
+        if (opt.value) {
+
+            document
+                .getElementById(
+                    "amount"
+                ).value =
+                opt.dataset.amount;
+
+            document
+                .getElementById(
+                    "description"
+                ).value =
+                "Claim settlement for "
+                + opt.dataset.memberName;
+        }
+    }
+);
+
+</script>
+
+{% include "members/footer.html" %}
+
+{% endblock %}

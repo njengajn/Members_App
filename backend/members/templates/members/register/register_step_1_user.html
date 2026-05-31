@@ -1,0 +1,364 @@
+{% extends "members/register/register_base.html" %}
+{% load static %}
+
+{% block register_content %}
+
+<div class="mb-4">
+
+    <h4 class="page-title mb-1">
+        User Registration
+    </h4>
+
+    <p class="page-subtitle mb-0">
+        Create your account to continue registration
+    </p>
+
+</div>
+
+<form method="post"
+      id="registerStep1Form"
+      novalidate>
+
+    {% csrf_token %}
+
+    <!-- USERNAME -->
+    <div class="register-section">
+
+        <label class="form-label">
+            Username
+        </label>
+
+        <input
+            name="username"
+            class="form-control"
+            placeholder="Enter username"
+            required
+        >
+
+    </div>
+
+    <!-- EMAIL -->
+    <div class="register-section">
+
+        <label class="form-label">
+            Email Address
+        </label>
+
+        <input
+            name="email"
+            type="email"
+            class="form-control"
+            placeholder="Enter email address"
+            required
+        >
+
+    </div>
+
+    <!-- PASSWORD -->
+    <div class="register-section">
+
+        <label class="form-label">
+            Password
+        </label>
+
+        <input
+            name="password"
+            type="password"
+            class="form-control"
+            placeholder="Enter password"
+            required
+        >
+
+    </div>
+
+    <!-- CONFIRM PASSWORD -->
+    <div class="register-section">
+
+        <label class="form-label">
+            Confirm Password
+        </label>
+
+        <input
+            name="confirm_password"
+            type="password"
+            class="form-control"
+            placeholder="Confirm password"
+            required
+        >
+
+    </div>
+
+    <!-- CAPTCHA -->
+    <div class="register-section captcha-wrapper">
+
+        <div class="g-recaptcha"
+             data-sitekey="{{ recaptcha_site_key }}">
+        </div>
+
+    </div>
+    <!-- ===================================== -->
+    <!-- GDPR / PRIVACY -->
+    <!-- ===================================== -->
+
+    <div
+        class="card border-0 shadow-sm mt-4"
+        style="
+            border-radius:16px;
+            overflow:hidden;
+        "
+    >
+
+        <div class="card-body">
+
+            <h5 class="fw-bold mb-3">
+
+                GDPR & Privacy Policy
+
+            </h5>
+
+            <p
+                class="small text-muted"
+                style="line-height:1.8;"
+            >
+
+                Please read and agree to the
+                KRO Welfare Group GDPR and
+                Privacy Policy before continuing.
+
+            </p>
+
+            <!-- ============================== -->
+            <!-- OPEN POLICY MODAL -->
+            <!-- ============================== -->
+
+            <button
+                type="button"
+                class="btn btn-outline-primary btn-sm mt-2"
+                data-bs-toggle="modal"
+                data-bs-target="#gdprModal"
+            >
+
+                Read GDPR & Privacy Policy
+
+            </button>
+
+            <!-- ============================== -->
+            <!-- CONSENT -->
+            <!-- ============================== -->
+
+            <div class="form-check mt-4">
+
+                <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="gdpr_consent"
+                    name="gdpr_consent"
+                    required
+                >
+
+                <label
+                    class="form-check-label"
+                    for="gdpr_consent"
+                >
+
+                    I agree to the KRO Welfare Group
+                    using my information for purposes
+                    related to its welfare objectives
+                    and operations.
+
+                </label>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ===================================== -->
+    <!-- GDPR MODAL -->
+    <!-- ===================================== -->
+
+    <div
+        class="modal fade"
+        id="gdprModal"
+        tabindex="-1"
+    >
+
+        <div
+            class="modal-dialog modal-dialog-scrollable modal-lg"
+        >
+
+            <div class="modal-content">
+
+                <!-- ========================== -->
+                <!-- HEADER -->
+                <!-- ========================== -->
+
+                <div class="modal-header">
+
+                    <h5 class="modal-title">
+
+                        GDPR & Privacy Policy
+
+                    </h5>
+
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                    ></button>
+
+                </div>
+
+                <!-- ========================== -->
+                <!-- BODY -->
+                <!-- ========================== -->
+
+                <div class="modal-body">
+
+                    <p style="line-height:1.8;">
+
+                        Under the General Data
+                        Protection Regulation
+                        (GDPR) (EU) 2016/679,
+                        KRO Welfare Group has
+                        a legal duty to protect
+                        your information.
+
+                    </p>
+
+                    <p style="line-height:1.8;">
+
+                        Information provided may
+                        be used solely for welfare
+                        operations including:
+
+                    </p>
+
+                    <ul style="line-height:1.8;">
+
+                        <li>
+                            Membership management
+                        </li>
+
+                        <li>
+                            Welfare administration
+                        </li>
+
+                        <li>
+                            Payment processing
+                        </li>
+
+                        <li>
+                            Claims processing
+                        </li>
+
+                        <li>
+                            Notifications and communication
+                        </li>
+
+                    </ul>
+
+                    <p style="line-height:1.8;">
+
+                        Your information will not
+                        be sold or disclosed outside
+                        the organization except where
+                        legally required.
+
+                    </p>
+
+                </div>
+
+                <!-- ========================== -->
+                <!-- FOOTER -->
+                <!-- ========================== -->
+
+                <div class="modal-footer">
+
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                    >
+
+                        Close
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- BUTTONS -->
+    <div class="row g-2 mt-1">
+
+        <div class="col-12 col-md-6">
+
+            <a href="/"
+               class="btn btn-light mobile-btn w-100">
+
+                Cancel
+
+            </a>
+
+        </div>
+
+        <div class="col-12 col-md-6">
+
+            <button type="submit"
+                    class="btn mobile-btn-primary mobile-btn w-100">
+
+                Continue
+
+            </button>
+
+        </div>
+
+    </div>
+
+</form>
+
+<script src="https://www.google.com/recaptcha/api.js"
+        async
+        defer>
+    </script>
+
+<script>
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+
+            const form = document.querySelector("form");
+
+            form.addEventListener(
+                "submit",
+                function (e) {
+
+                    const consent = document.getElementById(
+                        "gdpr_consent"
+                    );
+
+                    if (!consent.checked) {
+
+                        e.preventDefault();
+
+                        alert(
+                            "You must agree to the GDPR and Privacy Policy before continuing."
+                        );
+
+                        return false;
+                    }
+                }
+            );
+        }
+    );
+
+</script>
+
+{% endblock %}

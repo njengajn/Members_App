@@ -1,0 +1,106 @@
+{% extends "members/emails/base_email.html" %}
+
+{% block email_content %}
+
+<p class="email-text">
+
+    Unfortunately, your payment was rejected.
+
+</p>
+
+<div
+    style="
+        background:#fff3f3;
+        padding:22px;
+        border-radius:14px;
+        margin:25px 0;
+        border:1px solid #f5c2c2;
+    "
+>
+
+    <p>
+
+        <strong>Reference:</strong><br>
+        {{ payment_reference }}
+
+    </p>
+
+    <p>
+
+        <strong>Description:</strong><br>
+        {{ payment.payment_request.description }}
+
+    </p>
+
+    <p>
+
+        <strong>Amount:</strong><br>
+        £{{ payment.amount }}
+
+    </p>
+
+    <p>
+
+        <strong>Status:</strong><br>
+        Rejected
+
+    </p>
+
+</div>
+
+<p class="email-text">
+
+    Please review your payment details
+    or contact support for assistance.
+
+</p>
+
+<p class="email-text">
+
+    If payment was made manually,
+    please ensure proof of payment
+    was uploaded correctly.
+
+</p>
+
+<p class="email-text">
+
+    You may retry payment using the
+    payment portal below.
+
+</p>
+
+<p>
+
+    <a
+        href="{{ payments_url }}"
+        style="
+            display:inline-block;
+            background:#dc3545;
+            color:white;
+            padding:12px 24px;
+            border-radius:8px;
+            text-decoration:none;
+            font-weight:bold;
+            margin-top:10px;
+        "
+    >
+
+        Retry Payment
+
+    </a>
+
+</p>
+
+<p
+    class="email-text"
+    style="
+        margin-top:30px;
+    "
+>
+
+    KRO Welfare Management
+
+</p>
+
+{% endblock %}

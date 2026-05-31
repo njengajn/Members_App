@@ -1,0 +1,114 @@
+{% extends "members/admin/admin_base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+
+  <div class="card shadow-lg border-0">
+
+    <!-- HEADER -->
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">Reconciliation Report</h5>
+    </div>
+
+    <div class="card-body">
+
+      <!-- ============================= -->
+      <!-- BASIC INFO -->
+      <!-- ============================= -->
+      <div class="mb-3">
+        <p><strong>Title:</strong> {{ payment_request.title }}</p>
+        <p><strong>Type:</strong> {{ payment_request.request_type|title }}</p>
+        <p><strong>Due Date:</strong> {{ payment_request.due_date|date:"M d, Y" }}</p>
+      </div>
+
+      <hr>
+
+      <!-- ============================= -->
+      <!-- FINANCIAL SUMMARY -->
+      <!-- ============================= -->
+      <div class="row text-center mb-4">
+
+        <div class="col-md-3">
+          <small class="text-muted">Required Amount</small><br>
+          <strong>£{{ total_required }}</strong>
+        </div>
+
+        <div class="col-md-3">
+          <small class="text-muted">Total Collected</small><br>
+          <strong>£{{ total_collected }}</strong>
+        </div>
+
+        <div class="col-md-3">
+          <small class="text-muted">Paid Members</small><br>
+          <strong>{{ paid_count }}</strong>
+        </div>
+
+        <div class="col-md-3">
+          <small class="text-muted">Unpaid Members</small><br>
+          <strong>{{ unpaid_count }}</strong>
+        </div>
+
+      </div>
+
+      <!-- ============================= -->
+      <!-- COMPLIANCE -->
+      <!-- ============================= -->
+      <div class="mb-4 text-center">
+
+        <small class="text-muted">Compliance</small><br>
+
+        <div class="progress" style="height: 20px;">
+          <div class="progress-bar bg-success"
+               role="progressbar"
+               style="width: {{ compliance }}%;">
+            {{ compliance }}%
+          </div>
+        </div>
+
+      </div>
+
+      <hr>
+
+      <!-- ============================= -->
+      <!-- STATUS MESSAGE -->
+      <!-- ============================= -->
+      <div class="alert alert-info">
+        This payment request does not require deductions.<br>
+        Please review the summary before confirming reconciliation.
+      </div>
+
+      <!-- ============================= -->
+      <!-- ACTIONS -->
+      <!-- ============================= -->
+      <div class="d-flex gap-2 flex-wrap">
+
+        <!-- PDF EXPORT -->
+        <a href="{% url 'members_admin:export_payment_request_pdf' payment_request.id %}"
+           class="btn btn-outline-dark">
+           Print PDF Report
+        </a>
+
+        <!-- CONFIRM -->
+        <form method="post">
+          {% csrf_token %}
+
+          <button class="btn btn-success"
+                  onclick="return confirm('Confirm reconciliation?');">
+            Confirm Reconciliation
+          </button>
+        </form>
+
+        <!-- CANCEL -->
+        <a href="{% url 'members_admin:admin_payment_detail' payment_request.id %}"
+           class="btn btn-secondary">
+           Cancel
+        </a>
+
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

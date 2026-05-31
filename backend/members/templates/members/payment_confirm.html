@@ -1,0 +1,34 @@
+{% extends 'members/base.html' %}
+{% load static %}
+
+{% block title %}Confirm Payment{% endblock %}
+
+{% block content %}
+<div class="flex justify-center items-center min-h-screen bg-gray-50">
+  <div class="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md text-center">
+    <img src="{% static 'images/KRO_LOGO_WEB.svg' %}" alt="Welfare Logo" class="h-16 mx-auto mb-6">
+
+    <h1 class="text-2xl font-bold text-gray-800 mb-2">Confirm Payment</h1>
+    <p class="text-gray-600 mb-4">Please confirm your payment details below.</p>
+
+    <div class="text-left bg-gray-100 rounded-lg p-4 mb-6">
+      <p><strong>Member:</strong> {{ request.user.get_full_name }}</p>
+      <p><strong>Request ID:</strong> {{ payment.payment_request.id }}</p>
+      <p><strong>Amount:</strong> £ {{ payment.amount|floatformat:2 }}</p>
+      <p><strong>Status:</strong> {{ payment.status|default:"Pending" }}</p>
+    </div>
+
+    <form action="{% url 'payment_success' %}" method="post">
+      {% csrf_token %}
+      <button type="submit"
+        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg shadow-md transition">
+        Pay Now
+      </button>
+    </form>
+
+    <div class="mt-6">
+      <a href="{% url 'dashboard' %}" class="text-blue-600 hover:underline">Cancel and return to Dashboard</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

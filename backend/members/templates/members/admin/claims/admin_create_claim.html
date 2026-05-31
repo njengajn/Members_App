@@ -1,0 +1,393 @@
+{% extends "members/admin/admin_base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container-fluid py-2">
+
+    <div class="row justify-content-center">
+
+        <div class="col-12 col-lg-9 col-xl-7">
+
+            <!-- MAIN CARD -->
+            <div class="card border-0 shadow-sm admin-claim-card">
+
+                <div class="card-body p-3 p-md-4">
+
+                    <!-- HEADER -->
+                    <div class="mb-3">
+
+                        <div class="admin-claim-badge">
+                            Admin Claims
+                        </div>
+
+                        <h3 class="admin-claim-title">
+                            Create Claim
+                        </h3>
+
+                        <p class="admin-claim-subtitle mb-0">
+                            Submit member or dependant claims
+                        </p>
+
+                    </div>
+
+                    <!-- FORM -->
+                    <form method="post"
+                          enctype="multipart/form-data">
+
+                        {% csrf_token %}
+
+                        <!-- ================================= -->
+                        <!-- CLAIM TYPE -->
+                        <!-- ================================= -->
+
+                        <div class="admin-section">
+
+                            <label class="form-label">
+                                Claim Type
+                            </label>
+
+                            <select
+                                name="cause_type"
+                                id="id_cause_type"
+                                class="form-select">
+
+                                <option value="dependant">
+                                    Dependant
+                                </option>
+
+                                <option value="member">
+                                    Member
+                                </option>
+
+                            </select>
+
+                        </div>
+
+                        <!-- ================================= -->
+                        <!-- MEMBER SEARCH -->
+                        <!-- ================================= -->
+
+                        <div id="member-search-wrapper"
+                             class="admin-section"
+                             style="display:none;">
+
+                            <label class="form-label">
+                                Select Member
+                            </label>
+
+                            <p class="small text-muted mb-2">
+                                Search by UID, name or email
+                            </p>
+
+                            <input
+                                type="text"
+                                id="member-search"
+                                class="form-control"
+                                placeholder="Search member..."
+                            >
+
+                            <div id="search-results"
+                                 class="list-group mt-2">
+                            </div>
+
+                        </div>
+
+                        <!-- ================================= -->
+                        <!-- DEPENDANT -->
+                        <!-- ================================= -->
+
+                        <div id="dependant-wrapper"
+                             class="admin-section">
+
+                            <label class="form-label">
+                                Select Dependant
+                            </label>
+
+                            {{ form.causer_dependant }}
+
+                        </div>
+
+                        <!-- ================================= -->
+                        <!-- AFFECTED PERSON -->
+                        <!-- ================================= -->
+
+                        <div class="admin-section">
+
+                            <label class="form-label">
+                                Affected Person
+                            </label>
+
+                            <textarea
+                                id="affected-person"
+                                class="form-control affected-textarea"
+                                readonly>
+                            </textarea>
+
+                        </div>
+
+                        <!-- ================================= -->
+                        <!-- DOCUMENTS -->
+                        <!-- ================================= -->
+
+                        <div class="admin-upload-section">
+
+                            <label class="form-label">
+                                Documents
+                            </label>
+
+                            <!-- DROP ZONE -->
+                            <div id="drop-zone"
+                                 class="admin-drop-zone">
+
+                                <div class="fw-bold text-success mb-1">
+                                    Drag & drop files here
+                                </div>
+
+                                <div class="small text-muted">
+                                    or click below to upload
+                                </div>
+
+                            </div>
+
+                            <!-- FILE INPUT -->
+                            <input
+                                type="file"
+                                id="file-input"
+                                name="documents"
+                                multiple
+                                accept="image/*"
+                                capture="environment"
+                                hidden
+                            >
+
+                            <!-- PREVIEW -->
+                            <div id="file-list"
+                                 class="mt-2">
+                            </div>
+
+                            <!-- BUTTON -->
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary mt-2 upload-btn"
+                                onclick="document.getElementById('file-input').click()">
+
+                                Add Documents
+
+                            </button>
+
+                        </div>
+
+                        <!-- HIDDEN -->
+                        <input
+                            type="hidden"
+                            name="selected_member_id"
+                            id="selected_member_id"
+                        >
+
+                        <!-- SUBMIT -->
+                        <button
+                            type="submit"
+                            class="btn btn-success submit-btn mt-3">
+
+                            Submit Claim
+
+                        </button>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+
+/* ========================================= */
+/* CARD */
+/* ========================================= */
+
+.admin-claim-card {
+    border-radius: 20px;
+    background: linear-gradient(180deg, #edf5f0, #f7fbf8);
+    border: 1px solid #d5e3db;
+}
+
+/* ========================================= */
+/* HEADER */
+/* ========================================= */
+
+.admin-claim-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #198754, #157347);
+    color: white;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin-bottom: 0.45rem;
+}
+
+.admin-claim-title {
+    color: #157347;
+    font-weight: 700;
+    margin-bottom: 0.15rem;
+}
+
+.admin-claim-subtitle {
+    color: #5f6f66;
+    font-size: 0.88rem;
+}
+
+/* ========================================= */
+/* FORM SECTIONS */
+/* ========================================= */
+
+.admin-section {
+    background: rgba(255,255,255,0.92);
+    border: 1px solid #d6e3da;
+    border-radius: 16px;
+    padding: 0.9rem;
+    margin-bottom: 0.9rem;
+}
+
+/* ========================================= */
+/* LABELS */
+/* ========================================= */
+
+.form-label {
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+    color: #2f4f3e;
+}
+
+/* ========================================= */
+/* INPUTS */
+/* ========================================= */
+
+.form-control,
+.form-select,
+select {
+    border-radius: 12px;
+    border: 1px solid #c8d8cf;
+    min-height: 46px;
+    padding: 0.7rem 0.9rem;
+}
+
+/* ========================================= */
+/* TEXTAREA */
+/* ========================================= */
+
+.affected-textarea {
+    min-height: 110px;
+    resize: vertical;
+    background: linear-gradient(180deg, #ffffff, #f9fcfa);
+}
+
+/* ========================================= */
+/* UPLOAD SECTION */
+/* ========================================= */
+
+.admin-upload-section {
+    background: linear-gradient(180deg, #dceee3, #edf7f1);
+    border: 1px solid #c4dacb;
+    border-radius: 16px;
+    padding: 1rem;
+}
+
+/* ========================================= */
+/* DROP ZONE */
+/* ========================================= */
+
+.admin-drop-zone {
+    border: 2px dashed #98bea6;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.9);
+    padding: 1.2rem;
+    text-align: center;
+}
+
+/* ========================================= */
+/* BUTTONS */
+/* ========================================= */
+
+.upload-btn {
+    border-radius: 11px;
+    padding: 0.65rem 1rem;
+}
+
+.submit-btn {
+    width: 100%;
+    border-radius: 12px;
+    padding: 0.85rem;
+    font-weight: 700;
+}
+
+/* ========================================= */
+/* MOBILE */
+/* ========================================= */
+
+@media (max-width: 768px) {
+
+    .admin-section {
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .admin-upload-section {
+        padding: 0.75rem;
+    }
+
+    .admin-drop-zone {
+        padding: 1rem 0.8rem;
+    }
+
+    .submit-btn,
+    .upload-btn {
+        width: 100%;
+    }
+
+    .admin-claim-title {
+        font-size: 1.2rem;
+    }
+}
+
+/* ========================================= */
+/* EXTRA SMALL */
+/* ========================================= */
+
+@media (max-width: 480px) {
+
+    .card-body {
+        padding: 0.8rem !important;
+    }
+
+    .admin-section {
+        padding: 0.65rem;
+    }
+
+    .admin-upload-section {
+        padding: 0.65rem;
+    }
+
+    .admin-drop-zone {
+        padding: 0.9rem 0.7rem;
+    }
+
+    .admin-claim-title {
+        font-size: 1.08rem;
+    }
+}
+
+</style>
+
+<!-- JS -->
+<script src="{% static 'js/claim_form.js' %}"></script>
+<script src="{% static 'js/claim_search.js' %}"></script>
+
+{% endblock %}

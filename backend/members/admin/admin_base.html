@@ -1,0 +1,61 @@
+{% load static %}
+{% extends 'members/base.html' %}
+<link rel="stylesheet" href="{% static 'CSS/styles.css' %}">
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}Members Admin{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { padding-top: 70px; }
+    .table-fixed { table-layout: fixed; word-wrap: break-word; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="{% url 'members_admin:dashboard' %}">Members Admin</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#admnav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="admnav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="{% url 'members_admin:members' %}">Members</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'members_admin:payment_requests' %}">Payment Requests</a></li>
+      </ul>
+      <ul class="navbar-nav">
+        {% if request.user.is_authenticated %}
+          <li class="nav-item"><span class="nav-link">Hello, {{ request.user.username }}</span></li>
+          <form action="{% url 'members_admin:logout' %}" method="post" style="display:inline;">
+              {% csrf_token %}
+              <button class="btn btn-danger btn-sm nav-link border-0 bg-transparent">Logout</button>
+          </form>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags|default:'info' }}" role="alert">{{ message }}</div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
+
+<script>
+function toggleClaim(id) {
+  const el = document.getElementById(`claim-${id}`);
+  el.style.display = el.style.display === "none" ? "block" : "none";
+}
+</script>
+
+</body>
+</html>

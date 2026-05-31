@@ -1,0 +1,64 @@
+{% extends "members/members_base.html" %}
+{% load static %}
+
+{% block title %}
+Register — Step {{ step_num }}
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid register-page">
+
+    <div class="row justify-content-center">
+
+        <div class="col-12 col-md-10 col-lg-7 col-xl-6">
+
+            <div class="card register-card border-0 shadow-lg">
+
+                <!-- HEADER -->
+                <div class="register-header">
+
+                    <div class="step-badge">
+                        Step {{ step_num }} of 5
+                    </div>
+
+                    <h3 class="register-title">
+                        Member Registration
+                    </h3>
+
+                    <p class="register-subtitle mb-0">
+                        Complete your registration details
+                    </p>
+
+                    <!-- PROGRESS -->
+                    <div class="progress register-progress mt-3">
+
+                        <div class="progress-bar register-progress-bar"
+                             style="width: {{ step_num|floatformat:0|add:'0' }}0%">
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- BODY -->
+                <div class="card-body register-body">
+
+                    {% block register_content %}
+                    {% endblock %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- TEMPORARILY DISABLE IF SUBMIT FAILS -->
+<!--<script src="{% static 'js/register.js' %}"></script>-->
+<script src="{% static 'js/scripts.js' %}"></script>
+
+{% endblock %}

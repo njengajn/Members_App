@@ -1,0 +1,1 @@
+from .member_uid import generate_member_uid

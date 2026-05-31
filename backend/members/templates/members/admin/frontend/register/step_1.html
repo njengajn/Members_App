@@ -1,0 +1,24 @@
+{% extends "members/base.html" %}
+{% block title %}Register – Step 1{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width:550px;">
+    <h3>User Account</h3>
+    <hr>
+
+    <form id="registerStep1Form">
+        {% csrf_token %}
+
+        <label>Email</label>
+        <input type="email" name="email" class="form-control" required>
+
+        <label class="mt-3">Password</label>
+        <input type="password" name="password" class="form-control" required>
+
+        <button class="btn btn-success w-100 mt-4">Next</button>
+    </form>
+</div>
+
+<!--<script src="{% static 'js/register.js' %}"></script>-->
+<script src="{% static 'js/scripts.js' %}"></script>
+{% endblock %}

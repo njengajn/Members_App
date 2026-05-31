@@ -1,0 +1,236 @@
+{% extends "members/register/register_base.html" %}
+{% load static %}
+
+{% block register_content %}
+
+<div class="mb-4">
+
+    <h4 class="fw-bold mb-1">
+        Next of Kin Details
+    </h4>
+
+    <p class="text-muted mb-0">
+        Please provide next of kin information
+    </p>
+
+</div>
+
+<form method="post"
+      action="{% url 'members:register_step_3' %}">
+
+    {% csrf_token %}
+
+    <input type="hidden"
+           name="step"
+           value="3">
+
+    <!-- ========================================= -->
+    <!-- PERSONAL DETAILS -->
+    <!-- ========================================= -->
+
+    <div class="register-section mb-4">
+
+        <div class="section-title">
+            Personal Information
+        </div>
+
+        <div class="row g-3">
+
+            <div class="col-12 col-md-4">
+
+                <label class="form-label">
+                    First Name
+                </label>
+
+                <input
+                    name="first_name"
+                    class="form-control"
+                    placeholder="Enter first name"
+                    required
+                >
+
+            </div>
+
+            <div class="col-12 col-md-4">
+
+                <label class="form-label">
+                    Middle Name
+                </label>
+
+                <input
+                    name="middle_name"
+                    class="form-control"
+                    placeholder="Enter middle name"
+                >
+
+            </div>
+
+            <div class="col-12 col-md-4">
+
+                <label class="form-label">
+                    Surname
+                </label>
+
+                <input
+                    name="surname"
+                    class="form-control"
+                    placeholder="Enter surname"
+                    required
+                >
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ========================================= -->
+    <!-- CONTACT DETAILS -->
+    <!-- ========================================= -->
+
+    <div class="register-section mb-4">
+
+        <div class="section-title">
+            Contact Details
+        </div>
+
+        <div class="row g-3">
+
+            <div class="col-12 col-md-6">
+
+                <label class="form-label">
+                    Phone Number
+                </label>
+
+                <input
+                    name="phone"
+                    class="form-control"
+                    placeholder="Enter phone number"
+                >
+
+            </div>
+
+            <div class="col-12 col-md-6">
+
+                <label class="form-label">
+                    Email Address
+                </label>
+
+                <input
+                    type="email"
+                    name="email"
+                    class="form-control"
+                    placeholder="Enter email address"
+                >
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ========================================= -->
+    <!-- RELATIONSHIP -->
+    <!-- ========================================= -->
+
+    <div class="register-section mb-4">
+
+        <div class="section-title">
+            Relationship
+        </div>
+
+        <label class="form-label">
+            Relationship to Member
+        </label>
+
+        <input
+            name="relationship"
+            maxlength="50"
+            class="form-control"
+            placeholder="Example: Brother, Sister, Parent"
+        >
+
+    </div>
+
+    <!-- ========================================= -->
+    <!-- BUTTONS -->
+    <!-- ========================================= -->
+
+    <div class="row g-2">
+
+        <div class="col-12 col-md-6">
+
+            <a href="{% url 'members:register_step_2' %}"
+               class="btn btn-light w-100">
+
+                Back
+
+            </a>
+
+        </div>
+
+        <div class="col-12 col-md-6">
+
+            <button class="btn btn-primary w-100">
+
+                Continue
+
+            </button>
+
+        </div>
+
+    </div>
+
+</form>
+
+<style>
+
+/* ========================================= */
+/* SECTIONS */
+/* ========================================= */
+
+.register-section {
+    background: #f8fafc;
+    border: 1px solid #edf1f5;
+    border-radius: 18px;
+    padding: 1.1rem;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #0d6efd;
+}
+
+/* ========================================= */
+/* MOBILE */
+/* ========================================= */
+
+@media (max-width: 768px) {
+
+    .register-section {
+        padding: 0.9rem;
+        border-radius: 16px;
+    }
+
+    .section-title {
+        font-size: 0.95rem;
+        margin-bottom: 0.85rem;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .register-section {
+        padding: 0.8rem;
+    }
+
+    .section-title {
+        font-size: 0.92rem;
+    }
+}
+
+</style>
+
+{% endblock %}

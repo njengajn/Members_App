@@ -1,0 +1,75 @@
+{% extends "members/admin/admin_base.html" %}
+
+{% block content %}
+
+<h2 class="mb-4">Financial Risk Monitor</h2>
+
+<div class="row">
+
+<div class="col-md-3">
+<div class="card p-3 text-center">
+<h6>Total Funds Collected</h6>
+<h3>£{{ total_funds }}</h3>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="card p-3 text-center">
+<h6>Projected Liabilities</h6>
+<h3>£{{ projected_liabilities }}</h3>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="card p-3 text-center">
+<h6>Future Claim Exposure</h6>
+<h3>£{{ future_claim_exposure }}</h3>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="card p-3 text-center">
+<h6>Payment Default Risk</h6>
+<h3>{{ payment_default_risk }}%</h3>
+</div>
+</div>
+
+</div>
+
+<hr>
+
+<h4>Funds Reserve Ratio</h4>
+
+<div class="progress" style="height:30px">
+
+<div
+class="progress-bar
+{% if reserve_ratio >= 2 %}
+bg-success
+{% elif reserve_ratio >= 1 %}
+bg-warning
+{% else %}
+bg-danger
+{% endif %}"
+
+style="width: {{ reserve_ratio|floatformat:2 }}00%">
+
+{{ reserve_ratio }}x
+
+</div>
+
+</div>
+
+<p class="mt-2">
+
+{% if reserve_ratio >= 2 %}
+Reserve level healthy.
+{% elif reserve_ratio >= 1 %}
+Reserve level moderate.
+{% else %}
+Reserve level critical.
+{% endif %}
+
+</p>
+
+{% endblock %}

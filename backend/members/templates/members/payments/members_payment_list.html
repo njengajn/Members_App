@@ -1,0 +1,267 @@
+{% extends "members/members_base.html" %}
+{% block content %}
+
+<div class="container-fluid payments-page">
+
+    <!-- HEADER -->
+    <div class="payments-header mb-2">
+
+        <h4 class="fw-bold mb-1">
+            Payment Requests
+        </h4>
+
+        <p class="text-muted small mb-0">
+            View and manage your payments
+        </p>
+
+    </div>
+
+    <!-- CARD -->
+    <div class="card border-0 shadow-sm payments-card">
+
+        <div class="card-body p-2">
+
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle mb-0 mobile-table mobile-table-responsive">
+
+                    <thead>
+
+                        <tr>
+                            <th>ID</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                            <th class="text-center">Action</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for req in payment_requests %}
+
+                        <tr>
+
+                            <!-- ID -->
+                            <td data-label="ID">
+
+                                <span class="fw-semibold text-muted">
+                                    #{{ req.id }}
+                                </span>
+
+                            </td>
+
+                            <!-- TYPE -->
+                            <td data-label="Type">
+
+                                <span class="fw-semibold">
+
+                                    {% if req.request_type %}
+                                        {{ req.request_type }}
+                                    {% else %}
+                                        General
+                                    {% endif %}
+
+                                </span>
+
+                            </td>
+
+                            <!-- DESCRIPTION -->
+                            <td data-label="Description">
+
+                                <div class="mobile-description">
+                                    {{ req.description }}
+                                </div>
+
+                            </td>
+
+                            <!-- AMOUNT -->
+                            <td data-label="Amount">
+
+                                <span class="fw-bold text-success">
+                                    £{{ req.amount }}
+                                </span>
+
+                            </td>
+
+                            <!-- DUE DATE -->
+                            <td data-label="Due Date">
+
+                                {% if req.due_date %}
+                                    {{ req.due_date|date:"M d, Y" }}
+                                {% else %}
+                                    —
+                                {% endif %}
+
+                            </td>
+
+                            <!-- STATUS -->
+                            <td data-label="Status">
+
+                                <!-- ============================================= -->
+                                <!-- FULLY PAID -->
+                                <!-- ============================================= -->
+                                {% if req.is_paid %}
+
+                                    <span class="badge bg-success">
+                                        Paid
+                                    </span>
+
+                                <!-- ============================================= -->
+                                <!-- REQUEST AWAITING ADMIN APPROVAL -->
+                                <!-- ============================================= -->
+                                {% elif req.is_request_pending %}
+
+                                    <span class="badge bg-secondary">
+                                        Awaiting Approval
+                                    </span>
+
+                                <!-- ============================================= -->
+                                <!-- MEMBER PAYMENT SUBMITTED -->
+                                <!-- ============================================= -->
+                                {% elif req.is_payment_pending %}
+
+                                    <span class="badge bg-warning text-dark">
+                                        Awaiting Confirmation
+                                    </span>
+
+                                <!-- ============================================= -->
+                                <!-- OVERDUE -->
+                                <!-- ============================================= -->
+                                {% elif req.is_overdue_member %}
+
+                                    <span class="badge bg-danger">
+                                        Overdue
+                                    </span>
+
+                                <!-- ============================================= -->
+                                <!-- PARTIAL COMPLIANCE -->
+                                <!-- ============================================= -->
+                                {% elif req.total_paid > 0 %}
+
+                                    <span class="badge bg-info text-dark">
+                                        In Progress
+                                    </span>
+
+                                <!-- ============================================= -->
+                                <!-- DEFAULT -->
+                                <!-- ============================================= -->
+                                {% else %}
+
+                                    <span class="badge bg-secondary">
+                                        Pending
+                                    </span>
+
+                                {% endif %}
+
+                            </td>
+
+                            <!-- ACTION -->
+                            <td data-label="Action" class="text-center">
+
+                                <!-- ============================================= -->
+                                <!-- FULLY PAID -->
+                                <!-- ============================================= -->
+                                {% if req.is_paid %}
+
+                                    <span class="badge bg-success">
+                                        Already Paid
+                                    </span>
+
+                                <!-- ============================================= -->
+                                <!-- REQUEST NOT YET APPROVED -->
+                                <!-- ============================================= -->
+                                {% elif req.is_request_pending %}
+
+                                    <span class="badge bg-secondary">
+                                        Awaiting Approval
+                                    </span>
+
+                                <!-- ============================================= -->
+                                <!-- MEMBER PAYMENT ALREADY SUBMITTED -->
+                                <!-- ============================================= -->
+                                {% elif req.is_payment_pending %}
+
+                                    <span class="badge bg-warning text-dark">
+                                        Awaiting Confirmation
+                                    </span>
+
+                                <!-- ============================================= -->
+                                <!-- OVERDUE -->
+                                <!-- ============================================= -->
+                                {% elif req.is_overdue_member %}
+
+                                    <span class="badge bg-danger">
+                                        Overdue
+                                    </span>
+
+                                <!-- ============================================= -->
+                                <!-- PAYABLE -->
+                                <!-- ============================================= -->
+                                {% else %}
+
+                                    <a href="{% url 'members:pay_payment_request' req.id %}"
+                                    class="btn mobile-btn-primary btn-sm pay-btn">
+
+                                        Pay Now
+
+                                    </a>
+
+                                    {% if req.is_ending_soon %}
+
+                                        <div class="mt-1">
+
+                                            <span class="badge bg-warning text-dark">
+                                                Closing Soon
+                                            </span>
+
+                                        </div>
+
+        {% endif %}
+
+    {% endif %}
+
+</td>
+
+</tr>
+
+                        {% empty %}
+
+                        <tr>
+
+                            <td colspan="7">
+
+                                <div class="text-center py-4">
+
+                                    <h6 class="text-muted mb-1">
+                                        No payment requests available
+                                    </h6>
+
+                                    <p class="small text-muted mb-0">
+                                        There are currently no payment requests.
+                                    </p>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

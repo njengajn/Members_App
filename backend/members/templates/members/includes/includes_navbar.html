@@ -1,0 +1,122 @@
+{% load static %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="{% url 'members:dashboard' %}">
+      Members Portal
+    </a>
+
+    <button
+      class="navbar-toggler"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#mainnav"
+    >
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="mainnav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        {% if user.is_authenticated %}
+
+        <!-- COMMON LINKS -->
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'members:dashboard' %}">Dashboard</a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'members:dependants' %}"
+            >Dependants</a
+          >
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'members:member_payments' %}"
+            >Payments</a
+          >
+        </li>
+
+        <!-- ✅ FIXED CREATE CLAIM LINK -->
+        <li class="nav-item">
+          <a
+            class="nav-link fw-bold text-warning"
+            href="{% url 'members:create_claim_entry' %}"
+          >
+            Create Claim
+          </a>
+        </li>
+
+        <!-- ADMIN MENU -->
+        {% if user.is_staff %}
+        <li class="nav-item dropdown">
+          <a
+            class="nav-link dropdown-toggle"
+            href="#"
+            id="adminMenu"
+            role="button"
+            data-bs-toggle="dropdown"
+          >
+            Admin
+          </a>
+          <ul class="dropdown-menu">
+            <li>
+              <a
+                class="dropdown-item"
+                href="{% url 'members_admin:dashboard' %}"
+              >
+                Admin Dashboard
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="dropdown-item"
+                href="{% url 'members_admin:admin_members_list' %}"
+              >
+                Manage Members
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="dropdown-item"
+                href="{% url 'members_admin:create_payment_request' %}"
+              >
+                Create Payment Request
+              </a>
+            </li>
+
+            <!-- ✅ DIRECT ADMIN CLAIM LINK -->
+            <li>
+              <a
+                class="dropdown-item"
+                href="{% url 'members_admin:admin_create_claim' %}"
+              >
+                Create Claim (Admin)
+              </a>
+            </li>
+          </ul>
+        </li>
+        {% endif %} {% endif %}
+      </ul>
+
+      <!-- RIGHT SIDE -->
+      <ul class="navbar-nav ms-auto">
+        {% if user.is_authenticated %}
+        <form method="post" action="{% url 'members:logout' %}" class="d-inline">
+  {% csrf_token %}
+  <button class="btn btn-outline-light fw-bold px-3 border-2">
+    Logout
+  </button>
+</form>
+        {% else %}
+        <a class="btn btn-success me-2" href="{% url 'members:login' %}"
+          >Login</a
+        >
+        <a class="btn btn-primary" href="{% url 'members:register_step_1' %}"
+          >Register</a
+        >
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>

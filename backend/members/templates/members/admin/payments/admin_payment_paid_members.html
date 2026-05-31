@@ -1,0 +1,32 @@
+{% extends "members/admin/admin_base.html" %}
+{% block content %}
+<div class="container mt-4">
+<h3>Members Who Paid</h3>
+<table class="table table-bordered">
+<thead>
+    <tr>
+        <th>Member</th>
+        <th>Amount</th>
+        <th>Approved Date</th>
+    </tr>
+</thead>
+<tbody>
+    {% for payment in payments %}
+        <tr>
+            <td>
+            {{ payment.member.first_name }} {{ payment.member.surname }}
+            </td>
+            <td>£{{ payment.amount }}</td>
+            <td>{{ payment.approved_at }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+            <td colspan="3">
+            No payments recorded.
+            </td>
+        </tr>
+    {% endfor %}
+</tbody>
+</table>
+</div>
+{% endblock %}

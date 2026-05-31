@@ -1,0 +1,46 @@
+templates/members/claims/members_claims_list.html
+
+{% extends "members/members_base.html" %}
+{% block content %}
+<div class="container mt-4">
+<h3>Your Claims</h3>
+<table class="table table-bordered">
+<thead>
+<tr>
+<th>ID</th>
+<th>Type</th>
+<th>Status</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+{% for claim in claims %}
+<tr>
+<td>{{ claim.id }}</td>
+
+<td>
+{% if claim.causer_dependant %}
+Dependant
+{% else %}
+Member
+{% endif %}
+</td>
+<td>
+<span class="badge bg-info">
+{{ claim.status }}
+</span>
+</td>
+<td>{{ claim.created_at|date:"Y-m-d" }}</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="4">
+No claims submitted.
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% endblock %}
+

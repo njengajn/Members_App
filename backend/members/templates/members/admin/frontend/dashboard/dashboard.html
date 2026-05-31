@@ -1,0 +1,33 @@
+{% extends "members/base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Dashboard</h2>
+    <hr>
+
+    <div class="row">
+
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h5>Dependants</h5>
+                    <p>{{ dependants_count }}</p>
+                    <a href="{% url 'members:dependants' %}" class="btn btn-sm btn-primary">Manage</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h5>Payment Requests</h5>
+                    <p>{{ payments_count }}</p>
+                    <a href="{% url 'members:payment_requests' %}" class="btn btn-sm btn-primary">View</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

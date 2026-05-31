@@ -1,0 +1,387 @@
+/* ============================
+   Global Reset & Typography
+   ============================ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Inter", "Segoe UI", Roboto, sans-serif;
+  background-color: #8309a8;
+  color: #333;
+  line-height: 1.6;
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #f8f9fa, #eef2f7);
+}
+
+a {
+  text-decoration: none;
+  color: #4f46e5;
+}
+
+a:hover {
+  color: #312e81;
+}
+
+/* ============================
+   Navbar
+   ============================ */
+nav {
+  background: #0706062d;
+  color: #fff;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+nav .logo {
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: #fff;
+}
+
+nav .nav-links a {
+  color: #e0e7ff;
+  margin-left: 1.2rem;
+  transition: color 0.2s ease;
+}
+
+nav .nav-links a:hover {
+  color: #fff;
+}
+
+/* ============================
+   Containers
+   ============================ */
+.container {
+  width: 90%;
+  max-width: 1100px;
+  margin: 2rem auto;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+.card h3 {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  color: #1e1b4b;
+}
+
+/* ============================
+   Tables
+   ============================ */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+table th,
+table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+table th {
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 600;
+}
+
+table tr:hover {
+  background: #f9fafb;
+}
+
+table td:last-child {
+  text-align: center;
+}
+
+/* ============================
+   Buttons
+   ============================ */
+.btn {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.btn-primary {
+  background: #4338ca;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #3730a3;
+}
+
+.btn-success {
+  background: #22c55e;
+  color: #fff;
+}
+
+.btn-success:hover {
+  background: #16a34a;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.3rem 0.6rem;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge-success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* ============================
+   Forms
+   ============================ */
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  margin-bottom: 1rem;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #4338ca;
+  outline: none;
+}
+
+/* ============================
+   Dashboard Layout
+   ============================ */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.stat-card {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.stat-card h2 {
+  font-size: 2rem;
+  color: #4338ca;
+}
+
+.stat-card p {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+/* ============================
+   Alerts
+   ============================ */
+.alert {
+  padding: 0.9rem 1.2rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.alert-info {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.alert-success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.alert-error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ============================
+   Responsive Utilities
+   ============================ */
+@media (max-width: 768px) {
+  nav {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  nav .nav-links {
+    margin-top: 0.5rem;
+  }
+
+  .container {
+    width: 95%;
+  }
+}
+
+/* Centering utility for forms and cards */
+.min-h-screen {
+  min-height: 100vh;
+}
+
+
+/* ============================
+   Footer
+   ============================ */
+footer {
+  text-align: center;
+  padding: 1rem 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+  /* margin-top: 2rem; */
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: #f8f8f8;
+  text-align: center;
+  padding: 10px 0;
+  border-top: 1px solid #ddd;
+  z-index: 100;
+}
+
+body {
+  background-color: #f8f9fa;
+}
+
+.btn-primary, .btn-success, .btn-danger {
+  border-radius: 0.5rem;
+}
+
+form {
+  margin-top: 20px;
+}
+
+input, select, textarea {
+  margin-bottom: 10px;
+}
+
+.navbar, footer {
+  background-color: black !important;
+}
+
+.btn-success { background-color: green !important; border: none; }
+.btn-danger { background-color: red !important; border: none; }
+
+.claim-body {
+  display: none;
+}
+
+.claim-row:not(.collapsed) .claim-body {
+  display: block;
+}
+
+.claim-tracker{
+display:flex;
+gap:10px;
+}
+
+.claim-tracker .step{
+padding:6px 12px;
+border-radius:6px;
+background:#e0e0e0;
+font-size:12px;
+}
+
+.claim-tracker .completed{
+background:#28a745;
+color:white;
+}
+
+.claim-tracker .active{
+background:#007bff;
+color:white;
+}
+
+.claim-tracker .rejected{
+background:#dc3545;
+color:white;
+}
+
+
+/* =========================================
+   IMPROVED SWITCH VISIBILITY
+   ========================================= */
+
+/* OFF state (unchecked) */
+.form-check-input.custom-switch {
+    background-color: #e7f1ff;   /* light blue instead of white */
+    border: 2px solid #0d6efd;   /* strong blue border */
+}
+
+/* ON state (checked) */
+.form-check-input.custom-switch:checked {
+    background-color: #0d6efd;   /* Bootstrap primary */
+    border-color: #0d6efd;
+}
+
+/* focus state */
+.form-check-input.custom-switch:focus {
+    box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
+}
+
+.avatar-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #0d6efd;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  overflow: hidden;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+

@@ -1,0 +1,48 @@
+{% extends "members/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4">Register as a Member</h2>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white">Account Information</div>
+      <div class="card-body">
+        {{ user_form.as_p }}
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-success text-white">Member Details</div>
+      <div class="card-body">
+        {{ member_form.as_p }}
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-info text-white">Dependants</div>
+      <div class="card-body">
+        {{ dependant_formset.management_form }}
+        {% for form in dependant_formset %}
+          <div class="border p-3 mb-2">{{ form.as_p }}</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-warning text-dark">Next of Kin</div>
+      <div class="card-body">
+        {{ nextofkin_formset.management_form }}
+        {% for form in nextofkin_formset %}
+          <div class="border p-3 mb-2">{{ form.as_p }}</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Submit Registration</button>
+  </form>
+</div>
+{% endblock %}

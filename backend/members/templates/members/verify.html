@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-5">
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            <h2 class="mb-4">
+                Membership Verification
+            </h2>
+
+            <p>
+                <strong>Name:</strong>
+                {{ member.user.get_full_name }}
+            </p>
+
+            <p>
+                <strong>Member UID:</strong>
+                {{ member.member_uid }}
+            </p>
+
+            <p>
+                <strong>Status:</strong>
+                {{ member.status }}
+            </p>
+
+            {% if verification_status == "valid" %}
+
+                <div class="alert alert-success">
+
+                    ✔ Active Member
+
+                </div>
+
+            {% elif verification_status == "retired" %}
+
+                <div class="alert alert-danger">
+
+                    ✖ Membership Retired
+
+                </div>
+
+                {% if member.retired_reason %}
+
+                    <p>
+                        <strong>Reason:</strong>
+                        {{ member.retired_reason|default:member.retirement_reason }}
+                    </p>
+
+                {% endif %}
+
+            {% else %}
+
+                <div class="alert alert-warning">
+
+                    Invalid Membership
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

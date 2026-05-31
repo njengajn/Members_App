@@ -1,0 +1,22 @@
+{% extends "members/admin/admin_base.html" %} {% block content %}
+<h3>Payment Summary</h3>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Request</th>
+      <th>Paid</th>
+      <th>Pending</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for row in data %}
+    <tr>
+      <td>{{ row.request.title }}</td>
+      <td>{{ row.paid }}</td>
+      <td>{{ row.pending }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

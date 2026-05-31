@@ -1,0 +1,41 @@
+{% extends "members/admin/admin_base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+
+  <div class="card shadow-sm p-4">
+
+    <h4>Close Payment Request</h4>
+
+    <p>
+      You are about to close:
+      <strong>{{ payment_request.title }}</strong>
+    </p>
+
+    <div class="alert alert-warning">
+      ⚠ This action will:
+      <ul class="mb-0">
+        <li>Stop further payments</li>
+        <li>Enable reconciliation</li>
+        <li>Potentially trigger member retirement (if applicable)</li>
+      </ul>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <button class="btn btn-danger">
+        Yes, Close Request
+      </button>
+
+      <a href="{% url 'members_admin:admin_payment_detail' payment_request.id %}"
+         class="btn btn-secondary">
+         Cancel
+      </a>
+    </form>
+
+  </div>
+
+</div>
+
+{% endblock %}

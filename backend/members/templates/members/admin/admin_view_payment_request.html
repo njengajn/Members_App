@@ -1,0 +1,15 @@
+{% extends "members/admin/admin_base.html" %} {% block title %}Payment
+Requests{% endblock %} {% block content %}
+<h2>Payment Request #{{ payment.id }}</h2>
+<hr />
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <p><strong>Member:</strong> {{ payment.member }}</p>
+    <p><strong>Amount:</strong> ${{ payment.amount }}</p>
+    <p><strong>Status:</strong> {{ payment.status }}</p>
+    <p><strong>Notes:</strong> {{ payment.notes }}</p>
+  </div>
+</div>
+
+{% endblock %}

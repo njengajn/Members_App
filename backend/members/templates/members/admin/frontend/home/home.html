@@ -1,0 +1,16 @@
+{% extends "members/base.html" %}
+{% block title %}Welcome{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="text-center">
+        <h1>Welcome to the Members Portal</h1>
+        <p class="lead mt-3">Manage your membership, dependants and payments.</p>
+
+        <div class="mt-4">
+            <a href="{% url 'members:login' %}" class="btn btn-primary btn-lg">Login</a>
+            <a href="{% url 'members:register_step_1' %}" class="btn btn-success btn-lg">Register</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

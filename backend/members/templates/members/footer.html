@@ -1,0 +1,81 @@
+{% load static %}
+
+<footer class="footer-section mt-auto">
+
+    <div class="container">
+
+        <div class="row text-center align-items-center gy-4">
+
+            <!-- ===================================== -->
+            <!-- LEFT: COPYRIGHT -->
+            <!-- ===================================== -->
+
+            <div class="col-12 col-md-4 footer-block">
+
+                <div class="footer-title">
+                    &copy; {% now "Y" %} Members Portal
+                </div>
+
+                <div class="footer-text">
+                    All rights reserved.
+                </div>
+
+            </div>
+
+
+            <!-- ===================================== -->
+            <!-- CENTER: COMMUNITY / KRO -->
+            <!-- ===================================== -->
+
+            <div class="col-12 col-md-4 footer-block">
+
+                <img
+                    src="{% static 'images/kro_logo_web.jpg' %}"
+                    alt="KRO"
+                    class="footer-logo kro-logo"
+                    style="height: 28px"
+                >
+
+                <div class="footer-title mt-2">
+                    Building a stronger community together
+                </div>
+
+                <div class="footer-text">
+                    All are welcome
+                </div>
+
+            </div>
+
+
+            <!-- ===================================== -->
+            <!-- RIGHT: POWERED BY -->
+            <!-- ===================================== -->
+
+            <div class="col-12 col-md-4 footer-block">
+
+                <div class="footer-text mb-2">
+                    Powered by
+                </div>
+
+                <img
+                    src="{% static 'images/shinytechLogo.jpg' %}"
+                    alt="ShinyTech"
+                    class="footer-logo shiny-logo"
+                    style="height: 28px"
+                >
+
+                <div class="footer-title mt-2">
+                    ShinyTech
+                </div>
+
+                <div class="footer-text">
+                    Where Clarity meets Logic
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</footer>

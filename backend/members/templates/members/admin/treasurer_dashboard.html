@@ -1,0 +1,78 @@
+templates/members/admin/treasurer_dashboard.html
+
+{% extends "members/admin/admin_base.html" %}
+
+{% block content %}
+
+<h2 class="mb-4">Treasurer Control Panel</h2>
+
+<div class="row">
+
+<div class="col-md-3">
+
+<div class="card p-3 text-center">
+
+<h6>Total Funds Collected</h6>
+
+<h3>£{{ total_collected }}</h3>
+
+</div>
+
+</div>
+
+
+<div class="col-md-3">
+
+<div class="card p-3 text-center">
+
+<h6>Claims Paid This Month</h6>
+
+<h3>£{{ claims_paid }}</h3>
+
+</div>
+
+</div>
+
+
+<div class="col-md-3">
+
+<div class="card p-3 text-center">
+
+<h6>Outstanding Liabilities</h6>
+
+<h3>£{{ outstanding_claims }}</h3>
+
+</div>
+
+</div>
+
+
+<div class="col-md-3">
+
+<div class="card p-3 text-center">
+
+<h6>Payment Compliance</h6>
+
+<h3>{{ compliance }}%</h3>
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="progress mt-4" style="height:30px;">
+
+<div
+class="progress-bar bg-success"
+style="width: {{ compliance }}%;"
+>
+
+{{ compliance }}%
+
+</div>
+
+</div>
+
+{% endblock %}

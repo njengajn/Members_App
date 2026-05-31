@@ -1,0 +1,501 @@
+<!-- ===================================================== -->
+<!-- MOBILE HYBRID FILE UPLOAD COMPONENT -->
+<!-- ===================================================== -->
+<!--
+USAGE:
+
+{% include "includes/mobile_file_upload.html" with
+    input_name="file"
+    input_id="documentFile"
+    preview_id="documentPreview"
+%}
+
+======================================================== -->
+
+<style>
+
+/* ===================================================== */
+/* MOBILE HYBRID UPLOADER */
+/* ===================================================== */
+
+.mobile-upload-wrapper {
+    width: 100%;
+}
+
+/* ===================================================== */
+/* DROP ZONE */
+/* ===================================================== */
+
+.mobile-upload-zone {
+
+    border: 2px dashed #cbd5e1;
+
+    background: #f8fafc;
+
+    border-radius: 14px;
+
+    padding: 22px;
+
+    text-align: center;
+
+    transition: all 0.25s ease;
+
+    cursor: pointer;
+
+    position: relative;
+
+    overflow: hidden;
+}
+
+.mobile-upload-zone:hover {
+
+    background: #f1f5f9;
+
+    border-color: #3b82f6;
+}
+
+.mobile-upload-zone.dragover {
+
+    border-color: #2563eb;
+
+    background: #dbeafe;
+}
+
+/* ===================================================== */
+/* ICON */
+/* ===================================================== */
+
+.mobile-upload-icon {
+
+    font-size: 42px;
+
+    margin-bottom: 10px;
+}
+
+/* ===================================================== */
+/* TEXT */
+/* ===================================================== */
+
+.mobile-upload-title {
+
+    font-size: 16px;
+
+    font-weight: 700;
+
+    color: #0f172a;
+
+    margin-bottom: 6px;
+}
+
+.mobile-upload-subtitle {
+
+    color: #64748b;
+
+    font-size: 13px;
+}
+
+/* ===================================================== */
+/* ACTION BUTTONS */
+/* ===================================================== */
+
+.mobile-upload-actions {
+
+    display: flex;
+
+    gap: 10px;
+
+    justify-content: center;
+
+    flex-wrap: wrap;
+
+    margin-top: 16px;
+}
+
+.mobile-upload-btn {
+
+    border: none;
+
+    border-radius: 10px;
+
+    padding: 10px 16px;
+
+    font-size: 14px;
+
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition: all 0.2s ease;
+}
+
+.mobile-upload-btn.camera {
+
+    background: #2563eb;
+
+    color: white;
+}
+
+.mobile-upload-btn.gallery {
+
+    background: #e2e8f0;
+
+    color: #0f172a;
+}
+
+.mobile-upload-btn:hover {
+
+    transform: translateY(-1px);
+}
+
+/* ===================================================== */
+/* PREVIEW */
+/* ===================================================== */
+
+.mobile-upload-preview {
+
+    margin-top: 18px;
+
+    display: flex;
+
+    justify-content: center;
+}
+
+.mobile-upload-preview img {
+
+    max-width: 100%;
+
+    max-height: 260px;
+
+    border-radius: 12px;
+
+    object-fit: contain;
+
+    border: 1px solid #e2e8f0;
+
+    background: white;
+
+    padding: 6px;
+}
+
+/* ===================================================== */
+/* FILE CARD */
+/* ===================================================== */
+
+.mobile-file-card {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 12px;
+
+    background: #f8fafc;
+
+    border: 1px solid #e2e8f0;
+
+    border-radius: 10px;
+
+    width: 100%;
+}
+
+.mobile-file-icon {
+
+    font-size: 28px;
+}
+
+.mobile-file-name {
+
+    font-size: 14px;
+
+    font-weight: 600;
+
+    color: #0f172a;
+
+    word-break: break-word;
+}
+
+/* ===================================================== */
+/* MOBILE OPTIMIZATION */
+/* ===================================================== */
+
+@media (max-width: 768px) {
+
+    .mobile-upload-zone {
+
+        padding: 18px;
+    }
+
+    .mobile-upload-title {
+
+        font-size: 15px;
+    }
+
+    .mobile-upload-actions {
+
+        flex-direction: column;
+    }
+
+    .mobile-upload-btn {
+
+        width: 100%;
+    }
+}
+
+</style>
+
+<!-- ===================================================== -->
+<!-- COMPONENT -->
+<!-- ===================================================== -->
+
+<div class="mobile-upload-wrapper">
+
+    <!-- DROP ZONE -->
+    <div class="mobile-upload-zone"
+         id="{{ input_id }}_zone">
+
+        <!-- ICON -->
+        <div class="mobile-upload-icon">
+            📄
+        </div>
+
+        <!-- TITLE -->
+        <div class="mobile-upload-title">
+
+            Upload Document
+
+        </div>
+
+        <!-- SUBTITLE -->
+        <div class="mobile-upload-subtitle">
+
+            Drag & drop, browse files,
+            or take a photo using your phone camera
+
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="mobile-upload-actions">
+
+            <!-- CAMERA -->
+            <button type="button"
+                    class="mobile-upload-btn camera"
+                    onclick="openCamera_{{ input_id }}()">
+
+                📷 Take Photo
+
+            </button>
+
+            <!-- FILE PICKER -->
+            <button type="button"
+                    class="mobile-upload-btn gallery"
+                    onclick="openGallery_{{ input_id }}()">
+
+                📁 Choose File
+
+            </button>
+
+        </div>
+
+        <!-- MAIN FILE INPUT -->
+        <input type="file"
+               id="{{ input_id }}"
+               name="{{ input_name }}"
+               hidden>
+
+        <!-- CAMERA INPUT -->
+        <!-- IMPORTANT:
+             capture="environment"
+             opens rear camera on mobile
+        -->
+        <input type="file"
+               id="{{ input_id }}_camera"
+               accept="image/*"
+               capture="environment"
+               hidden>
+
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="mobile-upload-preview"
+         id="{{ preview_id }}">
+
+    </div>
+
+</div>
+
+<!-- ===================================================== -->
+<!-- JAVASCRIPT -->
+<!-- ===================================================== -->
+
+<script>
+
+/* ===================================================== */
+/* MAIN INPUTS */
+/* ===================================================== */
+
+const fileInput_{{ input_id }} =
+    document.getElementById("{{ input_id }}");
+
+const cameraInput_{{ input_id }} =
+    document.getElementById("{{ input_id }}_camera");
+
+const preview_{{ input_id }} =
+    document.getElementById("{{ preview_id }}");
+
+const zone_{{ input_id }} =
+    document.getElementById("{{ input_id }}_zone");
+
+/* ===================================================== */
+/* OPEN FILE PICKER */
+/* ===================================================== */
+
+function openGallery_{{ input_id }}() {
+
+    fileInput_{{ input_id }}.click();
+}
+
+/* ===================================================== */
+/* OPEN CAMERA */
+/* ===================================================== */
+
+function openCamera_{{ input_id }}() {
+
+    cameraInput_{{ input_id }}.click();
+}
+
+/* ===================================================== */
+/* HANDLE NORMAL FILE */
+/* ===================================================== */
+
+fileInput_{{ input_id }}.addEventListener(
+    "change",
+    function() {
+
+        if (this.files.length > 0) {
+
+            renderPreview_{{ input_id }}(
+                this.files[0]
+            );
+        }
+    }
+);
+
+/* ===================================================== */
+/* HANDLE CAMERA FILE */
+/* ===================================================== */
+
+cameraInput_{{ input_id }}.addEventListener(
+    "change",
+    function() {
+
+        if (this.files.length > 0) {
+
+            // COPY CAMERA FILE INTO MAIN INPUT
+            const dt = new DataTransfer();
+
+            dt.items.add(this.files[0]);
+
+            fileInput_{{ input_id }}.files =
+                dt.files;
+
+            renderPreview_{{ input_id }}(
+                this.files[0]
+            );
+        }
+    }
+);
+
+/* ===================================================== */
+/* PREVIEW */
+/* ===================================================== */
+
+function renderPreview_{{ input_id }}(file) {
+
+    preview_{{ input_id }}.innerHTML = "";
+
+    // IMAGE
+    if (file.type.startsWith("image/")) {
+
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+
+            preview_{{ input_id }}.innerHTML = `
+                <img src="${e.target.result}">
+            `;
+        };
+
+        reader.readAsDataURL(file);
+    }
+
+    // OTHER FILES
+    else {
+
+        preview_{{ input_id }}.innerHTML = `
+            <div class="mobile-file-card">
+
+                <div class="mobile-file-icon">
+
+                    📄
+
+                </div>
+
+                <div class="mobile-file-name">
+
+                    ${file.name}
+
+                </div>
+
+            </div>
+        `;
+    }
+}
+
+/* ===================================================== */
+/* DRAG & DROP */
+/* ===================================================== */
+
+zone_{{ input_id }}.addEventListener(
+    "dragover",
+    function(e) {
+
+        e.preventDefault();
+
+        zone_{{ input_id }}
+            .classList.add("dragover");
+    }
+);
+
+zone_{{ input_id }}.addEventListener(
+    "dragleave",
+    function() {
+
+        zone_{{ input_id }}
+            .classList.remove("dragover");
+    }
+);
+
+zone_{{ input_id }}.addEventListener(
+    "drop",
+    function(e) {
+
+        e.preventDefault();
+
+        zone_{{ input_id }}
+            .classList.remove("dragover");
+
+        if (e.dataTransfer.files.length > 0) {
+
+            fileInput_{{ input_id }}.files =
+                e.dataTransfer.files;
+
+            renderPreview_{{ input_id }}(
+                e.dataTransfer.files[0]
+            );
+        }
+    }
+);
+
+</script>

@@ -1,0 +1,123 @@
+{% extends "members/admin/admin_base.html" %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+
+        <h3 class="mb-0">
+            Membership History
+        </h3>
+
+        <a href="{% url 'members_admin:admin_members_list' %}"
+           class="btn btn-secondary">
+
+            Back to Members
+
+        </a>
+
+    </div>
+
+    <div class="card shadow-sm">
+
+        <div class="card-body p-0">
+
+            <div class="table-responsive">
+
+                <table class="table table-striped align-middle mb-0">
+
+                    <thead class="table-dark">
+
+                        <tr>
+                            <th>UID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Action</th>
+                            <th>Reason</th>
+                            <th>Performed By</th>
+                            <th>Date</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for r in records %}
+
+                        <tr>
+
+                            <td>
+                                {{ r.member.member_uid }}
+                            </td>
+
+                            <td>
+                                {{ r.member.full_name }}
+                            </td>
+
+                            <td>
+                                {{ r.member.email }}
+                            </td>
+
+                            <td>
+
+                                {% if r.action == "retired" %}
+                                    <span class="badge bg-danger">
+                                        Retired
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-success">
+                                        Reactivated
+                                    </span>
+                                {% endif %}
+
+                            </td>
+
+                            <td>
+                                {{ r.reason|default:"-" }}
+                            </td>
+
+                            <td>
+
+                                {% if r.performed_by %}
+                                    {{ r.performed_by }}
+                                {% else %}
+                                    System
+                                {% endif %}
+
+                            </td>
+
+                            <td>
+                                {{ r.created_at|date:"d M Y H:i" }}
+                            </td>
+
+                        </tr>
+
+                        {% empty %}
+
+                        <tr>
+
+                            <td colspan="7"
+                                class="text-center text-muted py-4">
+
+                                No membership history found.
+
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

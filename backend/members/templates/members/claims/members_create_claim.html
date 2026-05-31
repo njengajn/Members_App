@@ -1,0 +1,485 @@
+{% extends "members/members_base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container-fluid claim-page">
+
+    <div class="row justify-content-center">
+
+        <div class="col-12 col-lg-9 col-xl-8">
+
+            <div class="card shadow-sm border-0 rounded-4 claim-card">
+
+                <div class="card-body p-3 p-md-4">
+
+                    <!-- HEADER -->
+                    <div class="mb-4">
+
+                        <div class="claim-badge mb-2">
+                            Claims Portal
+                        </div>
+
+                        <h3 class="fw-bold mb-1">
+                            Create Claim
+                        </h3>
+
+                        <p class="text-muted mb-0">
+                            Submit dependant claim documents and details
+                        </p>
+
+                    </div>
+
+                    <form method="post"
+                          enctype="multipart/form-data">
+
+                        {% csrf_token %}
+
+                        <!-- ========================================= -->
+                        <!-- CLAIM TYPE -->
+                        <!-- ========================================= -->
+
+                        <div class="mb-3">
+
+                            <label class="form-label fw-semibold">
+                                Claim Type
+                            </label>
+
+                            <input type="text"
+                                   value="Dependant"
+                                   class="form-control"
+                                   readonly>
+
+                        </div>
+
+                        <!-- ========================================= -->
+                        <!-- DEPENDANT -->
+                        <!-- ========================================= -->
+
+                        <div class="mb-3">
+
+                            <label class="form-label fw-semibold">
+                                Select Dependant
+                            </label>
+
+                            <div class="claim-select-wrapper">
+                                {{ form.causer_dependant }}
+                            </div>
+
+                        </div>
+
+                        <!-- ========================================= -->
+                        <!-- AFFECTED -->
+                        <!-- ========================================= -->
+
+                        <div class="mb-4">
+
+                            <label class="form-label fw-semibold">
+                                Affected Person
+                            </label>
+
+                            <textarea id="affected-person"
+                                      class="form-control"
+                                      rows="3"
+                                      readonly></textarea>
+
+                        </div>
+
+                        <!-- ========================================= -->
+                        <!-- DOCUMENTS -->
+                        <!-- ========================================= -->
+
+                        <div class="upload-section mb-4">
+
+                            <label class="form-label fw-semibold">
+                                Documents
+                            </label>
+
+                            <div id="drop-zone"
+                                 class="drop-zone">
+
+                                <div class="drop-zone-title">
+                                    Drag & drop files here
+                                </div>
+
+                                <div class="drop-zone-subtitle">
+                                    or click the button below
+                                </div>
+
+                            </div>
+
+                            <input type="file"
+                                   id="file-input"
+                                   name="documents"
+                                   multiple
+                                   accept="image/*"
+                                   capture="environment"
+                                   hidden>
+
+                            <div id="file-list"
+                                 class="mt-3">
+                            </div>
+
+                            <button type="button"
+                                    class="btn btn-outline-secondary mt-3 upload-btn"
+                                    onclick="document.getElementById('file-input').click()">
+
+                                Add Documents
+
+                            </button>
+
+                        </div>
+
+                        <!-- ========================================= -->
+                        <!-- SUBMIT -->
+                        <!-- ========================================= -->
+
+                        <button class="btn btn-success submit-btn">
+
+                            Submit Claim
+
+                        </button>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script src="{% static 'js/claim_search.js' %}"></script>
+
+<style>
+/* ========================================= */
+/* PAGE */
+/* ========================================= */
+
+.claim-page {
+    padding-top: 0.15rem;
+    padding-bottom: 0.5rem;
+    background: linear-gradient(180deg, #e9f2ec, #f4f8f5);
+}
+
+/* ========================================= */
+/* MAIN CARD */
+/* ========================================= */
+
+.claim-card {
+    overflow: hidden;
+    border-radius: 18px !important;
+    background: linear-gradient(180deg, #dcebe2, #edf5f0);
+    border: 1px solid #c5d9cd !important;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.05);
+}
+
+/* ========================================= */
+/* CARD BODY */
+/* ========================================= */
+
+.card-body {
+    padding: 0.9rem !important;
+    background: linear-gradient(180deg, #dfeee5, #eef6f1);
+}
+
+/* ========================================= */
+/* HEADER */
+/* ========================================= */
+
+.claim-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #198754, #157347);
+    color: white;
+    padding: 0.3rem 0.72rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+h3 {
+    margin-bottom: 0.15rem !important;
+    color: #146c43;
+    font-size: 1.28rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.text-muted {
+    font-size: 0.84rem;
+    margin-bottom: 0 !important;
+    line-height: 1.35;
+    color: #52635a !important;
+}
+
+/* ========================================= */
+/* FORM SPACING */
+/* ========================================= */
+
+.mb-3 {
+    margin-bottom: 0.65rem !important;
+}
+
+.mb-4 {
+    margin-bottom: 0.9rem !important;
+}
+
+/* ========================================= */
+/* FORM BLOCKS */
+/* ========================================= */
+
+.claim-form-block {
+    background: linear-gradient(180deg, #ffffff, #f8fbf9);
+    border: 1px solid #d1e0d7;
+    border-radius: 14px;
+    padding: 0.75rem;
+    margin-bottom: 0.7rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+}
+
+/* ========================================= */
+/* LABELS */
+/* ========================================= */
+
+.form-label {
+    font-weight: 600;
+    margin-bottom: 0.28rem;
+    color: #2f4f3e;
+    font-size: 0.88rem;
+}
+
+/* ========================================= */
+/* INPUTS & TEXTAREAS */
+/* ========================================= */
+
+.form-control,
+.claim-select-wrapper select,
+textarea.form-control {
+    width: 100%;
+    min-height: 42px;
+    padding: 0.68rem 0.85rem;
+    border-radius: 11px;
+    border: 1px solid #bdd0c4;
+    background: #ffffff;
+    transition: all 0.2s ease;
+    color: #24352c;
+}
+
+/* ========================================= */
+/* TEXTAREA SPECIFIC */
+/* ========================================= */
+
+textarea.form-control {
+    min-height: 95px;
+    resize: vertical;
+    background: linear-gradient(180deg, #ffffff, #f9fcfa);
+    border: 1px solid #b7ccbf;
+}
+
+/* ========================================= */
+/* INPUT FOCUS */
+/* ========================================= */
+
+.form-control:focus,
+.claim-select-wrapper select:focus,
+textarea.form-control:focus {
+    border-color: #198754;
+    background: #ffffff;
+    box-shadow: 0 0 0 0.14rem rgba(25,135,84,0.14);
+}
+
+/* ========================================= */
+/* SELECT */
+/* ========================================= */
+
+.claim-select-wrapper select {
+    appearance: none;
+    background-image:
+        linear-gradient(45deg, transparent 50%, #198754 50%),
+        linear-gradient(135deg, #198754 50%, transparent 50%);
+    background-position:
+        calc(100% - 18px) calc(50% - 3px),
+        calc(100% - 12px) calc(50% - 3px);
+    background-size: 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 2rem;
+}
+
+/* ========================================= */
+/* UPLOAD SECTION */
+/* ========================================= */
+
+.upload-section {
+    background: linear-gradient(180deg, #d2e7d9, #e7f2eb);
+    border: 1px solid #bdd4c4;
+    border-radius: 16px;
+    padding: 0.8rem;
+}
+
+/* ========================================= */
+/* DROP ZONE */
+/* ========================================= */
+
+.drop-zone {
+    border: 2px dashed #8fb59c;
+    border-radius: 13px;
+    background: linear-gradient(180deg, #ffffff, #eef8f2);
+    padding: 1rem 0.8rem;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.drop-zone:hover {
+    border-color: #198754;
+    background: #f5fbf7;
+}
+
+.drop-zone-title {
+    font-weight: 700;
+    color: #198754;
+    margin-bottom: 0.15rem;
+    font-size: 0.92rem;
+}
+
+.drop-zone-subtitle {
+    color: #5f7067;
+    font-size: 0.78rem;
+}
+
+/* ========================================= */
+/* FILE LIST */
+/* ========================================= */
+
+#file-list {
+    margin-top: 0.6rem !important;
+}
+
+/* ========================================= */
+/* BUTTONS */
+/* ========================================= */
+
+.upload-btn {
+    border-radius: 11px;
+    padding: 0.65rem 0.95rem;
+    font-weight: 600;
+    font-size: 0.88rem;
+}
+
+.submit-btn {
+    width: 100%;
+    border-radius: 11px;
+    padding: 0.78rem;
+    font-weight: 700;
+    font-size: 0.94rem;
+    background: linear-gradient(135deg, #198754, #157347);
+    border: none;
+}
+
+/* ========================================= */
+/* MOBILE */
+/* ========================================= */
+
+@media (max-width: 768px) {
+
+    .claim-page {
+        padding-left: 0.3rem;
+        padding-right: 0.3rem;
+        padding-top: 0.08rem;
+    }
+
+    .card-body {
+        padding: 0.75rem !important;
+    }
+
+    h3 {
+        font-size: 1.16rem;
+    }
+
+    .text-muted {
+        font-size: 0.8rem;
+    }
+
+    .claim-form-block {
+        padding: 0.65rem;
+        border-radius: 12px;
+    }
+
+    .upload-section {
+        padding: 0.7rem;
+        border-radius: 14px;
+    }
+
+    .drop-zone {
+        padding: 0.85rem 0.65rem;
+    }
+
+    .upload-btn,
+    .submit-btn {
+        width: 100%;
+    }
+
+    .form-control,
+    .claim-select-wrapper select,
+    textarea.form-control {
+        font-size: 0.9rem;
+    }
+}
+
+/* ========================================= */
+/* EXTRA SMALL DEVICES */
+/* ========================================= */
+
+@media (max-width: 480px) {
+
+    .claim-page {
+        padding-left: 0.15rem;
+        padding-right: 0.15rem;
+    }
+
+    .card-body {
+        padding: 0.65rem !important;
+    }
+
+    h3 {
+        font-size: 1.05rem;
+    }
+
+    .mb-3 {
+        margin-bottom: 0.55rem !important;
+    }
+
+    .mb-4 {
+        margin-bottom: 0.7rem !important;
+    }
+
+    .claim-form-block {
+        padding: 0.58rem;
+    }
+
+    .upload-section {
+        padding: 0.58rem;
+    }
+
+    .drop-zone {
+        padding: 0.72rem 0.55rem;
+    }
+
+    .drop-zone-title {
+        font-size: 0.86rem;
+    }
+
+    .drop-zone-subtitle {
+        font-size: 0.74rem;
+    }
+
+    .claim-badge {
+        font-size: 0.66rem;
+    }
+}
+</style>
+
+{% endblock %}

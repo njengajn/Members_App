@@ -1,0 +1,25 @@
+{% extends "members/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto max-w-2xl mt-10">
+  <h2 class="text-2xl font-bold mb-4 text-center">Dependants</h2>
+  {% include "members/_progress.html" with step=4 progress=80 %}
+
+  <form method="post" class="space-y-4 bg-white p-6 rounded-lg shadow">
+    {% csrf_token %}
+    {{ formset.management_form }}
+    {% for form in formset %}
+      <div class="border p-4 mb-4 rounded-lg bg-gray-50">
+        <h3 class="font-semibold mb-2">Dependant {{ forloop.counter }}</h3>
+        {{ form.as_p }}
+      </div>
+    {% endfor %}
+
+    <div class="flex justify-between">
+      <a href="{% url 'members:register_step_3_next_of_kin' %}" class="btn btn-secondary">Back</a>
+      <button type="submit" class="btn btn-primary">Continue</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

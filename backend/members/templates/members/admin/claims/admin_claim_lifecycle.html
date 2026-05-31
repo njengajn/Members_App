@@ -1,0 +1,58 @@
+{% extends "members/admin/admin_base.html" %} 
+{% block content %}
+<div class="container mt-4">
+  <h3>Claim Lifecycle Tracker</h3>
+
+  <div class="card p-4">
+    <h5>
+      Claim #{{ claim.id }} — {{ claim.member.first_name }} {{
+      claim.member.surname }}
+    </h5>
+
+    <hr />
+
+    <div class="progress mb-4" style="height: 25px">
+      <div
+        class="progress-bar bg-info"
+        role="progressbar"
+        style="width:{% if lifecycle.settled %}100{% elif lifecycle.payment_completed %}80{% elif lifecycle.payment_requested %}60{% elif lifecycle.approved %}40{% else %}20{% endif %}%"
+      >
+        Lifecycle Progress
+      </div>
+    </div>
+
+    <ul class="list-group">
+      <li
+        class="list-group-item {% if lifecycle.submitted %}list-group-item-success{% endif %}"
+      >
+        ✔ Claim Submitted
+      </li>
+
+      <li
+        class="list-group-item {% if lifecycle.approved %}list-group-item-success{% endif %}"
+      >
+        ✔ Claim Approved
+      </li>
+
+      <li
+        class="list-group-item {% if lifecycle.payment_requested %}list-group-item-success{% endif %}"
+      >
+        ✔ Payment Request Created
+      </li>
+
+      <li
+        class="list-group-item {% if lifecycle.payment_completed %}list-group-item-success{% endif %}"
+      >
+        ✔ Payment Completed
+      </li>
+
+      <li
+        class="list-group-item {% if lifecycle.settled %}list-group-item-success{% endif %}"
+      >
+        ✔ Claim Settled
+      </li>
+    </ul>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "members/admin/admin_base.html" %} {% block content %}
+
+<div class="container mt-4">
+  <h3>Bulk Member Activation</h3>
+
+  <form method="POST">
+    {% csrf_token %}
+
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Select</th>
+          <th>Name</th>
+          <th>Email</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for m in members %}
+
+        <tr>
+          <td>
+            <input type="checkbox" name="members" value="{{ m.id }}" />
+          </td>
+
+          <td>{{ m.first_name }} {{ m.surname }}</td>
+
+          <td>{{ m.email }}</td>
+        </tr>
+
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <button class="btn btn-success">Activate Selected Members</button>
+  </form>
+</div>
+
+{% endblock %}

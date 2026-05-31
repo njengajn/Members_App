@@ -1,0 +1,348 @@
+{% extends "members/admin/admin_base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container-fluid mt-3">
+
+  <!-- ===================================================== -->
+  <!-- HEADER + QUICK STATS -->
+  <!-- ===================================================== -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">
+      Payment Request ID Number: {{ payment_request.id }}
+    </h4>
+
+    <div>
+      <span class="badge bg-secondary">{{ payment_request.request_type }}</span>
+      <span class="badge bg-dark">£{{ payment_request.amount }}</span>
+
+      {% if payment_request.status == "active" %}
+        <span class="badge bg-success">Active</span>
+      {% else %}
+        <span class="badge bg-secondary">{{ payment_request.status }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- TOP SUMMARY CARDS -->
+  <!-- ===================================================== -->
+  <div class="row g-2 mb-3">
+
+    <div class="col-md-3">
+      <div class="card p-2 text-center shadow-sm">
+        <small class="text-muted">Due Date</small>
+        <strong>{{ payment_request.due_date|date:"M d, Y" }}</strong>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card p-2 text-center shadow-sm">
+        <small class="text-muted">Paid</small>
+        <strong>{{ total_paid }}</strong>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card p-2 text-center shadow-sm">
+        <small class="text-muted">Required</small>
+        <strong>{{ total_required }}</strong>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card p-2 text-center shadow-sm">
+        <small class="text-muted">Compliance</small>
+        <strong>{{ compliance }}%</strong>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- PROGRESS BAR -->
+  <!-- ===================================================== -->
+  <div class="card p-2 mb-3 shadow-sm">
+    <div class="progress" style="height: 20px;">
+      <div
+        class="progress-bar bg-success"
+        role="progressbar"
+        style="width: {{ compliance }}%;"
+      >
+        {{ compliance }}%
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- TARGET INFO -->
+  <!-- ===================================================== -->
+  <div class="card p-2 mb-3 shadow-sm">
+    {% if payment_request.member %}
+      <small class="text-muted">Target Member</small><br>
+      <strong>
+        {{ payment_request.member.first_name }}
+        {{ payment_request.member.surname }}
+      </strong>
+      <span class="text-muted">({{ payment_request.member.member_uid }})</span>
+    {% else %}
+      <small class="text-muted">Target</small><br>
+      <strong>All Active Members</strong>
+    {% endif %}
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- PENDING PAYMENTS (COMPACT TABLE) -->
+  <!-- ===================================================== -->
+  <div class="card mb-3 shadow-sm">
+
+    <div class="card-header py-2 bg-warning text-dark">
+      Pending Payments ({{ pending_payments|length }})
+    </div>
+
+    <div class="card-body p-2">
+
+      {% if pending_payments %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Member</th>
+              <th>£</th>
+              <th>Submitted</th>
+              <th>Proof</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for payment in pending_payments %}
+            <tr>
+              <td>{{ payment.member }}</td>
+              <td>£{{ payment.amount }}</td>
+              <td>{{ payment.created_at|date:"M d H:i" }}</td>
+
+              <td>
+                {% if payment.proof %}
+                  <a href="{{ payment.proof.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    View
+                  </a>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+
+              <td class="text-end">
+                <a href="{% url 'members_admin:approve_payment' payment.id %}"
+                   class="btn btn-success btn-sm"
+                   onclick="return confirm('Approve this payment?');">
+                   ✔
+                </a>
+
+                <button
+                  class="btn btn-danger btn-sm"
+                  onclick="rejectPayment({{ payment.id }});">
+                  ✖
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% else %}
+        <p class="text-muted small mb-0">No pending payments.</p>
+      {% endif %}
+
+    </div>
+  </div>
+
+<!-- ===================================================== -->
+<!-- CLOSE PAYMENT REQUEST -->
+<!-- ===================================================== -->
+
+<div class="card-body p-2">
+
+  {% if payment_request.status == "active" %}
+    <a href="{% url 'members_admin:close_payment_request' payment_request.id %}"
+       class="btn btn-danger btn-sm"
+       onclick="return confirm('Close this payment request?');">
+
+       Close Request
+
+    </a>
+  {% endif %}
+
+
+  <!-- ===================================================== -->
+  <!-- RECONCILIATION / APPROVAL -->
+  <!-- ===================================================== -->
+<!-- ===================================================== -->
+<!-- RECONCILIATION / APPROVAL -->
+<!-- ===================================================== -->
+
+{% if payment_request.claim %}
+
+    {% if payment_request.claim.settlement %}
+
+        {% if payment_request.claim.settlement.is_approved %}
+
+            <span class="badge bg-success">
+                Finalised
+            </span>
+
+            <a href="{% url 'members_admin:claim_settlement_detail' payment_request.claim.settlement.id %}"
+               class="btn btn-outline-success btn-sm ms-2">
+
+               View Settlement
+
+            </a>
+
+        {% elif payment_request.claim.settlement.prepared_by %}
+
+            <a href="{% url 'members_admin:claim_settlement_detail' payment_request.claim.settlement.id %}"
+               class="btn btn-success btn-sm">
+
+               Review / Approve
+
+            </a>
+
+        {% else %}
+
+            <a href="{% url 'members_admin:reconcile_claim' payment_request.id %}"
+               class="btn btn-warning btn-sm">
+
+               Reconcile
+
+            </a>
+
+        {% endif %}
+
+    {% else %}
+
+        <a href="{% url 'members_admin:reconcile_claim' payment_request.id %}"
+           class="btn btn-warning btn-sm">
+
+           Reconcile
+
+        </a>
+
+    {% endif %}
+
+{% else %}
+
+    {% if payment_request.is_reconciled %}
+
+        <span class="badge bg-success">
+            Finalised
+        </span>
+
+        <span class="text-muted small ms-2">
+            Reconciled by
+            {{ payment_request.reconciled_by }}
+        </span>
+
+    {% else %}
+
+        <a href="{% url 'members_admin:reconcile_claim' payment_request.id %}"
+           class="btn btn-outline-primary btn-sm">
+
+           Reconcile Report
+
+        </a>
+
+    {% endif %}
+
+{% endif %}
+  
+    <a href="{% url 'members_admin:export_payment_compliance_csv' payment_request.id %}"
+       class="btn btn-outline-primary btn-sm">
+      Export CSV
+    </a>
+
+    <a href="{% url 'members_admin:export_payment_members' payment_request.id %}"
+       class="btn btn-outline-success btn-sm">
+      Export Excel
+    </a>
+
+    <a href="{% url 'members_admin:admin_payments_list' %}"
+       class="btn btn-outline-secondary btn-sm">
+      Back to payment requests
+    </a>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- MEMBERS SPLIT VIEW -->
+  <!-- ===================================================== -->
+  <div class="row g-2">
+
+    <!-- PAID -->
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header py-2 text-success">
+          Paid ({{ paid_members|length }})
+        </div>
+
+        <ul class="list-group list-group-flush small">
+          {% for m in paid_members %}
+          <li class="list-group-item d-flex justify-content-between">
+            {{ m.first_name }} {{ m.surname }}
+            <span class="badge bg-success">Paid</span>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-muted">None</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <!-- UNPAID -->
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header py-2 text-danger">
+          Outstanding ({{ unpaid_members|length }})
+        </div>
+
+        <ul class="list-group list-group-flush small">
+          {% for m in unpaid_members %}
+          <li class="list-group-item d-flex justify-content-between">
+            {{ m.first_name }} {{ m.surname }}
+            <span class="badge bg-warning text-dark">Pending</span>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-muted">All paid</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+
+
+  </div>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- REJECT SCRIPT -->
+<!-- ===================================================== -->
+<script>
+function rejectPayment(paymentId) {
+    const reason = prompt("Enter rejection reason:");
+    if (!reason) return false;
+
+    window.location.href =
+        `/admin-panel/payments/${paymentId}/reject/?reason=` +
+        encodeURIComponent(reason);
+}
+</script>
+
+{% endblock %}

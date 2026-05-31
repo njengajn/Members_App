@@ -1,0 +1,16 @@
+<h4 class="mt-6 text-lg font-semibold flex items-center gap-2">
+  Payment Requests
+  {% if unpaid_count %}
+    <span class="bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
+      {{ unpaid_count }}
+    </span>
+  {% endif %}
+</h4>
+
+<div class="mt-4 space-y-4">
+  {% for pr in payment_requests %}
+    {% include "members/partials/partial_payment_request_card.html" %}
+  {% empty %}
+    <p class="text-gray-500">No payment requests.</p>
+  {% endfor %}
+</div>

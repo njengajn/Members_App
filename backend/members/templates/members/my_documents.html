@@ -1,0 +1,526 @@
+{% extends "members_base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="max-w-5xl mx-auto mt-10">
+
+  <!-- ================================================= -->
+  <!-- HEADER -->
+  <!-- ================================================= -->
+
+  <div class="flex items-center justify-between mb-6">
+
+    <h2 class="text-2xl font-semibold flex items-center gap-2">
+
+      <i data-lucide="folder"></i>
+
+      My Documents
+
+    </h2>
+
+    <!-- OPEN MODAL -->
+    <button id="openUploadModal"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+
+      <i data-lucide="upload-cloud"></i>
+
+      Upload New
+
+    </button>
+
+  </div>
+
+  <!-- ================================================= -->
+  <!-- DOCUMENT GRID -->
+  <!-- ================================================= -->
+
+  <div id="docsGrid"
+       class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+
+    {% for doc in documents %}
+
+    <div class="border rounded-lg p-3 shadow hover:shadow-lg transition relative group bg-white">
+
+      <!-- IMAGE -->
+      {% if doc.file_type == "image" %}
+
+      <img src="{{ doc.file.url }}"
+           class="w-full h-32 object-cover rounded-lg border">
+
+      <!-- PDF -->
+      {% elif doc.file_type == "pdf" %}
+
+      <div class="flex items-center justify-center h-32 bg-red-50 text-red-600 rounded-lg">
+
+        <i data-lucide="file-text"
+           class="w-10 h-10"></i>
+
+      </div>
+
+      <!-- OTHER -->
+      {% else %}
+
+      <div class="flex items-center justify-center h-32 bg-gray-50 text-gray-600 rounded-lg">
+
+        <i data-lucide="file"
+           class="w-10 h-10"></i>
+
+      </div>
+
+      {% endif %}
+
+      <!-- DETAILS -->
+      <div class="mt-2">
+
+        <p class="font-medium truncate"
+           title="{{ doc.title }}">
+
+          {{ doc.title }}
+
+        </p>
+
+        <p class="text-xs text-gray-500 truncate">
+
+          {{ doc.description }}
+
+        </p>
+
+      </div>
+
+      <!-- DOWNLOAD -->
+      <a href="{{ doc.file.url }}"
+         download
+         class="absolute top-2 right-2 bg-white rounded-full p-1 shadow hidden group-hover:block">
+
+        <i data-lucide="download"
+           class="w-4 h-4 text-gray-600"></i>
+
+      </a>
+
+    </div>
+
+    {% empty %}
+
+    <p class="text-gray-500 col-span-full">
+
+      No documents uploaded yet.
+
+    </p>
+
+    {% endfor %}
+
+  </div>
+
+  <!-- ================================================= -->
+  <!-- DOWNLOAD ALL -->
+  <!-- ================================================= -->
+
+  <div class="flex justify-end mt-5">
+
+    <button id="downloadAllBtn"
+            class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded flex items-center gap-2">
+
+      <i data-lucide="download"></i>
+
+      Download All (ZIP)
+
+    </button>
+
+  </div>
+
+</div>
+
+<!-- ===================================================== -->
+<!-- UPLOAD MODAL -->
+<!-- ===================================================== -->
+
+<div id="uploadModal"
+     class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+
+  <div class="bg-white rounded-xl w-full max-w-md p-6 relative max-h-[95vh] overflow-y-auto">
+
+    <!-- CLOSE -->
+    <button id="closeUploadModal"
+            class="absolute top-3 right-4 text-gray-600 hover:text-black text-2xl">
+
+      &times;
+
+    </button>
+
+    <!-- TITLE -->
+    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+
+      <i data-lucide="upload"></i>
+
+      Upload Document
+
+    </h3>
+
+    <!-- ================================================= -->
+    <!-- FORM -->
+    <!-- ================================================= -->
+
+    <form id="uploadForm"
+          enctype="multipart/form-data">
+
+      <!-- TITLE -->
+      <label class="block mb-2 text-sm font-medium">
+
+        Title
+
+      </label>
+
+      <input type="text"
+             name="title"
+             class="border rounded w-full mb-3 p-2"
+             required>
+
+      <!-- DESCRIPTION -->
+      <label class="block mb-2 text-sm font-medium">
+
+        Description
+
+      </label>
+
+      <textarea name="description"
+                class="border rounded w-full mb-3 p-2"></textarea>
+
+      <!-- ================================================= -->
+      <!-- MOBILE HYBRID FILE UPLOAD -->
+      <!-- ================================================= -->
+
+      <label class="block mb-2 text-sm font-medium">
+
+        File (Max 50MB)
+
+      </label>
+
+      <!-- WRAPPER -->
+      <div class="border rounded-xl p-4 bg-gray-50">
+
+        <!-- REAL FILE INPUT -->
+        <!-- IMPORTANT:
+             capture="environment"
+             enables phone camera support
+        -->
+        <input type="file"
+               name="file"
+               id="documentFileInput"
+               class="hidden"
+               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
+               capture="environment"
+               required>
+
+        <!-- BUTTONS -->
+        <div class="flex flex-col sm:flex-row gap-3">
+
+          <!-- TAKE PHOTO -->
+          <button type="button"
+                  id="takePhotoBtn"
+                  class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 w-full">
+
+            📷 Take Photo
+
+          </button>
+
+          <!-- CHOOSE FILE -->
+          <button type="button"
+                  id="chooseFileBtn"
+                  class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg flex items-center justify-center gap-2 w-full">
+
+            📁 Choose File
+
+          </button>
+
+        </div>
+
+        <!-- HELPER -->
+        <p class="text-xs text-gray-500 mt-3">
+
+          Upload a document, take a photo,
+          or scan using your mobile camera.
+
+        </p>
+
+        <!-- PREVIEW -->
+        <div id="mobileFilePreview"
+             class="mt-4"></div>
+
+      </div>
+
+      <!-- ================================================= -->
+      <!-- UPLOAD BUTTON -->
+      <!-- ================================================= -->
+
+      <button type="submit"
+              class="bg-blue-600 hover:bg-blue-700 text-white w-full py-2 rounded mt-4">
+
+        Upload
+
+      </button>
+
+      <!-- ================================================= -->
+      <!-- PROGRESS -->
+      <!-- ================================================= -->
+
+      <div id="uploadProgress"
+           class="mt-3 hidden">
+
+        <div class="w-full bg-gray-200 rounded-full h-2.5">
+
+          <div id="uploadBar"
+               class="bg-blue-600 h-2.5 rounded-full"
+               style="width: 0%"></div>
+
+        </div>
+
+        <p id="uploadStatus"
+           class="text-xs text-gray-500 mt-1">
+
+          Uploading...
+
+        </p>
+
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+
+<!-- ===================================================== -->
+<!-- JAVASCRIPT -->
+<!-- ===================================================== -->
+
+<script>
+
+/* ===================================================== */
+/* MODAL */
+/* ===================================================== */
+
+const uploadModal =
+    document.getElementById("uploadModal");
+
+document.getElementById(
+    "openUploadModal"
+).onclick = () => {
+
+    uploadModal.classList.remove("hidden");
+};
+
+document.getElementById(
+    "closeUploadModal"
+).onclick = () => {
+
+    uploadModal.classList.add("hidden");
+};
+
+/* ===================================================== */
+/* MOBILE FILE INPUT */
+/* ===================================================== */
+
+const fileInput =
+    document.getElementById(
+        "documentFileInput"
+    );
+
+const preview =
+    document.getElementById(
+        "mobileFilePreview"
+    );
+
+/* ===================================================== */
+/* CHOOSE FILE */
+/* ===================================================== */
+
+document.getElementById(
+    "chooseFileBtn"
+).onclick = () => {
+
+    fileInput.removeAttribute("capture");
+
+    fileInput.click();
+};
+
+/* ===================================================== */
+/* TAKE PHOTO */
+/* ===================================================== */
+
+document.getElementById(
+    "takePhotoBtn"
+).onclick = () => {
+
+    fileInput.setAttribute(
+        "capture",
+        "environment"
+    );
+
+    fileInput.click();
+};
+
+/* ===================================================== */
+/* PREVIEW */
+/* ===================================================== */
+
+fileInput.addEventListener(
+    "change",
+    function(event) {
+
+        const file =
+            event.target.files[0];
+
+        preview.innerHTML = "";
+
+        if (!file) return;
+
+        // ==============================================
+        // IMAGE
+        // ==============================================
+        if (file.type.startsWith("image/")) {
+
+            const reader =
+                new FileReader();
+
+            reader.onload = function(e) {
+
+                preview.innerHTML = `
+                    <div class="border rounded-xl p-3 bg-white">
+
+                        <img src="${e.target.result}"
+                             class="w-full max-h-72 object-contain rounded-lg border">
+
+                        <div class="mt-2 text-sm text-gray-700 break-all">
+
+                            ${file.name}
+
+                        </div>
+
+                    </div>
+                `;
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        // ==============================================
+        // OTHER FILES
+        // ==============================================
+        else {
+
+            preview.innerHTML = `
+                <div class="border rounded-xl p-3 bg-white flex items-center gap-3">
+
+                    <div class="text-3xl">
+
+                        📄
+
+                    </div>
+
+                    <div>
+
+                        <div class="font-medium text-sm break-all">
+
+                            ${file.name}
+
+                        </div>
+
+                        <div class="text-xs text-gray-500">
+
+                            Ready for upload
+
+                        </div>
+
+                    </div>
+
+                </div>
+            `;
+        }
+    }
+);
+
+/* ===================================================== */
+/* AJAX UPLOAD */
+/* ===================================================== */
+
+document.getElementById(
+    "uploadForm"
+).onsubmit = async (e) => {
+
+    e.preventDefault();
+
+    const form =
+        e.target;
+
+    const formData =
+        new FormData(form);
+
+    const bar =
+        document.getElementById("uploadBar");
+
+    const status =
+        document.getElementById("uploadStatus");
+
+    const progressDiv =
+        document.getElementById("uploadProgress");
+
+    progressDiv.classList.remove("hidden");
+
+    const xhr =
+        new XMLHttpRequest();
+
+    xhr.open(
+        "POST",
+        "{% url 'upload_member_document' %}"
+    );
+
+    xhr.upload.onprogress = (e) => {
+
+        if (e.lengthComputable) {
+
+            const percent =
+                Math.round(
+                    (e.loaded / e.total) * 100
+                );
+
+            bar.style.width =
+                percent + "%";
+
+            status.innerText =
+                `Uploading... ${percent}%`;
+        }
+    };
+
+    xhr.onload = () => {
+
+        if (xhr.status === 200) {
+
+            status.innerText =
+                "Upload complete!";
+
+            setTimeout(() => {
+
+                window.location.reload();
+
+            }, 1000);
+
+        } else {
+
+            status.innerText =
+                "Error during upload.";
+        }
+    };
+
+    xhr.send(formData);
+};
+
+/* ===================================================== */
+/* ICONS */
+/* ===================================================== */
+
+lucide.createIcons();
+
+</script>
+
+{% endblock %}

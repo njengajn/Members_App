@@ -1,0 +1,318 @@
+{% extends "members/admin/admin_base.html" %}
+{% load humanize %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+  <!-- ===================================================== -->
+  <!-- PAGE HEADER -->
+  <!-- ===================================================== -->
+
+  <div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
+
+    <div>
+      <h3 class="fw-bold">Finance Summary</h3>
+
+      <p class="text-muted mb-0">
+        Reporting Period:
+        <strong>
+          {{ report_start|date:"d/m/Y" }}
+        </strong>
+        -
+        <strong>
+          {{ report_end|date:"d/m/Y" }}
+        </strong>
+      </p>
+    </div>
+
+    <!-- DOWNLOAD BUTTONS -->
+
+    <div class="mt-3 mt-md-0 d-flex gap-2 flex-wrap">
+
+      <a href="?{{ query_params }}&export=pdf"
+         class="btn btn-danger shadow-sm">
+        <i class="fas fa-file-pdf"></i>
+        PDF
+      </a>
+
+      <a href="?{{ query_params }}&export=excel"
+         class="btn btn-success shadow-sm">
+        <i class="fas fa-file-excel"></i>
+        Excel
+      </a>
+
+    </div>
+
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- FILTER FORM -->
+  <!-- ===================================================== -->
+
+  <div class="card border-0 shadow-sm mb-4">
+
+    <div class="card-body">
+
+      <form method="GET" class="row g-3 align-items-end">
+
+        <!-- PERIOD SELECT -->
+
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">
+            Reporting Period
+          </label>
+
+          <select name="period"
+                  class="form-select"
+                  id="period-select">
+
+            <option value="today"
+              {% if selected_period == "today" %}selected{% endif %}>
+              Today
+            </option>
+
+            <option value="this_month"
+              {% if selected_period == "this_month" %}selected{% endif %}>
+              This Month
+            </option>
+
+            <option value="last_month"
+              {% if selected_period == "last_month" %}selected{% endif %}>
+              Last Month
+            </option>
+
+            <option value="this_year"
+              {% if selected_period == "this_year" %}selected{% endif %}>
+              Current Financial Year
+            </option>
+
+            <option value="last_year"
+              {% if selected_period == "last_year" %}selected{% endif %}>
+              Previous Financial Year
+            </option>
+
+            <option value="custom"
+              {% if selected_period == "custom" %}selected{% endif %}>
+              Custom Range
+            </option>
+
+          </select>
+        </div>
+
+        <!-- CUSTOM START -->
+
+        <div class="col-md-3 custom-date">
+
+          <label class="form-label fw-semibold">
+            Start Date
+          </label>
+
+          <input type="date"
+                 name="start_date"
+                 class="form-control"
+                 value="{{ request.GET.start_date }}">
+
+        </div>
+
+        <!-- CUSTOM END -->
+
+        <div class="col-md-3 custom-date">
+
+          <label class="form-label fw-semibold">
+            End Date
+          </label>
+
+          <input type="date"
+                 name="end_date"
+                 class="form-control"
+                 value="{{ request.GET.end_date }}">
+
+        </div>
+
+        <!-- SUBMIT -->
+
+        <div class="col-md-2">
+
+          <button type="submit"
+                  class="btn btn-dark w-100">
+            Apply
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- SUMMARY CARDS -->
+  <!-- ===================================================== -->
+
+  <div class="row g-4">
+
+    <!-- TOTAL RECEIVED -->
+
+    <div class="col-lg-6">
+
+      <div class="card border-0 shadow-sm h-100">
+
+        <div class="card-body">
+
+          <h5 class="text-success fw-bold">
+            Total Received
+          </h5>
+
+          <h2 class="fw-bold">
+            £{{ total_received|floatformat:2|intcomma }}
+          </h2>
+
+          <hr>
+
+          <div class="small">
+
+            <p class="mb-2">
+              <strong>Claims:</strong>
+              £{{ total_claims|floatformat:2|intcomma }}
+            </p>
+
+            <p class="mb-2">
+              <strong>Membership:</strong>
+              £{{ total_membership|floatformat:2|intcomma }}
+            </p>
+
+            <p class="mb-2">
+              <strong>Subscription:</strong>
+              £{{ total_subscription|floatformat:2|intcomma }}
+            </p>
+
+            <p class="mb-0">
+              <strong>Other:</strong>
+              £{{ total_other|floatformat:2|intcomma }}
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- OTHER METRICS -->
+
+    <div class="col-lg-6">
+
+      <div class="row g-4">
+
+        <div class="col-md-6">
+
+          <div class="card border-0 shadow-sm h-100">
+
+            <div class="card-body">
+
+              <h6 class="text-muted">
+                Outstanding Requests
+              </h6>
+
+              <h3 class="fw-bold text-warning">
+                £{{ outstanding_requests|floatformat:2|intcomma }}
+              </h3>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="col-md-6">
+
+          <div class="card border-0 shadow-sm h-100">
+
+            <div class="card-body">
+
+              <h6 class="text-muted">
+                Total Paid Out
+              </h6>
+
+              <h3 class="fw-bold text-danger">
+                £{{ total_paid_out|floatformat:2|intcomma }}
+              </h3>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="col-md-12">
+
+          <div class="card border-0 shadow-sm h-100">
+
+            <div class="card-body">
+
+              <h6 class="text-muted">
+                Payments Completed
+              </h6>
+
+              <h3 class="fw-bold text-primary">
+                {{ completed_payments|intcomma }}
+              </h3>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ===================================================== -->
+<!-- CUSTOM DATE JS -->
+<!-- ===================================================== -->
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const periodSelect = document.getElementById("period-select");
+
+    const customFields =
+        document.querySelectorAll(".custom-date");
+
+    function toggleCustomFields() {
+
+        if (periodSelect.value === "custom") {
+
+            customFields.forEach(field => {
+                field.style.display = "block";
+            });
+
+        } else {
+
+            customFields.forEach(field => {
+                field.style.display = "none";
+            });
+
+        }
+    }
+
+    toggleCustomFields();
+
+    periodSelect.addEventListener(
+        "change",
+        toggleCustomFields
+    );
+});
+
+</script>
+
+{% endblock %}

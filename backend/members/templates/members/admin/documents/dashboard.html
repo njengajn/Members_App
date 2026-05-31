@@ -1,0 +1,23 @@
+{% extends "members/admin/admin_base.html" %} 
+{% block content %}
+
+<h1>Document Dashboard</h1>
+
+<h2>Pending Documents</h2>
+<ul>
+    {% for doc in documents %}
+        {% if doc.status == "pending" %}
+            <li>{{ doc.title }} - {{ doc.member }}</li>
+        {% endif %}
+    {% endfor %}
+</ul>
+
+<h2>Requests</h2>
+<ul>
+    {% for r in requests %}
+        <li>
+            {{ r.title }} - {{ r.member }} - {{ r.status }}
+        </li>
+    {% endfor %}
+</ul>
+{% endblock %}

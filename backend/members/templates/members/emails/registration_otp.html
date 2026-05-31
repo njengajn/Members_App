@@ -1,0 +1,74 @@
+{% extends "members/emails/base_email.html" %}
+
+{% block email_content %}
+
+<p
+    class="email-text"
+    style="
+        font-size:16px;
+        color:#555555;
+        line-height:1.6;
+    "
+>
+
+    Thank you for registering.
+
+</p>
+
+<p
+    class="email-text"
+    style="
+        font-size:16px;
+        color:#555555;
+        line-height:1.6;
+    "
+>
+
+    Use the verification code below
+    to complete your registration.
+
+</p>
+
+<!-- OTP BOX -->
+
+<div
+    style="
+        text-align:center;
+        margin:35px 0;
+    "
+>
+
+    <span
+        style="
+            display:inline-block;
+            background:#eef4ff;
+            color:#0d6efd;
+            padding:18px 35px;
+            border-radius:10px;
+            font-size:32px;
+            font-weight:bold;
+            letter-spacing:8px;
+        "
+    >
+
+        {{ otp }}
+
+    </span>
+
+</div>
+
+<p
+    class="email-text"
+    style="
+        font-size:15px;
+        color:#777777;
+        line-height:1.6;
+    "
+>
+
+    This code expires in
+    <strong>5 minutes</strong>.
+
+</p>
+
+{% endblock %}

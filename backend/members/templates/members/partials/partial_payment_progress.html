@@ -1,0 +1,19 @@
+<div class="mt-3">
+  <div class="w-full bg-gray-200 rounded h-3">
+    <div
+      class="h-3 rounded
+        {% if pr.payment_progress_percent >= 100 %}
+          bg-green-600
+        {% else %}
+          bg-blue-600
+        {% endif %}
+      "
+      style="width: {{ pr.payment_progress_percent }}%;">
+    </div>
+  </div>
+
+  <p class="text-xs mt-1">
+    {{ pr.total_paid }} / {{ pr.amount }}
+    ({{ pr.payment_progress_percent }}%)
+  </p>
+</div>

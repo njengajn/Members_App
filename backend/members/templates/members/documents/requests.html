@@ -1,0 +1,13 @@
+<h1>Requested Documents</h1>
+
+<ul>
+    {% for r in requests %}
+        <li>
+            <strong>{{ r.title }}</strong> - {{ r.status }}
+
+            {% if r.status == "pending" %}
+                <a href="{% url 'upload_requested' r.id %}">Upload</a>
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>

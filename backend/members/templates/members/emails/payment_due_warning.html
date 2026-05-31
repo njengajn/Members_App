@@ -1,0 +1,67 @@
+{% extends "members/emails/base_email.html" %}
+
+{% block email_content %}
+
+<p
+    class="email-text"
+    style="
+        font-size:16px;
+        color:#555555;
+        line-height:1.6;
+    "
+>
+
+    Your payment request:
+
+</p>
+
+<div
+    style="
+        background:#fff3cd;
+        padding:20px;
+        border-radius:10px;
+        margin:25px 0;
+    "
+>
+
+    <strong>
+
+        {{ payment_request.title }}
+
+    </strong>
+
+    <br><br>
+
+    Amount:
+    <strong>
+
+        {{ payment_request.amount }}
+
+    </strong>
+
+    <br>
+
+    Due Date:
+    <strong>
+
+        {{ payment_request.due_date }}
+
+    </strong>
+
+</div>
+
+<p
+    class="email-text"
+    style="
+        font-size:16px;
+        color:#555555;
+        line-height:1.6;
+    "
+>
+
+    Your membership may be retired if payment
+    is not completed within 24 hours.
+
+</p>
+
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "members/admin/admin_base.html" %}
+{% load static %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/documents-responsive.css' %}">
+<h1>Documents for {{ member }}</h1>
+
+<a class="button" href="{% url 'members_admin:request_document' member.id %}">
+    ➕ Request Document
+</a>
+
+<table class="adminlist">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Dependant</th>
+            <th>Status</th>
+            <th>Uploaded</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for doc in documents %}
+        <tr>
+            <td>{{ doc.title }}</td>
+            <td>{{ doc.dependant|default:"Member" }}</td>
+            <td>{{ doc.status }}</td>
+            <td>{{ doc.uploaded_at }}</td>
+
+            <td>
+                <a href="{% url 'members_admin:admin_document_review' doc.id 'approve' %}">Approve</a> |
+                <a href="{% url 'members_admin:admin_document_review' doc.id 'reject' %}">Reject</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

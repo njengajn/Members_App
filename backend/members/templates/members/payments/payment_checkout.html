@@ -1,0 +1,56 @@
+{% extends "members/members_base.html" %}
+{% block content %}
+
+<h3>Complete Payment</h3>
+
+<div class="card p-3">
+
+  <p><strong>Amount:</strong> {{ payment_request.amount }}</p>
+  <p><strong>Description:</strong> {{ payment_request.description }}</p>
+
+  <!-- PAYMENT METHOD BADGE -->
+  <p>
+    <strong>Payment Method:</strong>
+    {% if payment_request.payment_method == "manual" %}
+      <span class="badge bg-secondary">Manual</span>
+    {% elif payment_request.payment_method == "card" %}
+      <span class="badge bg-primary">Card</span>
+    {% else %}
+      <span class="badge bg-dark">Manual / Card</span>
+    {% endif %}
+  </p>
+
+  <hr />
+
+  <!-- ========================= -->
+  <!-- ONLY SHOW WHAT IS ALLOWED -->
+  <!-- ========================= -->
+
+  {% if payment_request.payment_method == "manual" %}
+    <a href="{% url 'members:manual_payment_page' payment_request.id %}"
+       class="btn btn-primary">
+      Pay Manually
+    </a>
+
+  {% elif payment_request.payment_method == "card" %}
+    <a href="{% url 'members:create_stripe_checkout' payment_request.id %}"
+       class="btn btn-success">
+      Pay with Card
+    </a>
+
+  {% else %}
+    <!-- BOTH -->
+    <a href="{% url 'members:manual_payment_page' payment_request.id %}"
+       class="btn btn-primary mb-2">
+      Pay Manually
+    </a>
+
+    <a href="{% url 'members:create_stripe_checkout' payment_request.id %}"
+       class="btn btn-success">
+      Pay with Card
+    </a>
+  {% endif %}
+
+</div>
+
+{% endblock %}

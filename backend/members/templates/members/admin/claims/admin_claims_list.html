@@ -1,0 +1,55 @@
+{% extends "members/admin/admin_base.html" %}
+{% block content %}
+<h3>Claims</h3>
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Member</th>
+      <th>Causer</th>
+      <th>Type</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for claim in claims %}
+    <tr>
+      <td>{{ claim.id }}</td>
+      <td>{{ claim.member.first_name }} {{ claim.member.surname }}</td>
+      <!--  CAUSER -->
+      <td>
+        {% if claim.causer_dependant %}
+          {{ claim.causer_dependant.first_name }} {{ claim.causer_dependant.surname }}
+        {% else %}
+          {{ claim.member.first_name }} {{ claim.member.surname }}
+        {% endif %}
+      </td>
+      <td>
+        {% if claim.causer_dependant %} Dependant {% else %} Member {% endif %}
+      </td>
+      <td>{{ claim.status }}</td>
+      <td>
+        <!-- VIEW -->
+        <a href="{% url 'members_admin:claim_detail' claim.id %}"
+           class="btn btn-info btn-sm">
+          View
+        </a>
+        <!-- APPROVE -->
+        {% if claim.status == "received" %}
+        <a href="{% url 'members_admin:approve_claim' claim.id %}"
+           class="btn btn-success btn-sm">
+          Approve
+        </a>
+        <!-- REJECT -->
+        <a href="{% url 'members_admin:reject_claim' claim.id %}"
+           class="btn btn-danger btn-sm">
+          Reject
+        </a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,510 @@
+/* =========================================================
+   GLOBAL
+========================================================= */
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    background: #f5f6fa;
+}
+
+body {
+    min-height: 100vh;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+/* =========================================================
+   FIXED TOP NAVBAR
+========================================================= */
+
+/*
+  Targets included navbar template
+*/
+
+.navbar,
+nav.navbar {
+
+    position: fixed;
+
+    top: 0;
+    left: 0;
+    right: 0;
+
+    width: 100%;
+
+    z-index: 3000;
+}
+
+
+/*
+  Ensure page scrolls UNDER navbar
+*/
+
+body {
+
+    padding-top: 60px;
+}
+
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+.sidebar {
+
+    width: 230px;
+
+    position: fixed;
+
+    left: 0;
+
+    /*
+      Starts below fixed navbar
+    */
+    top: 60px;
+    bottom: 0;
+
+    background: #1e1e2d;
+
+    color: white;
+
+    overflow-y: auto;
+
+    z-index: 1000;
+
+    transition: transform 0.3s ease;
+}
+
+.sidebar-title {
+    padding: 14px 10px;
+    margin-bottom: 2px;
+}
+
+.sidebar a {
+
+    display: block;
+
+    padding: 10px 16px;
+
+    color: #cfd1d8;
+
+    text-decoration: none;
+
+    transition: 0.2s ease;
+
+    font-size: 14px;
+}
+
+.sidebar a:hover {
+
+    background: #3a3a4d;
+
+    color: white;
+}
+
+
+/* =========================================================
+   MAIN CONTENT
+========================================================= */
+.content {
+
+    margin-left: 230px;
+
+    width: calc(100% - 230px);
+
+    margin-top: 10px;
+
+    padding: 2px 8px 8px 8px;
+
+    min-height: calc(100vh - 60px);
+}
+
+/* =========================================================
+   DASHBOARD ROWS
+========================================================= */
+
+.content .row {
+
+    --bs-gutter-x: 0.45rem;
+    --bs-gutter-y: 0.15rem;
+
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+
+/* =========================================================
+   DASHBOARD COLUMNS
+========================================================= */
+
+.content [class*="col-"] {
+
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+
+/* =========================================================
+   CARDS
+========================================================= */
+
+.content .card {
+
+    width: 100%;
+
+    margin-top: 2px !important;
+    margin-bottom: 2px !important;
+
+    border-radius: 8px;
+
+    min-height: unset !important;
+}
+
+
+/* Compact card headers */
+
+.content .card-header {
+
+    padding: 4px 8px !important;
+
+    min-height: unset;
+
+    border-bottom-width: 1px;
+}
+
+
+/* Compact card body */
+
+.content .card-body {
+
+    padding: 6px 8px !important;
+}
+
+
+/* Compact card footer */
+
+.content .card-footer {
+
+    padding: 4px 8px !important;
+}
+
+
+/* =========================================================
+   CARD HEADINGS
+========================================================= */
+
+.content .card h1,
+.content .card h2,
+.content .card h3,
+.content .card h4,
+.content .card h5,
+.content .card h6 {
+
+    margin-top: 0 !important;
+    margin-bottom: 2px !important;
+
+    line-height: 1.1;
+}
+
+
+/* Card text */
+
+.content .card p,
+.content .card span {
+
+    margin-top: 0;
+    margin-bottom: 2px;
+
+    line-height: 1.15;
+}
+
+
+/* =========================================================
+   GENERAL HEADINGS
+========================================================= */
+
+.content h1,
+.content h2,
+.content h3,
+.content h4,
+.content h5,
+.content h6 {
+
+    margin-top: 2px !important;
+    margin-bottom: 4px !important;
+
+    line-height: 1.15;
+}
+
+
+/* =========================================================
+   GENERAL TEXT
+========================================================= */
+
+.content p {
+
+    margin-top: 0;
+    margin-bottom: 4px;
+
+    line-height: 1.2;
+}
+
+
+/* =========================================================
+   TABLES
+========================================================= */
+
+.content .table-responsive {
+
+    margin-top: 2px !important;
+    margin-bottom: 2px !important;
+
+    overflow-x: auto;
+}
+
+.content table td,
+.content table th {
+
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+}
+
+
+/* =========================================================
+   LISTS
+========================================================= */
+
+.content ul,
+.content ol {
+
+    margin-bottom: 4px;
+}
+
+.content .list-group-item {
+
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+}
+
+
+/* =========================================================
+   FORMS
+========================================================= */
+
+.content .form-control,
+.content .form-select {
+
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+}
+
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+.content .btn {
+
+    padding: 0.25rem 0.55rem;
+}
+
+
+/* =========================================================
+   SECTION WRAPPERS
+========================================================= */
+
+.content section,
+.content .dashboard-section,
+.content .stats-wrapper,
+.content .analytics-wrapper {
+
+    margin-top: 2px !important;
+    margin-bottom: 2px !important;
+
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+
+/* =========================================================
+   LOGOUT BUTTON
+========================================================= */
+
+.logout-btn {
+
+    padding: 12px;
+}
+
+
+/* =========================================================
+   MOBILE SIDEBAR TOGGLE
+========================================================= */
+
+.sidebar-toggle {
+
+    display: none;
+
+    position: fixed;
+
+    top: 68px;
+    left: 10px;
+
+    z-index: 2000;
+}
+
+
+/* =========================================================
+   MOBILE OVERLAY
+========================================================= */
+
+.sidebar-overlay {
+
+    display: none;
+
+    position: fixed;
+
+    top: 0;
+    left: 0;
+
+    width: 100%;
+    height: 100%;
+
+    background: rgba(0, 0, 0, 0.5);
+
+    z-index: 999;
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+
+/* =========================================================
+   MEMBER STAT CARD COLOURS
+========================================================= */
+
+.members-total-card {
+
+    background: #0d6efd;
+    color: white;
+}
+
+.members-active-card {
+
+    background: #198754;
+    color: white;
+}
+
+.members-pending-card {
+
+    background: #ffc107;
+    color: #212529;
+}
+
+.members-retired-card {
+
+    background: #6c757d;
+    color: white;
+}
+
+.members-total-card .card-header,
+.members-active-card .card-header,
+.members-pending-card .card-header,
+.members-retired-card .card-header {
+
+    background: transparent;
+
+    border-bottom: none;
+
+    color: inherit;
+}
+
+.members-total-card .card-body,
+.members-active-card .card-body,
+.members-pending-card .card-body,
+.members-retired-card .card-body {
+
+    color: inherit;
+}
+
+
+/* =========================================================
+   TABLET RESPONSIVE
+========================================================= */
+
+@media (max-width: 991px) {
+
+    .sidebar {
+
+        transform: translateX(-100%);
+
+        width: 250px;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .content {
+
+        margin-left: 0;
+
+        width: 100%;
+
+        margin-top: -6px;
+
+        padding: 2px 6px 8px 6px;
+    }
+
+    .sidebar-toggle {
+        display: inline-block;
+    }
+}
+
+
+/* =========================================================
+   MOBILE RESPONSIVE
+========================================================= */
+
+@media (max-width: 576px) {
+
+    .content {
+
+        margin-top: -4px;
+
+        padding: 2px 5px 8px 5px;
+    }
+
+    .sidebar {
+
+        width: 230px;
+    }
+
+    .sidebar a {
+
+        font-size: 14px;
+
+        padding: 9px 14px;
+    }
+
+    .sidebar-toggle {
+
+        top: 66px;
+
+        left: 8px;
+
+        font-size: 13px;
+    }
+
+    .content .card-body {
+
+        padding: 5px 6px !important;
+    }
+
+    .content .card-header {
+
+        padding: 4px 6px !important;
+    }
+}

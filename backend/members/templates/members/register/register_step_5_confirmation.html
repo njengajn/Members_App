@@ -1,0 +1,265 @@
+{% extends "members/register/register_base.html" %}
+{% load static %}
+
+{% block register_content %}
+
+<div class="mb-4">
+
+    <h4 class="fw-bold mb-1">
+        Review Your Details
+    </h4>
+
+    <p class="text-muted mb-0">
+        Please confirm all information before completing registration.
+    </p>
+
+</div>
+
+<!-- ========================================= -->
+<!-- MEMBER -->
+<!-- ========================================= -->
+
+<div class="summary-card mb-3">
+
+    <div class="summary-header">
+        Member Information
+    </div>
+
+    <div class="summary-body">
+
+        <div class="summary-item">
+
+            <strong>Name:</strong>
+
+            {{ member.first_name }}
+            {{ member.middle_name }}
+            {{ member.surname }}
+
+        </div>
+
+        <div class="summary-item">
+            <strong>Phone:</strong>
+            {{ member.phone }}
+        </div>
+
+        <div class="summary-item">
+            <strong>Email:</strong>
+            {{ member.email }}
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ========================================= -->
+<!-- NOK -->
+<!-- ========================================= -->
+
+<div class="summary-card mb-3">
+
+    <div class="summary-header">
+        Next of Kin
+    </div>
+
+    <div class="summary-body">
+
+        <div class="summary-item">
+
+            <strong>Name:</strong>
+
+            {{ nok.first_name }}
+            {{ nok.middle_name }}
+            {{ nok.surname }}
+
+        </div>
+
+        <div class="summary-item">
+            <strong>Relationship:</strong>
+            {{ nok.relationship }}
+        </div>
+
+        <div class="summary-item">
+            <strong>Phone:</strong>
+            {{ nok.phone }}
+        </div>
+
+        <div class="summary-item">
+            <strong>Email:</strong>
+            {{ nok.email }}
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ========================================= -->
+<!-- DEPENDANTS -->
+<!-- ========================================= -->
+
+<div class="summary-card mb-4">
+
+    <div class="summary-header">
+        Dependants
+    </div>
+
+    <div class="summary-body">
+
+        {% for d in dependants %}
+
+        <div class="dependant-summary">
+
+            <div class="summary-item">
+
+                <strong>Name:</strong>
+
+                {{ d.first_name }}
+                {{ d.middle_name }}
+                {{ d.surname }}
+
+            </div>
+
+            <div class="summary-item">
+                <strong>Relationship:</strong>
+                {{ d.relationship }}
+            </div>
+
+            {% if d.dob %}
+            <div class="summary-item">
+                <strong>Date of Birth:</strong>
+                {{ d.dob }}
+            </div>
+            {% endif %}
+
+        </div>
+
+        {% empty %}
+
+        <p class="text-muted mb-0">
+            No dependants added.
+        </p>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+<!-- ========================================= -->
+<!-- FORM -->
+<!-- ========================================= -->
+
+<form method="post">
+
+    {% csrf_token %}
+
+    <div class="row g-2">
+
+        <div class="col-12 col-md-6">
+
+            <a href="{% url 'members:register_step_4' %}"
+               class="btn btn-light w-100">
+
+                Back
+
+            </a>
+
+        </div>
+
+        <div class="col-12 col-md-6">
+
+            <button class="btn btn-success w-100">
+
+                Finish Registration
+
+            </button>
+
+        </div>
+
+    </div>
+
+</form>
+
+<style>
+
+/* ========================================= */
+/* SUMMARY CARDS */
+/* ========================================= */
+
+.summary-card {
+    background: white;
+    border: 1px solid #e9eef5;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.03);
+}
+
+.summary-header {
+    background: linear-gradient(135deg, #0d6efd, #0a58ca);
+    color: white;
+    padding: 0.9rem 1.1rem;
+    font-weight: 600;
+}
+
+.summary-body {
+    padding: 1rem 1.1rem;
+}
+
+.summary-item {
+    margin-bottom: 0.55rem;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.summary-item:last-child {
+    margin-bottom: 0;
+}
+
+.dependant-summary {
+    border-bottom: 1px solid #edf1f5;
+    padding-bottom: 0.8rem;
+    margin-bottom: 0.8rem;
+}
+
+.dependant-summary:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+/* ========================================= */
+/* MOBILE */
+/* ========================================= */
+
+@media (max-width: 768px) {
+
+    .summary-card {
+        border-radius: 18px;
+    }
+
+    .summary-header {
+        padding: 0.8rem 1rem;
+    }
+
+    .summary-body {
+        padding: 0.9rem 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .summary-card {
+        border-radius: 16px;
+    }
+
+    .summary-header {
+        font-size: 0.92rem;
+    }
+
+    .summary-item {
+        font-size: 0.92rem;
+    }
+}
+
+</style>
+
+{% endblock %}

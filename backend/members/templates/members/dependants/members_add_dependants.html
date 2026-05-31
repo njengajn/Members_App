@@ -1,0 +1,38 @@
+{% extends "members/members_base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+ <h2 class="text-primary mb-3">Add Dependant</h2>
+
+ <div class="card shadow-sm">
+   <div class="card-body">
+
+     <form method="POST" enctype="multipart/form-data">
+       {% csrf_token %}
+
+       <div class="row mb-3">
+         <div class="col-md-4">{{ form.first_name.label_tag }} {{ form.first_name }}</div>
+         <div class="col-md-4">{{ form.middle_name.label_tag }} {{ form.middle_name }}</div>
+         <div class="col-md-4">{{ form.surname.label_tag }} {{ form.surname }}</div>
+       </div>
+
+       <div class="row mb-3">
+         <div class="col-md-4">{{ form.relationship.label_tag }} {{ form.relationship }}</div>
+         <div class="col-md-4">{{ form.dob.label_tag }} {{ form.dob }}</div>
+       </div>
+
+       <div class="mb-3">
+         {{ form.document.label_tag }}
+         {{ form.document }}
+       </div>
+
+       <button type="submit" class="btn btn-success">Save</button>
+       <a href="{% url 'members:dependants' %}" class="btn btn-secondary">Cancel</a>
+
+     </form>
+
+   </div>
+ </div>
+</div>
+
+{% endblock %}

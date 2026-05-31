@@ -1,0 +1,48 @@
+
+{% extends "members/members_base.html" %}
+{% block content %}
+
+<div class="container mt-5">
+    <div class="card shadow-sm">
+        <div class="card-body">
+
+            <h3 class="text-success mb-4">
+                ✅ Payment Successful
+            </h3>
+
+            <p>
+                <strong>Member:</strong>
+                {{ payment.member.first_name }} {{ payment.member.last_name }}
+            </p>
+
+            <p>
+                <strong>Amount Paid:</strong>
+                £{{ payment.amount }}
+            </p>
+
+            <p>
+                <strong>Reference:</strong>
+                {{ payment.external_payment_id }}
+            </p>
+
+            <p>
+                <strong>Date:</strong>
+                {{ payment.created_at|date:"F j, Y, g:i a" }}
+            </p>
+
+            <hr>
+
+            <p>
+                <strong>Payment Request ID:</strong>
+                {{ payment_request.id }}
+            </p>
+
+            <a href="{% url 'members:member_payments' %}" class="btn btn-primary mt-3">
+                Back to Payments
+            </a>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}

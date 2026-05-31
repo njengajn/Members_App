@@ -1,0 +1,118 @@
+{% extends "members/admin/admin_base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Claim Details</h3>
+  <!-- ============================= -->
+  <!-- BASIC INFO -->
+  <!-- ============================= -->
+  <div class="card p-3 mb-3">
+    <p><strong>Claim ID:</strong> {{ claim.id }}</p>
+    <p>
+      <strong>Member:</strong>
+      {{ claim.member.first_name }} {{ claim.member.surname }}
+    </p>
+    <p>
+      <strong>Causer (Affected Person):</strong>
+      {% if claim.causer_dependant %}
+        {{ claim.causer_dependant.first_name }} {{ claim.causer_dependant.surname }}
+      {% else %}
+        {{ claim.member.first_name }} {{ claim.member.surname }}
+      {% endif %}
+    </p>
+    <p>
+      <strong>Type:</strong>
+      {% if claim.causer_dependant %}
+        Dependant Claim
+      {% else %}
+        Member Claim
+      {% endif %}
+    </p>
+    <p>
+      <strong>Status:</strong>
+      <span class="badge bg-info">{{ claim.status }}</span>
+    </p>
+    <p>
+      <strong>Submitted On:</strong>
+      {{ claim.created_at }}
+    </p>
+  </div>
+  <!-- ============================= -->
+  <!-- DESCRIPTION -->
+  <!-- ============================= -->
+  {% if claim.description %}
+  <div class="card p-3 mb-3">
+    <h5>Description</h5>
+    <p>{{ claim.description }}</p>
+  </div>
+  {% endif %}
+  <!-- ============================= -->
+  <!-- DOCUMENTS (IF ANY) -->
+  <!-- ============================= -->
+  {% if claim.documents.all %}
+  <div class="card p-3 mb-3">
+    <h5>Documents</h5>
+
+    <ul class="list-group">
+      {% for doc in claim.documents.all %}
+      <li class="list-group-item">
+        <a href="{{ doc.file.url }}" target="_blank">
+          View Document
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  <!-- ============================= -->
+  <!-- ACTIONS -->
+  <!-- ============================= -->
+  <div class="card p-3">
+
+    <h5>Actions</h5>
+    <!-- APPROVE / REJECT -->
+    {% if claim.status == "received" %}
+      <a href="{% url 'members_admin:approve_claim' claim.id %}"
+         class="btn btn-success">
+         Approve Claim
+      </a>
+      <a href="{% url 'members_admin:reject_claim' claim.id %}"
+         class="btn btn-danger">
+         Reject Claim
+      </a>
+    {% endif %}
+    <!-- CREATE PAYMENT -->
+    {% if claim.status == "approved" %}
+      <a href="{% url 'members_admin:create_payment_request' %}?claim={{ claim.id }}"
+         class="btn btn-primary">
+         Create Payment Request
+      </a>
+    {% endif %}
+    {% if payment_request %}
+
+<div class="card p-3 mt-4">
+
+  <h5>Payment Analytics</h5>
+
+  <p><strong>Members Paid:</strong> {{ paid_count }} / {{ total }}</p>
+
+  <p><strong>Total Collected:</strong> {{ total_paid_amount }}</p>
+
+  <!-- CLICKABLE -->
+  <a href="{% url 'members_admin:payment_request_detail' payment_request.id %}"
+     class="btn btn-info btn-sm">
+     View Members Breakdown
+  </a>
+
+</div>
+
+{% endif %}
+
+    <!-- BACK -->
+    <a href="{% url 'members_admin:admin_claims_list' %}"
+       class="btn btn-secondary">
+       Back to Claims
+    </a>
+  
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Upload Document</h2>
+
+<form id="uploadForm" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <label>Title</label>
+    <input type="text" name="title" id="title" required>
+
+    <label>Description</label>
+    <textarea name="description"></textarea>
+
+    <!-- 🔥 IMPORTANT: supports document request -->
+    <input type="hidden" name="request_id" id="request_id" value="{{ request_id|default:'' }}">
+
+    <label>Select File</label>
+    <input type="file" name="file" id="fileInput" required>
+
+    <div id="preview" style="margin-top:10px;"></div>
+
+    <button type="submit">Upload</button>
+</form>
+
+<script>
+document.getElementById("fileInput").addEventListener("change", function () {
+    const file = this.files[0];
+    const preview = document.getElementById("preview");
+
+    preview.innerHTML = "";
+
+    if (!file) return;
+
+    if (file.type.startsWith("image/")) {
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        img.style.maxWidth = "200px";
+        preview.appendChild(img);
+    } else if (file.type === "application/pdf") {
+        preview.innerHTML = "<p>PDF selected: " + file.name + "</p>";
+    } else {
+        preview.innerHTML = "<p>File selected: " + file.name + "</p>";
+    }
+});
+
+document.getElementById("uploadForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    let formData = new FormData(this);
+
+    fetch("{% url 'members:upload_document' %}", {
+        method: "POST",
+        body: formData,
+        headers: {
+            "X-Requested-With": "XMLHttpRequest"
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        alert("Upload successful!");
+        window.location.href = "{% url 'members:documents_list' %}";
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Upload failed");
+    });
+});
+</script>
+
+{% endblock %}

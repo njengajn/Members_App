@@ -1,0 +1,303 @@
+{% extends "members/admin/admin_base.html" %}
+
+{% block content %}
+
+<div class="container-fluid mt-4 analytics-dashboard">
+
+    <!-- ===================================================== -->
+    <!-- PAGE TITLE -->
+    <!-- ===================================================== -->
+    <div class="mb-4">
+        <h3 class="fw-bold">
+            Admin Analytics
+        </h3>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- CHARTS -->
+    <!-- ===================================================== -->
+    <div class="row g-4">
+
+        <!-- ================================================= -->
+        <!-- MEMBERS STATUS -->
+        <!-- ================================================= -->
+        <div class="col-12 col-lg-6">
+
+            <div class="card shadow-sm border-0 analytics-card">
+
+                <div class="card-body">
+
+                    <h5 class="mb-4 fw-semibold text-center">
+                        Member Status Distribution
+                    </h5>
+
+                    <div class="chart-wrapper">
+
+                        <canvas id="membersChart"></canvas>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ================================================= -->
+        <!-- CLAIM STATUS -->
+        <!-- ================================================= -->
+        <div class="col-12 col-lg-6">
+
+            <div class="card shadow-sm border-0 analytics-card">
+
+                <div class="card-body">
+
+                    <h5 class="mb-4 fw-semibold text-center">
+                        Claims by Status
+                    </h5>
+
+                    <div class="chart-wrapper">
+
+                        <canvas id="claimsChart"></canvas>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ===================================================== -->
+<!-- RESPONSIVE STYLES -->
+<!-- ===================================================== -->
+<style>
+
+.analytics-dashboard {
+    padding-bottom: 40px;
+}
+
+.analytics-card {
+    border-radius: 14px;
+}
+
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 320px;
+}
+
+/* ===================================================== */
+/* TABLETS + MOBILE */
+/* ===================================================== */
+@media (max-width: 768px) {
+
+    .chart-wrapper {
+        min-height: 260px;
+    }
+
+    h3 {
+        font-size: 1.5rem;
+    }
+
+    h5 {
+        font-size: 1rem;
+    }
+
+}
+
+/* ===================================================== */
+/* SMALL MOBILE */
+/* ===================================================== */
+@media (max-width: 480px) {
+
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .chart-wrapper {
+        min-height: 230px;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+}
+
+</style>
+
+<!-- ===================================================== -->
+<!-- CHART JS -->
+<!-- ===================================================== -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+
+const memberStats = {{ member_stats|safe }};
+const claimStats = {{ claim_stats|safe }};
+
+//
+// =====================================================
+// COMMON OPTIONS
+// =====================================================
+//
+const commonOptions = {
+
+    responsive: true,
+
+    maintainAspectRatio: false,
+
+    plugins: {
+
+        legend: {
+
+            position: 'bottom',
+
+            labels: {
+
+                boxWidth: 14,
+
+                font: {
+                    size: 12
+                }
+
+            }
+
+        }
+
+    }
+
+};
+
+//
+// =====================================================
+// MEMBERS PIE CHART
+// =====================================================
+//
+new Chart(document.getElementById("membersChart"), {
+
+    type: "pie",
+
+    data: {
+
+        labels: memberStats.map(m => m.status),
+
+        datasets: [{
+
+            label: "Members",
+
+            data: memberStats.map(m => m.total),
+
+            backgroundColor: [
+                "#198754",
+                "#ffc107",
+                "#dc3545",
+                "#0d6efd"
+            ]
+
+        }]
+
+    },
+
+    options: {
+
+        ...commonOptions,
+
+        plugins: {
+
+            ...commonOptions.plugins,
+
+            title: {
+
+                display: true,
+
+                text: "Member Status Overview",
+
+                font: {
+                    size: 18
+                }
+
+            }
+
+        }
+
+    }
+
+});
+
+//
+// =====================================================
+// CLAIMS BAR CHART
+// =====================================================
+//
+new Chart(document.getElementById("claimsChart"), {
+
+    type: "bar",
+
+    data: {
+
+        labels: claimStats.map(c => c.status),
+
+        datasets: [{
+
+            label: "Claims",
+
+            data: claimStats.map(c => c.total),
+
+            backgroundColor: [
+                "#0d6efd",
+                "#198754",
+                "#ffc107",
+                "#dc3545",
+                "#6f42c1"
+            ]
+
+        }]
+
+    },
+
+    options: {
+
+        ...commonOptions,
+
+        plugins: {
+
+            ...commonOptions.plugins,
+
+            title: {
+
+                display: true,
+
+                text: "Claims Lifecycle Analytics",
+
+                font: {
+                    size: 18
+                }
+
+            }
+
+        },
+
+        scales: {
+
+            y: {
+
+                beginAtZero: true
+
+            }
+
+        }
+
+    }
+
+});
+
+</script>
+
+{% endblock %}

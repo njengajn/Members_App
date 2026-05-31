@@ -1,0 +1,543 @@
+<!-- ===================================================== -->
+<!-- FILE: backend/members/templates/members/admin/payments/admin_payments_list.html -->
+<!-- ===================================================== -->
+
+{% extends "members/admin/admin_base.html" %}
+{% load static %}
+{% block content %}
+
+<div class="container-fluid mt-3">
+
+  <!-- ===================================================== -->
+  <!-- PAGE HEADER -->
+  <!-- ===================================================== -->
+
+  <div class="d-flex justify-content-between align-items-start align-items-md-center mb-3 flex-column flex-md-row gap-2">
+
+    <div>
+      <h4 class="mb-0">
+        Payment Requests
+      </h4>
+
+      <small class="text-muted">
+        Manage active, closed, overdue and archived payment requests
+      </small>
+    </div>
+
+    <!-- GLOBAL PENDING PAYMENTS -->
+
+    <a href="{% url 'members_admin:pending_payments' %}"
+       class="btn btn-warning btn-sm">
+
+      Pending ({{ pending_total }})
+
+    </a>
+
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- FILTER TABS -->
+  <!-- ===================================================== -->
+  <!-- MOBILE SAFE -->
+  <!-- ===================================================== -->
+
+  <div class="overflow-auto mb-3">
+
+    <ul class="nav nav-tabs flex-nowrap">
+
+      <!-- ACTIVE -->
+
+      <li class="nav-item">
+
+        <a class="nav-link {% if tab == 'active' %}active{% endif %}"
+           href="?tab=active">
+
+          Active
+          <span class="badge bg-light text-dark ms-1">
+            {{ counts.active }}
+          </span>
+
+        </a>
+
+      </li>
+
+      <!-- OVERDUE -->
+
+      <li class="nav-item">
+
+        <a class="nav-link {% if tab == 'overdue' %}active{% endif %}"
+           href="?tab=overdue">
+
+          Overdue
+          <span class="badge bg-light text-dark ms-1">
+            {{ counts.overdue }}
+          </span>
+
+        </a>
+
+      </li>
+
+      <!-- CLOSED -->
+
+      <li class="nav-item">
+
+        <a class="nav-link {% if tab == 'closed' %}active{% endif %}"
+           href="?tab=closed">
+
+          Closed
+          <span class="badge bg-light text-dark ms-1">
+            {{ counts.closed }}
+          </span>
+
+        </a>
+
+      </li>
+
+      <!-- ARCHIVED -->
+
+      <li class="nav-item">
+
+        <a class="nav-link {% if tab == 'archived' %}active{% endif %}"
+           href="?tab=archived">
+
+          Archived
+          <span class="badge bg-light text-dark ms-1">
+            {{ counts.archived }}
+          </span>
+
+        </a>
+
+      </li>
+
+    </ul>
+
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- MOBILE CARD VIEW -->
+  <!-- ===================================================== -->
+  <!-- SHOWN ON SMALL DEVICES -->
+  <!-- ===================================================== -->
+
+  <div class="d-block d-md-none">
+
+    {% for req in payment_requests %}
+
+      <div class="card shadow-sm border-0 mb-3">
+
+        <div class="card-body">
+
+          <!-- HEADER -->
+
+          <div class="d-flex justify-content-between align-items-start mb-2">
+
+            <div>
+
+              <div class="fw-semibold">
+
+                #{{ req.id }} - {{ req.request_type }}
+
+              </div>
+
+              <small class="text-muted">
+
+                Due:
+                {{ req.due_date|date:"M d, Y" }}
+
+              </small>
+
+            </div>
+
+            <!-- STATUS -->
+
+            <div>
+
+              {% if req.status == "active" %}
+
+                <span class="badge bg-success">
+                  Active
+                </span>
+
+              {% elif req.status == "closed" %}
+
+                <span class="badge bg-secondary">
+                  Closed
+                </span>
+
+              {% elif req.status == "archived" %}
+
+                <span class="badge bg-dark">
+                  Archived
+                </span>
+
+              {% endif %}
+
+            </div>
+
+          </div>
+
+          <!-- AMOUNT -->
+
+          <div class="mb-2">
+
+            <span class="text-muted small">
+              Amount
+            </span>
+
+            <div class="fw-bold">
+
+              £{{ req.amount }}
+
+            </div>
+
+          </div>
+
+          <!-- PENDING -->
+
+          <div class="mb-3">
+
+            <span class="text-muted small">
+              Pending Payments
+            </span>
+
+            <div>
+
+              {% if req.pending_count > 0 %}
+
+                <a href="{% url 'members_admin:pending_payments' %}"
+                   class="btn btn-warning btn-sm mt-1">
+
+                  {{ req.pending_count }} Pending
+
+                </a>
+
+              {% else %}
+
+                <span class="text-muted">
+                  0 Pending
+                </span>
+
+              {% endif %}
+
+            </div>
+
+          </div>
+
+          <!-- ACTIONS -->
+
+          <div class="d-grid gap-2">
+
+            <!-- VIEW -->
+
+            <a href="{% url 'members_admin:payment_request_detail' req.id %}"
+               class="btn btn-outline-primary btn-sm">
+
+              View
+
+            </a>
+
+            <!-- ACTIVE ONLY -->
+
+            {% if req.status == "active" %}
+
+              <a href="{% url 'members_admin:update_payment_request' req.id %}"
+                 class="btn btn-outline-warning btn-sm">
+
+                Edit
+
+              </a>
+
+            {% endif %}
+
+            <!-- ACTIVE + CLOSED -->
+
+            {% if req.status != "archived" %}
+
+              <a href="{% url 'members_admin:archive_payment_request' req.id %}"
+                 class="btn btn-outline-secondary btn-sm"
+                 onclick="return confirm('Archive this payment request?');">
+
+                Archive
+
+              </a>
+
+            {% endif %}
+
+            <!-- CLOSED -->
+
+            {% if req.status == "closed" %}
+
+              <button class="btn btn-outline-secondary btn-sm"
+                      disabled>
+
+                Locked
+
+              </button>
+
+            {% endif %}
+
+            <!-- ARCHIVED -->
+
+            {% if req.status == "archived" %}
+
+              <button class="btn btn-dark btn-sm"
+                      disabled>
+
+                Archived
+
+              </button>
+
+            {% endif %}
+
+          </div>
+
+        </div>
+
+      </div>
+
+    {% empty %}
+
+      <div class="card shadow-sm border-0">
+
+        <div class="card-body text-center text-muted py-4">
+
+          No payment requests found.
+
+        </div>
+
+      </div>
+
+    {% endfor %}
+
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- DESKTOP TABLE VIEW -->
+  <!-- ===================================================== -->
+  <!-- HIDDEN ON SMALL DEVICES -->
+  <!-- ===================================================== -->
+
+  <div class="card shadow-sm border-0 d-none d-md-block">
+
+    <div class="table-responsive">
+
+      <table class="table table-sm table-hover align-middle mb-0">
+
+        <!-- TABLE HEADER -->
+
+        <thead class="table-light">
+
+          <tr>
+
+            <th>#</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Due</th>
+            <th>Status</th>
+            <th>Pending</th>
+            <th class="text-end">Actions</th>
+
+          </tr>
+
+        </thead>
+
+        <!-- TABLE BODY -->
+
+        <tbody>
+
+          {% for req in payment_requests %}
+
+          <tr>
+
+            <!-- REQUEST ID -->
+
+            <td>
+
+              #{{ req.id }}
+
+            </td>
+
+            <!-- TYPE -->
+
+            <td>
+
+              {{ req.request_type }}
+
+            </td>
+
+            <!-- AMOUNT -->
+
+            <td>
+
+              £{{ req.amount }}
+
+            </td>
+
+            <!-- DUE DATE -->
+
+            <td>
+
+              {{ req.due_date|date:"M d, Y" }}
+
+            </td>
+
+            <!-- STATUS -->
+
+            <td>
+
+              {% if req.status == "active" %}
+
+                <span class="badge bg-success">
+
+                  Active
+
+                </span>
+
+              {% elif req.status == "closed" %}
+
+                <span class="badge bg-secondary">
+
+                  Closed
+
+                </span>
+
+              {% elif req.status == "archived" %}
+
+                <span class="badge bg-dark">
+
+                  Archived
+
+                </span>
+
+              {% endif %}
+
+            </td>
+
+            <!-- PENDING -->
+
+            <td>
+
+              {% if req.pending_count > 0 %}
+
+                <a href="{% url 'members_admin:pending_payments' %}"
+                   class="btn btn-warning btn-sm">
+
+                  {{ req.pending_count }}
+
+                </a>
+
+              {% else %}
+
+                <span class="text-muted small">
+
+                  0
+
+                </span>
+
+              {% endif %}
+
+            </td>
+
+            <!-- ACTIONS -->
+
+            <td class="text-end">
+
+              <div class="d-flex justify-content-end flex-wrap gap-1">
+
+                <!-- VIEW -->
+
+                <a href="{% url 'members_admin:payment_request_detail' req.id %}"
+                   class="btn btn-outline-primary btn-sm">
+
+                  View
+
+                </a>
+
+                <!-- ACTIVE ONLY -->
+
+                {% if req.status == "active" %}
+
+                  <a href="{% url 'members_admin:update_payment_request' req.id %}"
+                     class="btn btn-outline-warning btn-sm">
+
+                    Edit
+
+                  </a>
+
+                {% endif %}
+
+                <!-- ACTIVE + CLOSED -->
+
+                {% if req.status != "archived" %}
+
+                  <a href="{% url 'members_admin:archive_payment_request' req.id %}"
+                     class="btn btn-outline-secondary btn-sm"
+                     onclick="return confirm('Archive this payment request?');">
+
+                    Archive
+
+                  </a>
+
+                {% endif %}
+
+                <!-- CLOSED -->
+
+                {% if req.status == "closed" %}
+
+                  <button class="btn btn-outline-secondary btn-sm"
+                          disabled>
+
+                    Locked
+
+                  </button>
+
+                {% endif %}
+
+                <!-- ARCHIVED -->
+
+                {% if req.status == "archived" %}
+
+                  <button class="btn btn-dark btn-sm"
+                          disabled>
+
+                    Archived
+
+                  </button>
+
+                {% endif %}
+
+              </div>
+
+            </td>
+
+          </tr>
+
+          {% empty %}
+
+          <tr>
+
+            <td colspan="7"
+                class="text-center text-muted py-4">
+
+              No payment requests found.
+
+            </td>
+
+          </tr>
+
+          {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}

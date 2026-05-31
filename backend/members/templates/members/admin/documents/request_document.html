@@ -1,0 +1,16 @@
+{% extends "members/admin/admin_base.html" %} 
+{% block content %}
+<h1>Request Document from {{ member }}</h1>
+
+<form method="post">
+  {% csrf_token %}
+
+  <label>Title</label>
+  <input type="text" name="title" required>
+
+  <label>Description</label>
+  <textarea name="description"></textarea>
+
+  <button type="submit">Send Request</button>
+</form>
+{% endblock %}

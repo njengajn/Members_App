@@ -1,0 +1,147 @@
+{% extends "members/admin/admin_base.html" %}
+
+{% block content %}
+
+<h3>Audit Logs</h3>
+
+<!-- ========================= -->
+<!-- FILTERS (NEW - NON BREAKING) -->
+<!-- ========================= -->
+<form method="get" class="row g-2 mb-3">
+
+  <div class="col-md-2">
+    <select name="admin" class="form-select">
+      <option value="">All Admins</option>
+      {% for a in admins %}
+      <option value="{{ a.id }}">{{ a.username }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-2">
+    <select name="member" class="form-select">
+      <option value="">All Members</option>
+      {% for m in members %}
+      <option value="{{ m.id }}">{{ m.first_name }} {{ m.surname }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-2">
+    <select name="action" class="form-select">
+      <option value="">All Actions</option>
+      {% for key,label in actions %}
+      <option value="{{ key }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-2">
+    <input type="date" name="date_from" class="form-control">
+  </div>
+
+  <div class="col-md-2">
+    <input type="date" name="date_to" class="form-control">
+  </div>
+
+  <div class="col-md-2 d-flex gap-2">
+    <button class="btn btn-primary w-100">Filter</button>
+    <a href="{% url 'members_admin:export_audit_logs' %}" class="btn btn-success w-100">
+      Export
+    </a>
+  </div>
+
+</form>
+
+
+<!-- ========================= -->
+<!-- TABLE (UPGRADED VERSION) -->
+<!-- ========================= -->
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+
+    <table class="table table-striped table-hover mb-0">
+
+      <thead class="table-dark">
+        <tr>
+          <th>User</th>
+          <th>Action</th>
+          <th>Member</th>
+          <th>Payment</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+
+      <tbody>
+
+        {% for log in logs %}
+        <tr class="
+          {% if log.is_high_risk %}
+            table-danger
+          {% endif %}
+        ">
+
+          <!-- USER (FIXED FIELD NAME) -->
+          <td>
+            {{ log.admin|default:"System" }}
+          </td>
+
+          <!-- ACTION -->
+          <td>
+            <strong>{{ log.get_action_display }}</strong>
+            <br>
+            <small class="text-muted">{{ log.message }}</small>
+          </td>
+
+          <!-- MEMBER -->
+          <td>
+            {% if log.target_member %}
+              {{ log.target_member.first_name }} {{ log.target_member.surname }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+
+          <!-- PAYMENT -->
+          <td>
+            {% if log.payment %}
+              #{{ log.payment.id }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+
+          <!-- DATE -->
+          <td>
+            {{ log.created_at|date:"Y-m-d H:i" }}
+          </td>
+
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center py-3">
+            No audit logs found.
+          </td>
+        </tr>
+        {% endfor %}
+
+      </tbody>
+
+    </table>
+
+  </div>
+</div>
+
+<script>
+const socket = new WebSocket("ws://" + window.location.host + "/ws/audit-logs/");
+
+socket.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+
+    alert(data.message);
+
+    location.reload(); // refresh logs
+};
+</script>
+
+{% endblock %}

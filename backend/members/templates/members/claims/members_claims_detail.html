@@ -1,0 +1,11 @@
+{% extends "members/members_base.html" %}
+{% block content %}
+<h2>Claim Details</h2>
+
+<p><strong>ID:</strong> {{ claim.id }}</p>
+<p><strong>Status:</strong> {{ claim.status }}</p>
+<p><strong>Amount:</strong> £{{ claim.amount }}</p>
+<p><strong>Submitted:</strong> {{ claim.created_at }}</p>
+
+<a href="/claims/">← Back to claims</a>
+{% endblock %}

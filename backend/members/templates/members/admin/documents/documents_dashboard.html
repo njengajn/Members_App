@@ -1,0 +1,109 @@
+{% extends "members/admin/admin_base.html" %}
+{% load static %}
+{% block content %}
+
+<!-- ================================================== -->
+<!-- RESPONSIVE DOCUMENT CSS -->
+<!-- ================================================== -->
+
+<link rel="stylesheet"
+      href="{% static 'css/documents-responsive.css' %}">
+
+
+<h1>Documents Dashboard</h1>
+
+<!-- ========================= -->
+<!-- DOCUMENTS SECTION -->
+<!-- ========================= -->
+
+<h2>Recent Documents</h2>
+
+<table class="adminlist">
+    <thead>
+        <tr>
+            <th>Member</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Uploaded</th>
+            <th>Open</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for doc in documents %}
+        <tr>
+            <td>
+                {{ doc.member }}
+                <br>
+
+                <!-- 🔑 LINK TO MEMBER DOCUMENTS -->
+                <a href="{% url 'members_admin:admin_documents_list' doc.member.id %}">
+                    View Member Docs
+                </a>
+            </td>
+
+            <td>{{ doc.title }}</td>
+            <td>{{ doc.status }}</td>
+            <td>{{ doc.uploaded_at }}</td>
+
+            <td>
+                <a href="{{ doc.file.url }}" target="_blank">
+                    Open
+                </a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5">No documents found</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
+<!-- ========================= -->
+<!-- REQUESTS SECTION -->
+<!-- ========================= -->
+
+<h2 style="margin-top:40px;">Document Requests</h2>
+
+<table class="adminlist">
+    <thead>
+        <tr>
+            <th>Member</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Go to Member</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for r in requests %}
+        <tr>
+            <td>{{ r.member }}</td>
+            <td>{{ r.title }}</td>
+
+            <td>
+                {% if r.completed %}
+                    ✔ Completed
+                {% else %}
+                    ⏳ Pending
+                {% endif %}
+            </td>
+
+            <td>
+                <!-- 🔑 DIRECT NAVIGATION -->
+                <a href="{% url 'members_admin:admin_documents_list' r.member.id %}">
+                    Open Documents
+                </a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="4">No document requests</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

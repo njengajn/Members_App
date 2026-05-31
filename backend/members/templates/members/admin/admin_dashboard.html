@@ -1,0 +1,547 @@
+{% extends "members/admin/admin_base.html" %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+  <!-- ===================================================== -->
+  <!-- PAGE TITLE -->
+  <!-- ===================================================== -->
+
+  <h3 class="mb-2">
+    Admin Dashboard
+  </h3>
+
+
+  <!-- ===================================================== -->
+  <!-- MEMBERS -->
+  <!-- ===================================================== -->
+
+  <h5 class="mb-1">
+    Members
+  </h5>
+
+  <div class="row dashboard-row">
+
+    <!-- TOTAL MEMBERS -->
+
+    <div class="col-lg-3 col-md-6 col-6">
+
+      <div class="card members-total-card text-center">
+
+        <div class="card-header">
+          Total Members
+        </div>
+
+        <div class="card-body">
+
+          <h3>
+            {{ members_total_members }}
+          </h3>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- ACTIVE -->
+
+    <div class="col-lg-3 col-md-6 col-6">
+
+      <div class="card members-active-card text-center">
+
+        <div class="card-header">
+          Active
+        </div>
+
+        <div class="card-body">
+
+          <h3>
+            {{ members_active }}
+          </h3>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- PENDING -->
+
+    <div class="col-lg-3 col-md-6 col-6">
+
+      <div class="card members-pending-card text-center">
+
+        <div class="card-header">
+          Pending
+        </div>
+
+        <div class="card-body">
+
+          <h3>
+            {{ members_pending }}
+          </h3>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- RETIRED -->
+
+    <div class="col-lg-3 col-md-6 col-6">
+
+      <div class="card members-retired-card text-center">
+
+        <div class="card-header">
+          Retired
+        </div>
+
+        <div class="card-body">
+
+          <h3>
+            {{ members_retired }}
+          </h3>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- CLAIMS -->
+  <!-- ===================================================== -->
+
+  <h5 class="mt-2 mb-1">
+    Claims Lifecycle
+  </h5>
+
+  <div class="row dashboard-row">
+
+    <div class="col-lg col-md-4 col-6">
+
+      <a
+        href="{% url 'members_admin:claims' %}?status=received"
+        class="text-decoration-none"
+      >
+
+        <div class="card text-center bg-warning">
+
+          <div class="card-header">
+            Received
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ received_claims }}
+            </h3>
+
+          </div>
+
+        </div>
+
+      </a>
+
+    </div>
+
+
+    <div class="col-lg col-md-4 col-6">
+
+      <a
+        href="{% url 'members_admin:claims' %}?status=approved"
+        class="text-decoration-none"
+      >
+
+        <div class="card text-center bg-info">
+
+          <div class="card-header">
+            Approved
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ approved_claims }}
+            </h3>
+
+          </div>
+
+        </div>
+
+      </a>
+
+    </div>
+
+
+    <div class="col-lg col-md-4 col-6">
+
+      <a
+        href="{% url 'members_admin:claims' %}?status=open"
+        class="text-decoration-none"
+      >
+
+        <div class="card text-center bg-primary text-white">
+
+          <div class="card-header">
+            Open
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ open_claims }}
+            </h3>
+
+          </div>
+
+        </div>
+
+      </a>
+
+    </div>
+
+
+    <div class="col-lg col-md-4 col-6">
+
+      <a
+        href="{% url 'members_admin:claims' %}?status=rejected"
+        class="text-decoration-none"
+      >
+
+        <div class="card text-center bg-danger text-white">
+
+          <div class="card-header">
+            Rejected
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ rejected_claims }}
+            </h3>
+
+          </div>
+
+        </div>
+
+      </a>
+
+    </div>
+
+
+    <div class="col-lg col-md-4 col-6">
+
+      <a
+        href="{% url 'members_admin:claims' %}?status=settled"
+        class="text-decoration-none"
+      >
+
+        <div class="card text-center bg-success text-white">
+
+          <div class="card-header">
+            Settled
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ settled_claims }}
+            </h3>
+
+          </div>
+
+        </div>
+
+      </a>
+
+    </div>
+
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- PAYMENTS -->
+  <!-- ===================================================== -->
+
+  <h5 class="mt-2 mb-1">
+    Payments
+  </h5>
+
+  <div class="row dashboard-row">
+
+    <div class="col-lg-3 col-md-6 col-6">
+
+      <a
+        href="{% url 'members_admin:admin_payments_list' %}?status=active"
+        class="text-decoration-none"
+      >
+
+        
+      <div class="card text-center bg-primary text-white">
+
+        <div class="card-header">
+          Active Requests
+        </div>
+
+        <div class="card-body">
+
+          <h3>
+            {{ payment_requests_active }}
+          </h3>
+
+        </div>
+
+      </div>
+
+      </a>
+
+    </div>
+
+
+    <div class="col-lg-3 col-md-6 col-6">
+
+      <a
+        href="{% url 'members_admin:admin_payments_list' %}?status=completed"
+        class="text-decoration-none"
+      >
+
+        <div class="card text-center bg-success text-white">
+
+          <div class="card-header">
+            Completed
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ completed_payments }}
+            </h3>
+
+          </div>
+
+        </div>
+
+      </a>
+
+    </div>
+
+
+    <div class="col-lg-3 col-md-6 col-6">
+
+      <a
+        href="{% url 'members_admin:admin_payments_list' %}?status=in_progress"
+        class="text-decoration-none"
+      >
+
+        <div class="card text-center bg-warning">
+
+          <div class="card-header">
+            In Progress
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ in_progress_requests }}
+            </h3>
+
+          </div>
+
+        </div>
+
+      </a>
+
+    </div>
+
+
+    <div class="col-lg-3 col-md-6 col-6">
+
+      <a
+        href="{% url 'members_admin:admin_payments_list' %}?status=pending"
+        class="text-decoration-none"
+      >
+
+        <div class="card text-center bg-secondary text-white">
+
+          <div class="card-header">
+            Pending
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ pending_requests }}
+            </h3>
+
+          </div>
+
+        </div>
+
+      </a>
+
+    </div>
+
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- ADMIN TASKS -->
+  <!-- ===================================================== -->
+
+  <h5 class="mt-2 mb-1">
+    Admin Tasks
+  </h5>
+
+  <div class="card">
+
+    <ul class="list-group list-group-flush">
+
+      <li class="list-group-item d-flex justify-content-between">
+
+        Claims waiting approval
+
+        <a href="{% url 'members_admin:claims' %}?status=received">
+
+          <span class="badge bg-warning">
+            {{ claims_waiting_approval }}
+          </span>
+
+        </a>
+
+      </li>
+
+
+      <li class="list-group-item d-flex justify-content-between">
+
+        Approved claims awaiting payment request
+
+        <a href="{% url 'members_admin:create_payment_request' %}">
+
+          <span class="badge bg-info">
+            {{ claims_ready_for_payment }}
+          </span>
+
+        </a>
+
+      </li>
+
+
+      <li class="list-group-item d-flex justify-content-between">
+
+        Payments awaiting confirmation
+
+        <a href="{% url 'members_admin:payments_awaiting_confirmation' %}">
+
+          <span class="badge bg-primary">
+            {{ payments_waiting_confirmation }}
+          </span>
+
+        </a>
+
+      </li>
+
+    </ul>
+
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- PAYMENT TREND -->
+  <!-- ===================================================== -->
+
+  <div class="card mt-2">
+
+    <div class="card-header">
+      Payment Activity Trend
+    </div>
+
+    <div class="card-body">
+
+      <canvas id="paymentsChart"></canvas>
+
+    </div>
+
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- HIGH RISK ACTIONS -->
+  <!-- ===================================================== -->
+
+  <div class="card mt-2 border-danger">
+
+    <div class="card-header bg-danger text-white">
+      High Risk Actions
+    </div>
+
+    <div class="card-body">
+
+      {% for log in recent_logs %}
+
+        {% if log.is_high_risk %}
+
+          <p class="text-danger">
+
+            ⚠ {{ log.get_action_display }} —
+            {{ log.target_member }}
+
+            <br>
+
+            <small>
+              {{ log.created_at }}
+            </small>
+
+          </p>
+
+        {% endif %}
+
+      {% empty %}
+
+        <p>
+          No alerts.
+        </p>
+
+      {% endfor %}
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- CHART JS -->
+<!-- ===================================================== -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+
+  const ctx = document.getElementById('paymentsChart');
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: {{ chart_labels|safe }},
+      datasets: [{
+        label: 'Payments per Day',
+        data: {{ chart_values|safe }},
+        tension: 0.3
+      }]
+    }
+  });
+
+</script>
+
+{% endblock %}

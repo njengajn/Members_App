@@ -1,0 +1,78 @@
+{% extends "members/admin/admin_base.html" %}
+{% block title %}Payment Requests{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Payment Requests</h2>
+
+<!-- SUMMARY CARDS -->
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h6 class="card-title">Open Claims</h6>
+        <p class="display-6">{{ open_claims_count }}</p>
+
+        <!-- ✅ CORRECT URL NAME -->
+        <a
+          href="{% url 'members_admin:claims' %}"
+          class="btn btn-sm btn-outline-primary"
+        >
+          View Open Claims
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- PAYMENT REQUESTS TABLE -->
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Member</th>
+      <th>Amount</th>
+      <th>Status</th>
+      <th>Claim</th>
+      <th>Due Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for pr in payment_requests %}
+      <tr>
+        <td>{{ pr.member }}</td>
+        <td>{{ pr.amount }}</td>
+        <td>
+          {% if pr.status == "active" %}
+            <span class="badge bg-success">ACTIVE</span>
+          {% else %}
+            <span class="badge bg-secondary">CLOSED</span>
+          {% endif %}
+        </td>
+
+        <td>
+          {% if pr.claim %}
+            <!-- ✅ SAFE LINK TO CLAIM LIST (filtered) -->
+            <a
+              href="{% url 'members_admin:claims' %}?uid={{ pr.claim.uid }}"
+            >
+              {{ pr.claim.uid }}
+            </a>
+          {% else %}
+            <span class="text-muted">Manual</span>
+          {% endif %}
+        </td>
+
+        <td>{{ pr.due_date|date:"M d, Y" }}</td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="5" class="text-center text-muted">
+          No payment requests found.
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,333 @@
+{% extends "members/admin/admin_base.html" %}
+
+{% block content %}
+
+<div class="container-fluid mt-4 analytics-page">
+
+    <!-- ===================================================== -->
+    <!-- PAGE TITLE -->
+    <!-- ===================================================== -->
+    <div class="mb-4">
+        <h3 class="fw-bold">
+            Treasurer Financial Analytics
+        </h3>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- CHARTS GRID -->
+    <!-- ===================================================== -->
+    <div class="row g-4">
+
+        <!-- ================================================= -->
+        <!-- MONTHLY INCOME -->
+        <!-- ================================================= -->
+        <div class="col-12 col-xl-6">
+
+            <div class="card shadow-sm border-0 analytics-card">
+
+                <div class="card-body">
+
+                    <h5 class="mb-4 fw-semibold">
+                        Monthly Income
+                    </h5>
+
+                    <div class="chart-wrapper">
+                        <canvas id="incomeChart"></canvas>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ================================================= -->
+        <!-- CLAIMS PAID -->
+        <!-- ================================================= -->
+        <div class="col-12 col-xl-6">
+
+            <div class="card shadow-sm border-0 analytics-card">
+
+                <div class="card-body">
+
+                    <h5 class="mb-4 fw-semibold">
+                        Claims Paid Per Month
+                    </h5>
+
+                    <div class="chart-wrapper">
+                        <canvas id="claimsChart"></canvas>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ================================================= -->
+        <!-- PAYMENT REQUESTS -->
+        <!-- ================================================= -->
+        <div class="col-12">
+
+            <div class="card shadow-sm border-0 analytics-card">
+
+                <div class="card-body">
+
+                    <h5 class="mb-4 fw-semibold">
+                        Payment Requests Created
+                    </h5>
+
+                    <div class="chart-wrapper chart-wrapper-large">
+                        <canvas id="requestsChart"></canvas>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ===================================================== -->
+<!-- RESPONSIVE STYLES -->
+<!-- ===================================================== -->
+<style>
+
+.analytics-page {
+    padding-bottom: 40px;
+}
+
+.analytics-card {
+    border-radius: 14px;
+}
+
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 320px;
+}
+
+.chart-wrapper-large {
+    min-height: 380px;
+}
+
+/* ===================================================== */
+/* MOBILE */
+/* ===================================================== */
+@media (max-width: 768px) {
+
+    .chart-wrapper {
+        min-height: 260px;
+    }
+
+    .chart-wrapper-large {
+        min-height: 300px;
+    }
+
+    h3 {
+        font-size: 1.4rem;
+    }
+
+    h5 {
+        font-size: 1rem;
+    }
+
+}
+
+/* ===================================================== */
+/* SMALL DEVICES */
+/* ===================================================== */
+@media (max-width: 480px) {
+
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    .chart-wrapper {
+        min-height: 240px;
+    }
+
+    .chart-wrapper-large {
+        min-height: 260px;
+    }
+
+}
+
+</style>
+
+<!-- ===================================================== -->
+<!-- CHART JS -->
+<!-- ===================================================== -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+
+const incomeData = JSON.parse('{{ income_trend|escapejs }}');
+const claimsData = JSON.parse('{{ claims_trend|escapejs }}');
+const requestData = JSON.parse('{{ request_trend|escapejs }}');
+
+function formatMonths(data) {
+
+    return data.map(item => {
+
+        const date = new Date(item.month);
+
+        return date.toLocaleDateString(
+            'en-GB',
+            {
+                month: 'short',
+                year: 'numeric'
+            }
+        );
+
+    });
+
+}
+
+//
+// =====================================================
+// COMMON RESPONSIVE OPTIONS
+// =====================================================
+//
+const responsiveOptions = {
+
+    responsive: true,
+
+    maintainAspectRatio: false,
+
+    plugins: {
+
+        legend: {
+            labels: {
+                boxWidth: 14,
+                font: {
+                    size: 12
+                }
+            }
+        }
+
+    },
+
+    scales: {
+
+        x: {
+            ticks: {
+                maxRotation: 45,
+                minRotation: 30
+            }
+        }
+
+    }
+
+};
+
+//
+// =====================================================
+// INCOME CHART
+// =====================================================
+//
+new Chart(document.getElementById("incomeChart"), {
+
+    type: "line",
+
+    data: {
+
+        labels: formatMonths(incomeData),
+
+        datasets: [{
+
+            label: "Income (£)",
+
+            data: incomeData.map(d => d.total),
+
+            borderColor: "green",
+
+            backgroundColor: "rgba(0,128,0,0.08)",
+
+            fill: true,
+
+            tension: 0.3
+
+        }]
+
+    },
+
+    options: responsiveOptions
+
+});
+
+//
+// =====================================================
+// CLAIMS CHART
+// =====================================================
+//
+new Chart(document.getElementById("claimsChart"), {
+
+    type: "bar",
+
+    data: {
+
+        labels: formatMonths(claimsData),
+
+        datasets: [{
+
+            label: "Claims Paid",
+
+            data: claimsData.map(d => d.total),
+
+            backgroundColor: "rgba(220,53,69,0.75)"
+
+        }]
+
+    },
+
+    options: responsiveOptions
+
+});
+
+//
+// =====================================================
+// REQUESTS CHART
+// =====================================================
+//
+new Chart(document.getElementById("requestsChart"), {
+
+    type: "line",
+
+    data: {
+
+        labels: formatMonths(requestData),
+
+        datasets: [{
+
+            label: "Requests Created",
+
+            data: requestData.map(d => d.total),
+
+            borderColor: "blue",
+
+            backgroundColor: "rgba(0,0,255,0.08)",
+
+            fill: true,
+
+            tension: 0.3
+
+        }]
+
+    },
+
+    options: responsiveOptions
+
+});
+
+</script>
+
+{% endblock %}

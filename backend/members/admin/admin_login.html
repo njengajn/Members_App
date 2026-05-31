@@ -1,0 +1,27 @@
+{% extends 'members/base.html' %}
+{% extends "members/admin/admin_base.html" %}
+{% block title %}Admin Login{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card mt-5">
+      <div class="card-body">
+        <h4 class="card-title">Admin login</h4>
+        <form method="post">
+          {% csrf_token %}
+          {{ form.non_field_errors }}
+          <div class="mb-3">
+            <label class="form-label">Username</label>
+            {{ form.username }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Password</label>
+            {{ form.password }}
+          </div>
+          <button class="btn btn-dark w-100" type="submit">Login</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,274 @@
+{% load static %}
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+  <div class="container-fluid">
+
+    <!-- BRAND -->
+    <a class="navbar-brand fw-bold text-white"
+       href="{% url 'members:dashboard' %}">
+      Members Portal
+    </a>
+
+    <!-- MOBILE TOGGLE -->
+    <button class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#navMenu">
+
+      <span class="navbar-toggler-icon"></span>
+
+    </button>
+
+    <div class="collapse navbar-collapse" id="navMenu">
+
+      <!-- LEFT NAV -->
+      <ul class="navbar-nav me-auto">
+
+        {% if request.user.is_authenticated %}
+
+        <!-- DASHBOARD -->
+        <li class="nav-item">
+          <a class="nav-link text-white {% if '/dashboard' in request.path %}fw-bold text-warning{% endif %}"
+             href="{% url 'members:dashboard' %}">
+
+            Dashboard
+
+          </a>
+        </li>
+
+        <!-- DEPENDANTS -->
+        <li class="nav-item">
+          <a class="nav-link text-white {% if '/dependants' in request.path %}fw-bold text-warning{% endif %}"
+             href="{% url 'members:dependants' %}">
+
+            Dependants
+
+          </a>
+        </li>
+
+        <!-- PAYMENTS -->
+        <li class="nav-item">
+          <a class="nav-link text-white {% if '/payments' in request.path %}fw-bold text-warning{% endif %}"
+             href="{% url 'members:member_payment_requests' %}">
+
+            Payments
+
+          </a>
+        </li>
+
+        <!-- CREATE CLAIM -->
+        <li class="nav-item">
+          <a class="nav-link text-white {% if '/claims' in request.path %}fw-bold text-warning{% endif %}"
+             href="{% url 'members:member_create_claim' %}">
+
+            Create Claim
+
+          </a>
+        </li>
+
+       <!-- DOCUMENTS -->
+        {% with pending_requests=request.user.member.document_requests.all %}
+            {% if pending_requests %}
+            
+            <li class="nav-item">
+
+                <a class="nav-link text-white {% if '/documents' in request.path %}fw-bold text-warning{% endif %}"
+                  href="{% url 'members:member_requests' %}">
+
+                    Documents
+
+                </a>
+
+            </li>
+
+            {% endif %}
+        {% endwith %}
+        {% endif %}
+
+        {% if request.user.is_staff %}
+
+        <!-- ADMIN -->
+        <li class="nav-item dropdown">
+
+          <a class="nav-link dropdown-toggle text-info fw-bold"
+             href="#"
+             data-bs-toggle="dropdown">
+
+            Admin Panel
+
+          </a>
+
+          <ul class="dropdown-menu">
+
+            <li>
+              <a class="dropdown-item"
+                 href="{% url 'members_admin:admin_members_list' %}">
+
+                Members
+
+              </a>
+            </li>
+
+            <li>
+              <a class="dropdown-item"
+                 href="{% url 'members_admin:admin_claims_list' %}">
+
+                Claims
+
+              </a>
+            </li>
+
+            <li>
+              <a class="dropdown-item"
+                 href="{% url 'members_admin:admin_payments_list' %}">
+
+                Payments
+
+              </a>
+            </li>
+
+            <li>
+              <a class="dropdown-item"
+                 href="{% url 'members_admin:dashboard' %}">
+
+                Admin Dashboard
+
+              </a>
+            </li>
+
+          </ul>
+
+        </li>
+
+        {% endif %}
+
+      </ul>
+
+      <!-- RIGHT NAV -->
+      <div class="topbar-right d-flex align-items-center">
+
+        <ul class="navbar-nav align-items-center">
+
+          {% if request.user.is_authenticated %}
+
+          <!-- REQUESTED DOCUMENTS BUTTON -->
+          {% if pending_document_requests_count > 0 %}
+          <li class="nav-item me-3">
+
+            <a href="{% url 'members:member_requests' %}"
+               class="btn btn-warning btn-sm">
+
+              <i class="fas fa-file-alt"></i>
+
+              Requested Documents
+              ({{ pending_document_requests_count }})
+
+            </a>
+
+          </li>
+          {% endif %}
+
+          <!-- USER DROPDOWN -->
+          <li class="nav-item dropdown">
+
+            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2 text-white"
+               href="#"
+               data-bs-toggle="dropdown">
+
+              <!-- AVATAR -->
+              <div class="avatar-circle">
+
+                {% if request.user.member.avatar %}
+
+                <img src="{{ request.user.member.avatar.url }}"
+                     class="avatar-img">
+
+                {% else %}
+
+                  {{ request.user.member.first_name|first }}
+                  {{ request.user.member.surname|first }}
+
+                {% endif %}
+
+              </div>
+
+              <!-- USERNAME -->
+              <span class="d-none d-md-inline">
+                {{ request.user.username }}
+              </span>
+
+            </a>
+
+            <!-- DROPDOWN -->
+            <ul class="dropdown-menu dropdown-menu-end">
+
+              <li>
+                <a class="dropdown-item"
+                   href="{% url 'members:profile' %}">
+
+                  Profile
+
+                </a>
+              </li>
+
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+
+              <li>
+
+                <form method="post"
+                      action="{% url 'members:logout' %}">
+
+                  {% csrf_token %}
+
+                  <button class="dropdown-item text-danger fw-bold">
+
+                    Logout
+
+                  </button>
+
+                </form>
+
+              </li>
+
+            </ul>
+
+          </li>
+
+          {% else %}
+
+          <!-- LOGIN -->
+          <li class="nav-item">
+
+            <a class="btn btn-outline-light me-2"
+               href="{% url 'members:login' %}">
+
+              Login
+
+            </a>
+
+          </li>
+
+          <!-- REGISTER -->
+          <li class="nav-item">
+
+            <a class="btn btn-primary"
+               href="{% url 'members:register_step_1' %}">
+
+              Register
+
+            </a>
+
+          </li>
+
+          {% endif %}
+
+        </ul>
+
+      </div>
+
+    </div>
+
+  </div>
+</nav>

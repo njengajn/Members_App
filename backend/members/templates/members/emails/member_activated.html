@@ -1,0 +1,54 @@
+{% extends "members/emails/base_email.html" %}
+
+{% block email_content %}
+
+<p
+    class="email-text"
+    style="
+        font-size:16px;
+        color:#555555;
+        line-height:1.6;
+    "
+>
+
+    Your membership has been activated successfully.
+
+</p>
+
+<div
+    style="
+        background:#d1e7dd;
+        padding:20px;
+        border-radius:10px;
+        margin:25px 0;
+        text-align:center;
+    "
+>
+
+    <div
+        style="
+            font-size:14px;
+            margin-bottom:10px;
+        "
+    >
+
+        MEMBER ID:
+
+    </div>
+
+    <div
+        style="
+            font-size:28px;
+            font-weight:bold;
+            color:#198754;
+            letter-spacing:2px;
+        "
+    >
+
+        {{ member.member_uid }}
+
+    </div>
+
+</div>
+
+{% endblock %}

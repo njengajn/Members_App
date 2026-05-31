@@ -1,0 +1,28 @@
+{% extends "members/admin/admin_base.html" %} {% block content %}
+<div class="container mt-4">
+  <h3>Admin Activity Log</h3>
+
+  <table class="table table-striped mt-3">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Admin</th>
+        <th>Action</th>
+        <th>Member</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td>{{ log.created_at }}</td>
+        <td>{{ log.admin }}</td>
+        <td>{{ log.get_action_display }}</td>
+        <td>{{ log.target_member }}</td>
+        <td>{{ log.description }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

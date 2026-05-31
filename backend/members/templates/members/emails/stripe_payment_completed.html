@@ -1,0 +1,74 @@
+{% extends "members/emails/base_email.html" %}
+
+{% block email_content %}
+
+<p class="email-text">
+
+    Your Stripe payment was successful.
+
+</p>
+
+<div
+    style="
+        background:#f8f9fa;
+        padding:22px;
+        border-radius:14px;
+        margin:25px 0;
+    "
+>
+
+    <p>
+
+        <strong>Reference:</strong><br>
+        {{ payment_reference }}
+
+    </p>
+
+    <p>
+
+        <strong>Description:</strong><br>
+        {{ payment.payment_request.description }}
+
+    </p>
+
+    <p>
+
+        <strong>Amount Paid:</strong><br>
+        £{{ payment.amount }}
+
+    </p>
+
+    <p>
+
+        <strong>Status:</strong><br>
+        Successful
+
+    </p>
+
+</div>
+
+<p class="email-text">
+
+    Your payment has been received successfully.
+
+</p>
+
+<p class="email-text">
+
+    Thank you for your continued support.
+
+</p>
+
+<p
+    class="email-text"
+    style="
+        font-weight:bold;
+        margin-top:25px;
+    "
+>
+
+    KRO Welfare Management
+
+</p>
+
+{% endblock %}

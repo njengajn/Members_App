@@ -1,0 +1,92 @@
+{% extends "members/emails/base_email.html" %}
+
+{% block email_content %}
+
+<p class="email-text">
+
+    A new payment request has been created.
+
+</p>
+
+<div
+    style="
+        background:#f8f9fa;
+        padding:22px;
+        border-radius:14px;
+        margin:25px 0;
+    "
+>
+
+    <p>
+
+        <strong>Reference:</strong><br>
+        {{ payment_reference }}
+
+    </p>
+
+    <p>
+
+        <strong>Title:</strong><br>
+        {{ payment_request.title }}
+
+    </p>
+
+    <p>
+
+        <strong>Description:</strong><br>
+        {{ payment_request.description }}
+
+    </p>
+
+    <p>
+
+        <strong>Amount:</strong><br>
+        £{{ payment_request.amount }}
+
+    </p>
+
+    <p>
+
+        <strong>Due Date:</strong><br>
+        {{ payment_request.due_date|date:"d M Y" }}
+
+    </p>
+
+    <p>
+
+        <strong>Payment Portal:</strong><br>
+
+        <a
+            href="{{ payments_url }}"
+            style="
+                color:#0d6efd;
+                text-decoration:none;
+                font-weight:bold;
+            "
+        >
+            Pay Online
+        </a>
+
+    </p>
+
+</div>
+
+<p class="email-text">
+
+    Thank you for your continued support.
+
+</p>
+
+<p
+    class="email-text"
+    style="
+        font-weight:bold;
+        margin-top:25px;
+    "
+>
+
+    KRO Welfare Management
+
+</p>
+
+{% endblock %}

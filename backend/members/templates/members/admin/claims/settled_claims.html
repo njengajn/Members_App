@@ -1,0 +1,302 @@
+{% extends "members/admin/admin_base.html" %}
+{% load humanize %}
+
+{% block content %}
+
+<div class="container-fluid mt-4">
+
+    <!-- ===================================================== -->
+    <!-- PAGE HEADER -->
+    <!-- ===================================================== -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+
+        <div>
+            <h3 class="mb-1">Settled Claims</h3>
+            <p class="text-muted mb-0">
+                Treasury archive of approved and settled claims
+            </p>
+        </div>
+
+        <div class="mt-2 mt-md-0">
+            <span class="badge bg-success fs-6">
+                {{ settlements|length }} Settled
+            </span>
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- SUMMARY CARDS -->
+    <!-- ===================================================== -->
+    <div class="row g-3 mb-4">
+
+        <div class="col-12 col-md-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body text-center">
+                    <small class="text-muted d-block">
+                        Total Settlements
+                    </small>
+
+                    <h4 class="mt-2 mb-0">
+                        {{ settlements|length }}
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body text-center">
+
+                    <small class="text-muted d-block">
+                        Approved Claims
+                    </small>
+
+                    <h4 class="mt-2 mb-0 text-success">
+                        {{ settlements|length }}
+                    </h4>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body text-center">
+
+                    <small class="text-muted d-block">
+                        Treasury Archive
+                    </small>
+
+                    <h4 class="mt-2 mb-0">
+                        Active
+                    </h4>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- TABLE -->
+    <!-- ===================================================== -->
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-dark text-white">
+            Settled Claims Register
+        </div>
+
+        <div class="card-body p-0">
+
+            {% if settlements %}
+
+            <div class="table-responsive">
+
+                <table class="table table-hover table-striped table-bordered align-middle mb-0 small">
+
+                    <thead class="table-dark">
+
+                        <tr>
+                            <th>ID</th>
+                            <th>Member</th>
+                            <th>Claim</th>
+                            <th>Causer</th>
+                            <th>Total Collected</th>
+                            <th>Deductions</th>
+                            <th>Amount Paid</th>
+                            <th>Prepared By</th>
+                            <th>Approved By</th>
+                            <th>Settlement Date</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for settlement in settlements %}
+
+                        <tr>
+
+                            <!-- ID -->
+                            <td>
+                                <strong>#{{ settlement.id }}</strong>
+                            </td>
+
+                            <!-- MEMBER -->
+                            <td>
+
+                                <div class="fw-semibold">
+
+                                    {% if settlement.claim.member %}
+
+                                        {{ settlement.claim.member.first_name }}
+                                        {{ settlement.claim.member.surname }}
+
+                                    {% else %}
+
+                                        -
+
+                                    {% endif %}
+
+                                </div>
+
+                                {% if settlement.claim.member.member_uid %}
+                                <small class="text-muted">
+                                    {{ settlement.claim.member.member_uid }}
+                                </small>
+                                {% endif %}
+
+                            </td>
+
+
+                            <!-- CLAIM -->
+                            <td>
+
+                                <div class="fw-semibold">
+
+                                    {% if settlement.claim.cause_type %}
+                                        {{ settlement.claim.cause_type|title }}
+                                    {% else %}
+                                        Claim
+                                    {% endif %}
+
+                                </div>
+
+                                {% if settlement.claim.payment_request %}
+                                <small class="text-muted">
+                                    Request #{{ settlement.claim.payment_request.id }}
+                                </small>
+                                {% endif %}
+
+                            </td>
+
+                            <!-- CAUSER -->
+                            <td>
+
+                                {% if settlement.claim.causer_dependant %}
+                                    {{ settlement.claim.causer_dependant.full_name }}
+                                {% else %}
+                                    {{ settlement.claim.causer_full_name }}
+                                {% endif %}
+
+                            </td>
+
+                            <!-- TOTAL -->
+                            <td>
+                                £{{ settlement.total_collected|floatformat:2|intcomma }}
+                            </td>
+
+                            <!-- DEDUCTIONS -->
+                            <td>
+
+                                £{{ settlement.deductions|default:0|floatformat:2|intcomma }}
+
+                            </td>
+
+                            <!-- AMOUNT PAID -->
+                            <td>
+
+                                <strong class="text-success">
+                                    £{{ settlement.amount_paid|floatformat:2|intcomma }}
+                                </strong>
+
+                            </td>
+
+                            <!-- PREPARED -->
+                            <td>
+                                {{ settlement.prepared_by|default:"-" }}
+                            </td>
+
+                            <!-- APPROVED -->
+                            <td>
+                                {{ settlement.approved_by|default:"-" }}
+                            </td>
+
+                            <!-- DATE -->
+                            <td>
+
+                                <small>
+                                    {{ settlement.settlement_date|date:"d M Y" }}
+                                </small>
+
+                                <br>
+
+                                <small class="text-muted">
+                                    {{ settlement.settlement_date|time:"H:i" }}
+                                </small>
+
+                            </td>
+
+                            <!-- ACTIONS -->
+                            <td class="text-end">
+
+                                <div class="d-flex flex-column flex-md-row gap-1 justify-content-end">
+
+                                    <!-- VIEW -->
+                                    <a href="{% url 'members_admin:claim_settlement_detail' settlement.id %}"
+                                    class="btn btn-sm btn-outline-primary">
+
+                                        View
+
+                                    </a>
+
+                                    <!-- PDF -->
+                                    <a href="{% url 'members_admin:export_claim_pdf' settlement.id %}"
+                                    class="btn btn-sm btn-outline-danger">
+
+                                        PDF
+
+                                    </a>
+
+                                    <!-- CSV -->
+                                    <a href="{% url 'members_admin:export_claim_ledger' settlement.id %}"
+                                    class="btn btn-sm btn-outline-success">
+
+                                        CSV
+
+                                    </a>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            {% else %}
+
+            <!-- EMPTY STATE -->
+            <div class="p-5 text-center">
+
+                <div class="mb-3">
+                    <i class="fas fa-folder-open fa-3x text-muted"></i>
+                </div>
+
+                <h5>No Settled Claims</h5>
+
+                <p class="text-muted mb-0">
+                    Approved settlements will appear here.
+                </p>
+
+            </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

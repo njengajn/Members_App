@@ -1,0 +1,57 @@
+{% extends "members/admin/admin_base.html" %}
+{% block content %}
+
+<h2>Payment Request #{{ payment_request.id }}</h2>
+
+<p>
+  <strong>Type:</strong> {{ payment_request.get_request_type_display }}<br>
+  <strong>Amount:</strong> £{{ payment_request.amount }}<br>
+  <strong>Status:</strong> {{ payment_request.status|title }}
+</p>
+
+<hr>
+
+<h4 class="text-success">
+  Paid Members ({{ paid_members.count }})
+</h4>
+
+<ul class="list-group mb-4">
+  {% for m in paid_members %}
+    <li class="list-group-item d-flex justify-content-between">
+      {{ m.full_name }}
+      <span class="badge bg-success">Paid</span>
+    </li>
+  {% empty %}
+    <li class="list-group-item text-muted">
+      No payments yet.
+    </li>
+  {% endfor %}
+</ul>
+
+<h4 class="text-danger">
+  Unpaid Members ({{ unpaid_members.count }})
+</h4>
+
+<ul class="list-group">
+  {% for m in unpaid_members %}
+    <li class="list-group-item d-flex justify-content-between">
+      {{ m.full_name }}
+      <span class="badge bg-warning text-dark">Pending</span>
+    </li>
+  {% empty %}
+    <li class="list-group-item text-muted">
+      All required members have paid.
+    </li>
+  {% endfor %}
+</ul>
+
+<a href="{% url 'admin_payment_requests' %}" class="btn btn-secondary mt-4">
+  Back
+</a>
+<a href="{% url 'members_admin:export_payment_members' payment_request.id %}"
+   class="btn btn-success btn-sm">
+   Download Excel
+</a>
+
+
+{% endblock %}

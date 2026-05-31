@@ -1,0 +1,116 @@
+{% extends "members/admin/admin_base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+<h3>Payment Compliance Tracker</h3>
+
+<p>
+<strong>Payment Request:</strong> {{ payment_request.id }}
+<br>
+<strong>Amount:</strong> £{{ payment_request.amount }}
+</p>
+
+<hr>
+
+<div class="row">
+
+<!-- PAID MEMBERS -->
+<div class="col-md-4">
+
+<h5 class="text-success">
+Paid ({{ paid_members|length }})
+</h5>
+
+<ul class="list-group">
+
+{% for item in paid_members %}
+
+<li class="list-group-item">
+
+{{ item.member.first_name }} {{ item.member.surname }}
+
+<br>
+
+<small>
+Paid on {{ item.payment.approved_at }}
+</small>
+
+</li>
+
+{% empty %}
+
+<li class="list-group-item">
+No payments yet
+</li>
+
+{% endfor %}
+
+</ul>
+
+</div>
+
+<!-- UNPAID MEMBERS -->
+<div class="col-md-4">
+
+<h5 class="text-warning">
+Unpaid ({{ unpaid_members|length }})
+</h5>
+
+<ul class="list-group">
+
+{% for member in unpaid_members %}
+
+<li class="list-group-item">
+
+{{ member.first_name }} {{ member.surname }}
+
+</li>
+
+{% empty %}
+
+<li class="list-group-item">
+All members paid
+</li>
+
+{% endfor %}
+
+</ul>
+
+</div>
+
+<!-- OVERDUE MEMBERS -->
+<div class="col-md-4">
+
+<h5 class="text-danger">
+Overdue ({{ overdue_members|length }})
+</h5>
+
+<ul class="list-group">
+
+{% for member in overdue_members %}
+
+<li class="list-group-item">
+
+{{ member.first_name }} {{ member.surname }}
+
+</li>
+
+{% empty %}
+
+<li class="list-group-item">
+No overdue members
+</li>
+
+{% endfor %}
+
+</ul>
+
+</div>
+
+</div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,480 @@
+{% extends "members/admin/admin_base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+<h3>Full Member Details</h3>
+
+<div class="card shadow-sm mb-4">
+<div class="card-body">
+
+<div class="row">
+
+<div class="col-md-8">
+
+<h4>{{ member.first_name }} {{ member.surname }}</h4>
+
+<p><strong>Email:</strong> {{ member.email }}</p>
+<p><strong>UID:</strong> {{ member.member_uid }}</p>
+<p><strong>Phone:</strong> {{ member.phone }}</p>
+<p><strong>Address:</strong> {{ member.address }}</p>
+
+<p>
+<strong>Status:</strong>
+<span class="badge
+{% if member.status == 'active' %}bg-success
+{% elif member.status == 'pending' %}bg-warning
+{% else %}bg-secondary{% endif %}">
+{{ member.status|title }}
+</span>
+</p>
+
+<p>
+<strong>Can Edit:</strong>
+{% if member.can_edit %}
+<span class="badge bg-success">Enabled</span>
+{% else %}
+<span class="badge bg-secondary">Disabled</span>
+{% endif %}
+</p>
+
+<!-- ========================= -->
+<!-- 🔥 DOCUMENTS QUICK ACCESS -->
+<!-- ========================= -->
+<div class="mt-3 mb-3">
+  <a href="{% url 'members_admin:admin_documents_list' member.id %}"
+     class="btn btn-outline-primary btn-sm">
+     📄 View Member Documents
+  </a>
+</div>
+
+<td>
+
+  {% if member.status == "active" %}
+
+    <button
+      class="btn btn-danger btn-sm"
+      onclick="return retireMember({{ member.id }});">
+      Retire Member
+    </button>
+
+  {% elif member.status == "retired" %}
+
+    <a href="{% url 'members_admin:restore_member' member.id %}"
+       class="btn btn-warning btn-sm"
+       onclick="return confirm('Are you sure you want to restore this member?');">
+       Restore Member
+    </a>
+
+  {% endif %}
+
+</td>
+
+</div>
+
+<div class="col-md-4">
+
+<form method="POST"
+      action="{% url 'members_admin:update_member_permissions' member.id %}"
+      onsubmit="return confirmMemberUpdate();">
+
+{% csrf_token %}
+
+<div class="card bg-light p-3">
+
+<label class="fw-bold">Update Member</label>
+
+<select name="status" class="form-select mb-3"
+{% if request.user == member.user %}disabled{% endif %}>
+<option value="pending" {% if member.status == "pending" %}selected{% endif %}>Pending</option>
+<option value="active" {% if member.status == "active" %}selected{% endif %}>Active</option>
+<option value="retired" {% if member.status == "retired" %}selected{% endif %}>Retired</option>
+</select>
+
+<!-- ========================= -->
+<!-- CAN EDIT -->
+<!-- ========================= -->
+<div class="mb-3 p-3 rounded border border-2">
+
+<label class="fw-bold d-block mb-2">
+Allow member to manage dependants
+</label>
+
+<div class="d-flex align-items-center justify-content-between">
+
+<span class="text-danger fw-bold small">DISABLED</span>
+
+<div class="form-check form-switch m-0">
+<input type="checkbox"
+name="can_edit"
+class="form-check-input toggle-switch"
+id="canEditSwitch"
+{% if member.can_edit %}checked{% endif %}
+{% if request.user == member.user %}disabled{% endif %}>
+</div>
+
+<span class="text-success fw-bold small">ENABLED</span>
+
+</div>
+
+</div>
+
+<!-- ========================= -->
+<!-- PORTAL ACCESS -->
+<!-- ========================= -->
+<div class="mb-3 p-3 rounded border border-2">
+
+<label class="fw-bold d-block mb-2">
+Allow access to Members Portal
+</label>
+
+<div class="d-flex align-items-center justify-content-between">
+
+<span class="text-danger fw-bold small">DISABLED</span>
+
+<div class="form-check form-switch m-0">
+<input type="checkbox"
+name="portal_access"
+class="form-check-input toggle-switch"
+id="portalSwitch"
+{% if member.is_portal_access_enabled %}checked{% endif %}
+{% if request.user == member.user %}disabled{% endif %}>
+</div>
+
+<span class="text-success fw-bold small">ENABLED</span>
+
+</div>
+
+</div>
+
+<style>
+.toggle-switch {
+    transform: scale(1.8);
+    cursor: pointer;
+}
+
+.toggle-switch:checked {
+    background-color: #198754 !important;
+    border-color: #198754 !important;
+}
+
+.toggle-switch:not(:checked) {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+}
+</style>
+
+<button class="btn btn-success w-100"
+{% if request.user == member.user %}disabled{% endif %}>
+Save Changes
+</button>
+
+</div>
+</form>
+
+</div>
+
+</div>
+</div>
+</div>
+
+<script>
+function confirmMemberUpdate() {
+return confirm("Are you sure you want to update this member?");
+}
+</script>
+
+<!-- ========================= -->
+<!-- DEPENDANTS -->
+<!-- ========================= -->
+
+<div class="card shadow-sm mb-4">
+<div class="card-header d-flex justify-content-between align-items-center">
+  <h5 class="mb-0">Dependants</h5>
+  <span class="badge bg-dark">{{ dependants|length }}</span>
+</div>
+
+<div class="card-body">
+
+<div class="table-responsive">
+
+<table class="table table-hover align-middle">
+
+<form method="POST" action="{% url 'members_admin:bulk_update_dependants' member.id %}">
+  {% csrf_token %}
+
+  <!-- BULK ACTION BAR -->
+  <div class="d-flex gap-2 mb-2">
+
+    <select name="bulk_status" class="form-select form-select-sm w-auto">
+      <option value="">-- Change status --</option>
+      <option value="active">Set Active</option>
+      <option value="retired">Set Retired</option>
+    </select>
+
+    <button class="btn btn-sm btn-primary">
+      Apply to Selected
+    </button>
+
+  </div>
+
+  <table class="table table-sm">
+
+    <thead>
+      <tr>
+        <th>
+          <input type="checkbox" onclick="toggleAll(this)">
+        </th>
+        <th>Name</th>
+        <th>Relationship</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+
+    <tbody>
+    {% for d in dependants %}
+    <tr>
+
+      <!-- SELECT -->
+      <td>
+        <input type="checkbox" name="dependant_ids" value="{{ d.id }}">
+      </td>
+
+      <!-- NAME -->
+      <td>
+        <strong>{{ d.first_name }} {{ d.middle_name }} {{ d.surname }}</strong>
+      </td>
+
+      <!-- RELATIONSHIP -->
+      <td>{{ d.get_relationship_display }}</td>
+
+      <!-- STATUS -->
+      <td>
+        <span class="badge
+        {% if d.status == 'active' %}bg-success{% else %}bg-secondary{% endif %}">
+        {{ d.status|title }}
+        </span>
+      </td>
+
+      <!-- SINGLE UPDATE (UNCHANGED) -->
+      <td>
+
+  <form method="POST"
+        action="{% url 'members_admin:update_dependant_inline' d.id %}"
+        class="w-100">
+
+    {% csrf_token %}
+
+    <div style="display: flex; align-items: center; width: 100%; gap: 8px;">
+
+      <!-- VIEW -->
+      <a href="{% url 'members_admin:dependant_detail' d.id %}"
+         class="btn btn-sm btn-outline-secondary"
+         style="white-space: nowrap;">
+        View
+      </a>
+
+      <!-- DROPDOWN (STRETCHES FULL) -->
+      <select name="status"
+              class="form-select form-select-sm"
+              style="flex: 1; min-width: 120px;">
+        <option value="active" {% if d.status == "active" %}selected{% endif %}>Active</option>
+        <option value="retired" {% if d.status == "retired" %}selected{% endif %}>Retired</option>
+      </select>
+
+      <!-- UPDATE -->
+      <button class="btn btn-sm btn-primary"
+              style="white-space: nowrap;">
+        Update
+      </button>
+
+    </div>
+
+  </form>
+
+</td>
+
+    </tr>
+    {% endfor %}
+    </tbody>
+
+  </table>
+</form>
+
+<script>
+function toggleAll(source) {
+  const checkboxes = document.querySelectorAll('input[name="dependant_ids"]');
+  checkboxes.forEach(cb => cb.checked = source.checked);
+}
+</script>
+
+</table>
+
+</div>
+</div>
+</div>
+
+<div class="card shadow-sm mb-4">
+<div class="card-header">
+<h4>Next of Kin</h4>
+</div>
+<div class="card-body">
+{% if next_of_kin %}
+<p><strong>Name:</strong>
+{{ next_of_kin.first_name }} {{ next_of_kin.surname }}
+</p>
+<p><strong>Relationship:</strong>
+{{ next_of_kin.relationship }}
+</p>
+<p><strong>Phone:</strong>
+{{ next_of_kin.phone }}
+</p>
+<p><strong>Email:</strong>
+{{ next_of_kin.email }}
+</p>
+{% else %}
+<p>No next of kin recorded.</p>
+{% endif %}
+<a href="{% url 'members_admin:edit_next_of_kin' member.id %}"
+class="btn btn-outline-primary btn-sm">
+Edit Next of Kin
+</a>
+</div>
+</div>
+
+<hr>
+<div class="card shadow-sm mb-4">
+<div class="card-header">
+Payments
+</div>
+<div class="card-body">
+<table class="table table-striped">
+<thead>
+<tr>
+<th>ID</th>
+<th>Amount</th>
+<th>Status</th>
+<th>Approved</th>
+</tr>
+</thead>
+<tbody>
+{% for payment in payments %}
+<tr>
+<td>{{ payment.id }}</td>
+<td>£{{ payment.amount }}</td>
+<td>{{ payment.status }}</td>
+<td>{{ payment.approved_at }}</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="4">
+No payments found.
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+
+<hr>
+<h4>Claims</h4>
+<table class="table table-bordered">
+<thead>
+<tr>
+<th>ID</th>
+<th>Status</th>
+<th>Created</th>
+</tr>
+</thead>
+<tbody>
+{% for claim in claims %}
+<tr>
+<td>{{ claim.id }}</td>
+<td>{{ claim.status|title }}</td>
+<td>{{ claim.created_at }}</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="3">No claims found.</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<div class="card mt-4">
+  <div class="card-header bg-dark text-white">
+    Activity Timeline
+  </div>
+
+  <div class="card-body">
+
+    <div class="timeline">
+
+      {% for log in logs %}
+      <div class="timeline-item mb-3 p-3 border rounded">
+
+        <div class="d-flex justify-content-between">
+
+          <div>
+            <strong>
+              {{ log.admin|default:"System" }}
+            </strong>
+          </div>
+
+          <small class="text-muted">
+            {{ log.created_at|date:"M d, Y H:i" }}
+          </small>
+
+        </div>
+
+        <div class="mt-2">
+          {{ log.message }}
+        </div>
+
+      </div>
+      {% empty %}
+      <p class="text-muted">No activity recorded.</p>
+      {% endfor %}
+
+    </div>
+
+  </div>
+</div>
+
+<!-- ========================= -->
+<!-- SCRIPTS -->
+<!-- ========================= -->
+
+<script>
+function confirmMemberUpdate() {
+  return confirm("Are you sure you want to update this member?");
+}
+</script>
+
+<style>
+.timeline {
+  border-left: 3px solid #0d6efd;
+  padding-left: 15px;
+}
+
+.timeline-item {
+  position: relative;
+}
+
+.timeline-item::before {
+  content: "";
+  position: absolute;
+  left: -11px;
+  top: 10px;
+  width: 10px;
+  height: 10px;
+  background: #0d6efd;
+  border-radius: 50%;
+}
+</style>
+<script src="{% static 'js/admin_member_actions.js' %}"></script>
+
+
+{% endblock %}

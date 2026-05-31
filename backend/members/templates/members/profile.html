@@ -1,0 +1,50 @@
+{% extends 'members/base.html' %} {% block content %}
+<div class="container mx-auto p-6">
+  <h1 class="text-2xl font-bold mb-6 text-gray-800">Member Profile</h1>
+
+  <div class="bg-white shadow-lg rounded-2xl p-6 mb-8">
+    <h2 class="text-xl font-semibold mb-4 text-blue-700">Personal Details</h2>
+    <p><strong>Member UID:</strong> {{ member.member_uid }}</p>
+    <p>
+      <strong>Full Name:</strong> {{ member.first_name }} {{ member.surname }}
+    </p>
+    <p><strong>Phone:</strong> {{ member.phone }}</p>
+    <p><strong>Address:</strong> {{ member.address }}</p>
+    <p><strong>Email:</strong> {{ member.email }}</p>
+    <p><strong>Joined:</strong> {{ member.created_at|date:"F d, Y" }}</p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Dependants -->
+    <div class="bg-white shadow-lg rounded-2xl p-6">
+      <h2 class="text-xl font-semibold mb-4 text-blue-700">Dependants</h2>
+      {% if dependants %}
+      <ul class="list-disc ml-6 text-gray-700">
+        {% for dep in dependants %}
+        <li>{{ dep.full_name }} — {{ dep.relationship }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-gray-500">No dependants added yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Recent Payments -->
+    <div class="bg-white shadow-lg rounded-2xl p-6">
+      <h2 class="text-xl font-semibold mb-4 text-blue-700">Recent Payments</h2>
+      {% if recent_payments %}
+      <ul class="divide-y divide-gray-200">
+        {% for payment in recent_payments %}
+        <li class="py-2">
+          £ {{ payment.amount }} — {{ payment.status|capfirst }} ({{
+          payment.paid_at|date:"d M Y" }})
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-gray-500">No payments found.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

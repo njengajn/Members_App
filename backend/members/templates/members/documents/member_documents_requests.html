@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+<h3>Requested Documents</h3>
+
+<table class="table table-bordered">
+<thead>
+<tr>
+<th>Title</th>
+<th>Description</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+{% for r in requests %}
+<tr>
+
+<td>{{ r.title }}</td>
+<td>{{ r.description|default:"-" }}</td>
+
+<td>
+    {% if r.completed %}
+        <span class="badge bg-success">Completed</span>
+    {% else %}
+        <span class="badge bg-warning">Pending</span>
+    {% endif %}
+</td>
+
+<td>
+{% if not r.completed %}
+<form method="POST"
+      action="{% url 'members:upload_document' %}"
+      enctype="multipart/form-data">
+
+{% csrf_token %}
+
+<input type="hidden" name="request_id" value="{{ r.id }}">
+<input type="hidden" name="title" value="{{ r.title }}">
+
+<input type="file" name="file" required>
+
+<button class="btn btn-sm btn-primary">
+Upload
+</button>
+
+</form>
+{% else %}
+✔ Uploaded
+{% endif %}
+</td>
+
+</tr>
+{% empty %}
+<tr>
+<td colspan="4">No requests found</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+</div>
+
+{% endblock %}

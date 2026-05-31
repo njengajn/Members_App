@@ -1,0 +1,395 @@
+{% extends "members/admin/admin_base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container-fluid mt-3">
+
+    <!-- HEADER -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+
+            <div class="row align-items-center">
+
+                <div class="col-md-6">
+                    <h3 class="mb-1">Members List</h3>
+                    <small class="text-muted">
+                        Manage registered members
+                    </small>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+
+                    <h3 class="mb-0">
+                        Members
+                    </h3>
+
+                    <a href="{% url 'members_admin:membership_history' %}"
+                    class="btn btn-outline-secondary">
+
+                        Membership History
+
+                    </a>
+
+                </div>
+
+                <div class="col-md-6 text-md-end mt-2 mt-md-0">
+
+                    <a href="{% url 'members_admin:export_members_pdf' %}"
+                       class="btn btn-danger btn-sm">
+                        PDF
+                    </a>
+
+                    <a href="{% url 'members_admin:export_members_excel' %}"
+                       class="btn btn-success btn-sm">
+                        Excel
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="card shadow-sm mb-3">
+
+        <div class="card-body">
+
+            <div class="row g-2">
+
+                <div class="col-md-4">
+
+                    <select
+                        id="statusFilter"
+                        class="form-select">
+
+                        <option value="active" selected>
+                            Active Members
+                        </option>
+
+                        <option value="pending">
+                            Pending Members
+                        </option>
+
+                        <option value="retired">
+                            Retired Members
+                        </option>
+
+                        <option value="">
+                            All Members
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div class="col-md-8">
+
+                    <input
+                        type="text"
+                        id="memberSearch"
+                        class="form-control"
+                        placeholder="Search UID, name or email..."
+                    >
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ========================================= -->
+    <!-- DESKTOP/TABLET TABLE ONLY -->
+    <!-- ========================================= -->
+
+    <div class="d-none d-md-block">
+
+        <div class="card shadow-sm">
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table
+                        class="table table-hover mb-0"
+                        id="membersTable">
+
+                        <thead class="table-dark">
+
+                            <tr>
+                                <th>UID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                        {% for member in members %}
+
+                            <tr
+                                class="member-record"
+                                data-status="{{ member.status }}">
+
+                                <td>{{ member.member_uid }}</td>
+
+                                <td>
+                                    {{ member.first_name }}
+                                    {{ member.middle_name }}
+                                    {{ member.surname }}
+                                </td>
+
+                                <td>{{ member.email }}</td>
+
+                                <td>
+
+                                    <span class="badge
+                                    {% if member.status == 'active' %}
+                                        bg-success
+                                    {% elif member.status == 'pending' %}
+                                        bg-warning text-dark
+                                    {% else %}
+                                        bg-secondary
+                                    {% endif %}
+                                    ">
+                                        {{ member.status|title }}
+                                    </span>
+
+                                </td>
+
+                                <td>
+
+                                    <a href="{% url 'members_admin:admin_member_detail' member.id %}"
+                                       class="btn btn-primary btn-sm">
+                                        View
+                                    </a>
+
+                                    <a href="{% url 'members_admin:admin_documents_list' member.id %}"
+                                       class="btn btn-info btn-sm">
+                                        Docs
+                                    </a>
+
+                                    {% if member.status == "active" %}
+
+                                        <button
+                                            class="btn btn-danger btn-sm"
+                                            onclick="return retireMember({{ member.id }});">
+                                            Retire
+                                        </button>
+
+                                    {% elif member.status == "retired" %}
+
+                                        <button
+                                            class="btn btn-warning btn-sm"
+                                            onclick="return restoreMember({{ member.id }});">
+                                            Restore
+                                        </button>
+
+                                    {% endif %}
+
+                                </td>
+
+                            </tr>
+
+                        {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ========================================= -->
+    <!-- MOBILE CARDS ONLY -->
+    <!-- ========================================= -->
+
+    <div class="d-block d-md-none">
+
+        {% for member in members %}
+
+        <div
+            class="card shadow-sm mb-3 member-record"
+            data-status="{{ member.status }}">
+
+            <div class="card-body">
+
+                <div class="mb-2">
+
+                    <small class="text-success fw-bold">
+                        UID
+                    </small>
+
+                    <div class="font-monospace">
+                        {{ member.member_uid }}
+                    </div>
+
+                </div>
+
+                <div class="mb-2">
+
+                    <small class="text-success fw-bold">
+                        NAME
+                    </small>
+
+                    <div>
+                        {{ member.first_name }}
+                        {{ member.middle_name }}
+                        {{ member.surname }}
+                    </div>
+
+                </div>
+
+                <div class="mb-2">
+
+                    <small class="text-success fw-bold">
+                        EMAIL
+                    </small>
+
+                    <div style="word-break:break-word;">
+                        {{ member.email }}
+                    </div>
+
+                </div>
+
+                <div class="mb-3">
+
+                    <small class="text-success fw-bold">
+                        STATUS
+                    </small>
+
+                    <div>
+
+                        <span class="badge
+                        {% if member.status == 'active' %}
+                            bg-success
+                        {% elif member.status == 'pending' %}
+                            bg-warning text-dark
+                        {% else %}
+                            bg-secondary
+                        {% endif %}
+                        ">
+
+                            {{ member.status|title }}
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+                <div class="d-grid gap-2">
+
+                    <a href="{% url 'members_admin:admin_member_detail' member.id %}"
+                       class="btn btn-primary btn-sm">
+
+                        View
+
+                    </a>
+
+                    <a href="{% url 'members_admin:admin_documents_list' member.id %}"
+                       class="btn btn-info btn-sm">
+
+                        Docs
+
+                    </a>
+
+                    {% if member.status == "active" %}
+
+                        <button
+                            class="btn btn-danger btn-sm"
+                            onclick="return retireMember({{ member.id }});">
+
+                            Retire
+
+                        </button>
+
+                    {% elif member.status == "retired" %}
+
+                        <a href="{% url 'members_admin:restore_member' member.id %}"
+                           class="btn btn-warning btn-sm">
+
+                            Restore
+
+                        </a>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+<script>
+
+const searchBox =
+    document.getElementById("memberSearch");
+
+const statusFilter =
+    document.getElementById("statusFilter");
+
+function filterMembers() {
+
+    const search =
+        searchBox.value.toLowerCase();
+
+    const status =
+        statusFilter.value;
+
+    document
+        .querySelectorAll(".member-record")
+        .forEach(item => {
+
+            const text =
+                item.innerText.toLowerCase();
+
+            const rowStatus =
+                item.dataset.status;
+
+            const searchMatch =
+                text.includes(search);
+
+            const statusMatch =
+                !status || rowStatus === status;
+
+            item.style.display =
+                searchMatch && statusMatch
+                ? ""
+                : "none";
+        });
+}
+
+searchBox.addEventListener(
+    "keyup",
+    filterMembers
+);
+
+statusFilter.addEventListener(
+    "change",
+    filterMembers
+);
+
+filterMembers();
+
+</script>
+<script src="{% static 'js/admin_member_actions.js' %}"></script>
+
+{% endblock %}

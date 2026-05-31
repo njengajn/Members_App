@@ -1,0 +1,143 @@
+{% extends 'members/base.html' %}
+{% load static %}
+
+{% block content %}
+
+<h2 class="mb-4">Your Payment</h2>
+
+<!-- ============================= -->
+<!-- AVAILABLE REQUESTS -->
+<!-- ============================= -->
+
+<h4>Available Payment Requests</h4>
+
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Title</th>
+      <th>Amount</th>
+      <th>Due Date</th>
+      <th>Status</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for pr in available_requests %}
+      <tr>
+        <td>{{ pr.id }}</td>
+        <td>{{ pr.title }}</td>
+        <td>£{{ pr.amount }}</td>
+        <td>{{ pr.due_date|date:"Y-m-d" }}</td>
+        <td>
+          {% if pr.is_overdue %}
+            <span class="badge bg-danger">Overdue</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">Pending</span>
+          {% endif %}
+        </td>
+        <td>
+          <a
+            href="{% url 'members:pay_now' pr.id %}"
+            class="btn btn-sm btn-primary"
+          >
+            Pay Now
+          </a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="6" class="text-center text-muted">
+          No available payment requests.
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+
+<hr class="my-5">
+
+
+<!-- ============================= -->
+<!-- PAID HISTORY -->
+<!-- ============================= -->
+
+<h4>Payment History</h4>
+
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Title</th>
+      <th>Amount</th>
+      <th>Due Date</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for pr in paid_requests %}
+      <tr>
+        <td>{{ pr.id }}</td>
+        <td>{{ pr.title }}</td>
+        <td>£{{ pr.amount }}</td>
+        <td>{{ pr.due_date|date:"Y-m-d" }}</td>
+        <td>
+          <span class="badge bg-success">Paid</span>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="5" class="text-center text-muted">
+          No payments made yet.
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+
+<hr class="my-5">
+
+
+<!-- ============================= -->
+<!-- CLOSED REQUESTS -->
+<!-- ============================= -->
+
+<h4>Closed Requests</h4>
+
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Title</th>
+      <th>Amount</th>
+      <th>Due Date</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for pr in closed_requests %}
+      <tr>
+        <td>{{ pr.id }}</td>
+        <td>{{ pr.title }}</td>
+        <td>£{{ pr.amount }}</td>
+        <td>{{ pr.due_date|date:"Y-m-d" }}</td>
+        <td>
+          <span class="badge bg-secondary">Closed</span>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="5" class="text-center text-muted">
+          No closed requests.
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "members/base.html" %}
+{% block title %}Register - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h4 class="card-title mb-3">Register (Step 1 of 1 - combined)</h4>
+
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          <ul class="nav nav-tabs" id="regTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="user-tab" data-bs-toggle="tab" data-bs-target="#user">Account</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="member-tab" data-bs-toggle="tab" data-bs-target="#member">Member</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="deps-tab" data-bs-toggle="tab" data-bs-target="#deps">Dependants</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="nok-tab" data-bs-toggle="tab" data-bs-target="#nok">Next of Kin</button>
+            </li>
+          </ul>
+
+          <div class="tab-content mt-3">
+            <div class="tab-pane fade show active" id="user">
+              {{ user_form.as_p }}
+            </div>
+            <div class="tab-pane fade" id="member">
+              {{ member_form.as_p }}
+            </div>
+            <div class="tab-pane fade" id="deps">
+              {% for form in dependant_formset %}
+                <div class="border rounded p-2 mb-2">
+                  {{ form.as_p }}
+                </div>
+              {% empty %}
+                <p>No dependants</p>
+              {% endfor %}
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="add-dep">Add dependant (client-side)</button>
+            </div>
+            <div class="tab-pane fade" id="nok">
+              {{ nok_form.as_p }}
+            </div>
+          </div>
+
+          <div class="mt-3 d-flex justify-content-between">
+            <a class="btn btn-secondary" href="{% url 'members:home' %}">Cancel</a>
+            <button class="btn btn-primary" type="submit">Submit registration</button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // small helper to add a dependant form client-side stub (improve to clone formset)
+  document.getElementById('add-dep')?.addEventListener('click', function(e){
+    alert('Client-side add dependant stub — implement JavaScript to clone the formset form if needed.');
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "members/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container mt-5 mb-5">
+  <div class="card shadow-sm">
+    <div class="card-header bg-dark text-white">
+      <h4 class="mb-0">Edit Member</h4>
+    </div>
+    <div class="card-body">
+      <form method="POST" class="needs-validation" novalidate>
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">First Name</label>
+            <input type="text" name="first_name" value="{{ member.first_name }}" class="form-control" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Middle Name</label>
+            <input type="text" name="middle_name" value="{{ member.middle_name }}" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Surname</label>
+            <input type="text" name="surname" value="{{ member.surname }}" class="form-control" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" value="{{ member.email }}" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Phone</label>
+            <input type="text" name="phone" value="{{ member.phone }}" class="form-control">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Address</label>
+            <textarea name="address" class="form-control" rows="2">{{ member.address }}</textarea>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+              <option value="pending" {% if member.status == "pending" %}selected{% endif %}>Pending</option>
+              <option value="active" {% if member.status == "active" %}selected{% endif %}>Active</option>
+              <option value="retired" {% if member.status == "retired" %}selected{% endif %}>Retired</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-4 d-flex justify-content-between">
+          <a href="{% url 'members:admin_members' %}" class="btn btn-outline-secondary">Cancel</a>
+          <button type="submit" class="btn btn-success">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

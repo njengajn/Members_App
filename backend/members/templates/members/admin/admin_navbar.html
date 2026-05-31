@@ -1,0 +1,22 @@
+<!-- members/admin/admin_navbar.html -->
+ {% load static %}
+{% include "members/includes/navbar.html" %}
+<nav class="navbar navbar-dark bg-dark px-3">
+    <a class="navbar-brand fw-bold text-white" href="{% url 'members_admin:dashboard' %}">
+        Admin Panel
+    </a>
+
+    <ul class="navbar-nav ms-auto flex-row align-items-center">
+
+        <!-- Logout (must be POST) -->
+        <li class="nav-item ms-3">
+            <form action="{% url 'members_admin:logout' %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm">
+                    Logout
+                </button>
+            </form>
+        </li>
+
+    </ul>
+</nav>

@@ -1,0 +1,252 @@
+{% extends "members/admin/admin_base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container mt-3">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Payments Awaiting Confirmation</h4>
+
+    <a href="{% url 'members_admin:admin_payments_list' %}"
+       class="btn btn-outline-dark btn-sm">
+      ← Back
+    </a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+
+      <thead class="table-dark">
+        <tr>
+          <th>#</th>
+          <th>Member</th>
+          <th>Amount</th>
+          <th>Request</th>
+          <th>Proof</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for p in payments %}
+        <tr>
+          <td>#{{ p.id }}</td>
+
+          <td>
+            {{ p.member.first_name|default:"-" }}
+            {{ p.member.surname|default:"-" }}
+          </td>
+
+          <td><strong>£{{ p.amount }}</strong></td>
+
+          <td>{{ p.payment_request.title|default:"No request" }}</td>
+
+          <td>
+            {% if p.proof %}
+              <a href="{{ p.proof.url }}" target="_blank"
+                 class="btn btn-outline-secondary btn-sm">
+                 View
+              </a>
+            {% else %}
+              <span class="text-muted small">No proof</span>
+            {% endif %}
+          </td>
+
+          <!-- ===================================================== -->
+          <!-- ACTION BUTTONS (FIXED UX) -->
+          <!-- ===================================================== -->
+          <td class="text-end">
+
+            <!-- APPROVE -->
+            <button
+              type="button"
+              class="btn btn-success btn-sm fw-bold"
+              onclick="openApproveModal({{ p.id }});">
+              ✔ Approve
+            </button>
+
+            <!-- REJECT -->
+            <button
+              type="button"
+              class="btn btn-danger btn-sm fw-bold"
+              onclick="openRejectModal({{ p.id }});">
+              ✖ Reject
+            </button>
+
+          </td>
+        </tr>
+
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted">
+            No pending payments
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+
+    </table>
+  </div>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- REJECT MODAL -->
+<!-- ===================================================== -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">Reject Payment</h5>
+        <button type="button" class="btn-close btn-close-white"
+                data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <label class="form-label fw-bold">Reason for rejection</label>
+
+        <textarea id="rejectReason"
+                  class="form-control"
+                  rows="3"
+                  placeholder="Enter reason..."></textarea>
+
+        <small class="text-muted">
+          This will be recorded in audit logs.
+        </small>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary"
+                data-bs-dismiss="modal">
+          Cancel
+        </button>
+
+        <button class="btn btn-danger fw-bold"
+                onclick="submitReject()">
+          Confirm Reject
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================== -->
+<!-- APPROVE MODAL -->
+<!-- ===================================================== -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">Confirm Approval</h5>
+        <button type="button" class="btn-close btn-close-white"
+                data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <p class="fw-bold text-danger">
+          ⚠ Please verify before approving:
+        </p>
+
+        <ul>
+          <li>Check bank account for payment receipt</li>
+          <li>Confirm uploaded proof is valid</li>
+          <li>Ensure amount matches request</li>
+        </ul>
+
+        <p class="mb-0">
+          Are you sure you want to approve this payment?
+        </p>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button class="btn btn-secondary"
+                data-bs-dismiss="modal">
+          Cancel
+        </button>
+
+        <button class="btn btn-success fw-bold"
+                onclick="submitApprove()">
+          Yes, Approve
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ===================================================== -->
+<!-- SCRIPT (FIXED) -->
+<!-- ===================================================== -->
+<script>
+let currentPaymentId = null;
+
+function openRejectModal(paymentId) {
+    currentPaymentId = paymentId;
+
+    const modalEl = document.getElementById("rejectModal");
+
+    if (!modalEl) {
+        alert("Modal not found.");
+        return;
+    }
+
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+function submitReject() {
+
+    const reason = document.getElementById("rejectReason").value.trim();
+
+    if (!reason) {
+        alert("Rejection reason is required.");
+        return;
+    }
+
+    if (!currentPaymentId) {
+        alert("Payment ID missing.");
+        return;
+    }
+
+    window.location.href =
+        `/admin-panel/payments/${currentPaymentId}/reject/?reason=` +
+        encodeURIComponent(reason);
+}
+</script>
+
+<script>
+let currentApproveId = null;
+
+function openApproveModal(paymentId) {
+    currentApproveId = paymentId;
+
+    const modal = new bootstrap.Modal(
+        document.getElementById("approveModal")
+    );
+
+    modal.show();
+}
+
+function submitApprove() {
+
+    if (!currentApproveId) {
+        alert("Payment ID missing.");
+        return;
+    }
+
+    window.location.href =
+        `/admin-panel/payments/${currentApproveId}/approve/`;
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Member Card</title>
+  <style>
+    .card {
+      width: 350px;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h3>Member Card</h3>
+
+  <p><strong>{{ member.user.get_full_name }}</strong></p>
+  <p>UID: {{ member.member_uid }}</p>
+  <p>Status: {{ member.status }}</p>
+
+  <!-- QR Code -->
+  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ member.member_uid }}" />
+
+</div>
+
+</body>
+</html>

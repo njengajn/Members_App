@@ -1,0 +1,55 @@
+{% extends "members/members_base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+
+  <h2 class="text-primary">
+    {{ dependant.first_name }} {{ dependant.surname }}
+  </h2>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+
+      <p><strong>Relationship:</strong> {{ dependant.relationship }}</p>
+      <p><strong>Date of Birth:</strong> {{ dependant.dob }}</p>
+      <p><strong>Status:</strong> {{ dependant.status }}</p>
+
+    </div>
+  </div>
+
+  <h4>Documents</h4>
+
+  {% for doc in dependant.documents.all %}
+    <div class="card mb-3">
+      <div class="card-body">
+
+        <strong>{{ doc.title }}</strong><br>
+
+        <!-- IMAGE PREVIEW -->
+        {% if doc.file_type == 'image' %}
+          <img src="{{ doc.file.url }}" width="250" class="mt-2">
+
+        <!-- PDF PREVIEW -->
+        {% elif doc.file_type == 'pdf' %}
+          <iframe src="{{ doc.file.url }}" width="100%" height="400"></iframe>
+
+        {% else %}
+          <a href="{{ doc.file.url }}">Download File</a>
+        {% endif %}
+
+        <p class="mt-2">
+          Status:
+          <span class="badge bg-secondary">
+            {{ doc.status }}
+          </span>
+        </p>
+
+      </div>
+    </div>
+  {% empty %}
+    <p class="text-muted">No documents uploaded.</p>
+  {% endfor %}
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin Panel</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f4f6f8;
+      }
+      header {
+        background: #1f2937;
+        color: white;
+        padding: 12px 20px;
+      }
+      nav a {
+        color: white;
+        margin-right: 15px;
+        text-decoration: none;
+        font-weight: bold;
+      }
+      main {
+        padding: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+      }
+      th,
+      td {
+        padding: 10px;
+        border: 1px solid #ddd;
+      }
+      th {
+        background: #f0f0f0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <nav>
+        <a href="/admin-panel/dashboard/">Dashboard</a>
+        <a href="/admin-panel/claims/">Claims</a>
+        <a href="/admin-panel/payment-requests/">Payment Requests</a>
+        <a href="/admin-panel/payments/">Payments</a>
+        <form
+          method="post"
+          action="{% url 'members:logout' %}"
+          class="d-inline"
+        >
+          {% csrf_token %}
+          <button class="btn btn-danger fw-bold px-3">Logout</button>
+        </form>
+      </nav>
+    </header>
+
+    <main>{% block content %} {% endblock %}</main>
+  </body>
+</html>

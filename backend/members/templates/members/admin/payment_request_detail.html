@@ -1,0 +1,29 @@
+{% load static %} {% include "members/includes/navbar.html" %} {% block content
+%}
+<h2>{{ payment_request.title }}</h2>
+
+<p>
+  Amount: {{ payment_request.amount }}<br />
+  Due: {{ payment_request.due_date }}
+</p>
+
+<hr />
+
+<h4>Paid Members ({{ paid_members.count }})</h4>
+<ul>
+  {% for member in paid_members %}
+  <li>{{ member }}</li>
+  {% empty %}
+  <li>No payments yet</li>
+  {% endfor %}
+</ul>
+
+<h4>Unpaid Members ({{ unpaid_members.count }})</h4>
+<ul>
+  {% for member in unpaid_members %}
+  <li>{{ member }}</li>
+  {% empty %}
+  <li>All members have paid</li>
+  {% endfor %}
+</ul>
+{% endblock %}

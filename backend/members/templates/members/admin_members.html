@@ -1,0 +1,97 @@
+{% extends "members/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container mt-4 mb-5">
+  <h2 class="text-primary mb-4">Manage Members</h2>
+
+  <!-- Search and Filter -->
+  <form method="get" class="row mb-4 g-2">
+    <div class="col-md-4">
+      <input type="text" name="search" value="{{ request.GET.search }}" placeholder="Search by name or email..." class="form-control" />
+    </div>
+    <div class="col-md-3">
+      <select name="status" class="form-select">
+        <option value="">All Status</option>
+        <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
+        <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+        <option value="retired" {% if request.GET.status == 'retired' %}selected{% endif %}>Retired</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-success w-100">Filter</button>
+    </div>
+  </form>
+
+  <!-- Members Table -->
+  <div class="table-responsive">
+    <table class="table table-hover align-middle shadow-sm">
+      <thead class="table-dark">
+        <tr>
+          <th>#</th>
+          <th>Member UID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Status</th>
+          <th>Joined</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for member in members %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ member.member_uid }}</td>
+          <td>{{ member.first_name }} {{ member.surname }}</td>
+          <td>{{ member.email }}</td>
+          <td>{{ member.phone }}</td>
+          <td>
+            <select class="form-select form-select-sm status-select" data-member-id="{{ member.id }}">
+              <option value="pending" {% if member.status == "pending" %}selected{% endif %}>Pending</option>
+              <option value="active" {% if member.status == "active" %}selected{% endif %}>Active</option>
+              <option value="retired" {% if member.status == "retired" %}selected{% endif %}>Retired</option>
+            </select>
+          </td>
+          <td>{{ member.joined_at|date:"Y-m-d" }}</td>
+          <td>
+            <a href="{% url 'members_admin:edit_member' member.id %}" class="btn btn-outline-primary btn-sm">Edit</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center text-muted">No members found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Inline status update script -->
+<script>
+document.querySelectorAll('.status-select').forEach(select => {
+  select.addEventListener('change', function() {
+    const memberId = this.dataset.memberId;
+    const newStatus = this.value;
+
+    fetch(`/members/update-status/${memberId}/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': '{{ csrf_token }}',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status: newStatus })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Status updated successfully!');
+      } else {
+        alert('Error updating status.');
+      }
+    })
+    .catch(() => alert('Network error.'));
+  });
+});
+</script>
+{% endblock %}

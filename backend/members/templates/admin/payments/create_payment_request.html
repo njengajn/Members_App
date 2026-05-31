@@ -1,0 +1,90 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2 class="mb-4">Create Payment Request</h2>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <!-- Member -->
+        <div class="mb-3">
+            <label class="form-label">Member</label>
+            <select name="member_id" class="form-select" required>
+                {% for member in members %}
+                    <option value="{{ member.id }}"
+                        {% if initial_data.member_id == member.id %}selected{% endif %}>
+                        {{ member.user.get_full_name }} ({{ member.member_uid }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Request Type -->
+        <div class="mb-3">
+            <label class="form-label">Request Type</label>
+            <select name="request_type" class="form-select" required>
+                <option value="Membership"
+                    {% if initial_data.request_type == "Membership" %}selected{% endif %}>
+                    Membership
+                </option>
+                <option value="Subscription"
+                    {% if initial_data.request_type == "Subscription" %}selected{% endif %}>
+                    Subscription
+                </option>
+                <option value="Claim"
+                    {% if initial_data.request_type == "Claim" %}selected{% endif %}>
+                    Claim
+                </option>
+                <option value="Other"
+                    {% if initial_data.request_type == "Other" %}selected{% endif %}>
+                    Other
+                </option>
+            </select>
+        </div>
+
+        <!-- Amount -->
+        <div class="mb-3">
+            <label class="form-label">Amount</label>
+            <input type="number"
+                   step="0.01"
+                   name="amount"
+                   class="form-control"
+                   value="{{ initial_data.amount }}"
+                   required>
+        </div>
+
+        <!-- Description -->
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="description"
+                      rows="4"
+                      class="form-control"
+                      required>{{ initial_data.description }}</textarea>
+        </div>
+
+        <!-- Admin Notes -->
+        <div class="mb-3">
+            <label class="form-label">Admin Notes</label>
+            <textarea name="admin_notes"
+                      rows="3"
+                      class="form-control">{{ initial_data.admin_notes }}</textarea>
+        </div>
+
+        <!-- Buttons -->
+        <div class="d-flex justify-content-between">
+            <a href="{% url 'members_admin:create_payment_request' %}" class="btn btn-secondary">
+                Cancel
+            </a>
+
+            <button type="submit" class="btn btn-primary">
+                Create Payment Request
+            </button>
+        </div>
+
+    </form>
+
+</div>
+{% endblock %}

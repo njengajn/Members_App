@@ -1,0 +1,46 @@
+{% extends "members/members_base.html" %}
+{% block content %}
+
+<h2>Payment History</h2>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Payment Request</th>
+      <th>Amount</th>
+      <th>Status</th>
+      <th>Receipt</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in payments %}
+      <tr>
+        <td>{{ p.created_at|date:"Y-m-d H:i" }}</td>
+        <td>
+          {{ p.payment_request.get_request_type_display }}
+          <span class="badge bg-success ms-2">Paid</span>
+        </td>
+        <td>£{{ p.amount }}</td>
+        <td>{{ p.status|title }}</td>
+        <td>
+          <a href="{% url 'members:payment_confirmation' p.id %}" class="btn btn-sm btn-outline-primary">
+            View Receipt
+          </a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="5" class="text-muted text-center">
+          No payment history found.
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<a href="{% url 'members:member_payments' %}" class="btn btn-secondary mt-3">
+  Back to Payments
+</a>
+
+{% endblock %}

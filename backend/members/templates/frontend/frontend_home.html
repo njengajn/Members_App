@@ -1,0 +1,21 @@
+{% extends "members/members_base.html" %}
+{% block title %}Home — MembersPortal{% endblock %}
+{% block content %}
+  <div class="row">
+    <div class="col-md-8">
+      <h1>Welcome to Members Portal</h1>
+      <p class="lead">Manage member details, claims and payments.</p>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-3">
+        {% if user.is_authenticated %}
+          <p>Signed in as <strong>{{ user.username }}</strong>.</p>
+          <a class="btn btn-primary" href="{% url 'members:dashboard' %}">Go to Dashboard</a>
+        {% else %}
+          <a class="btn btn-success w-100 mb-2" href="{% url 'members:login' %}">Login</a>
+          <a class="btn btn-outline-primary w-100" href="{% url 'members:register_step_1' %}">Register</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

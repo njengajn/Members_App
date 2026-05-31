@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>{{ email_title }}</title>
+
+    <!-- ===================================== -->
+    <!-- DARK MODE -->
+    <!-- ===================================== -->
+
+    <style>
+
+        @media (prefers-color-scheme: dark) {
+
+            body {
+
+                background: #111111 !important;
+                color: #ffffff !important;
+
+            }
+
+            .email-card {
+
+                background: #1e1e1e !important;
+
+            }
+
+            .email-text {
+
+                color: #dddddd !important;
+
+            }
+
+            .footer-text {
+
+                color: #bbbbbb !important;
+
+            }
+        }
+
+    </style>
+
+</head>
+
+<body
+    style="
+        margin:0;
+        padding:0;
+        background:#f4f6f9;
+        font-family:Arial,sans-serif;
+    "
+>
+
+    <table
+        width="100%"
+        cellpadding="0"
+        cellspacing="0"
+        border="0"
+        style="padding:40px 0;"
+    >
+
+        <tr>
+
+            <td align="center">
+
+                <!-- MAIN CARD -->
+
+                <table
+                    class="email-card"
+                    width="600"
+                    cellpadding="0"
+                    cellspacing="0"
+                    border="0"
+                    style="
+                        background:#ffffff;
+                        border-radius:12px;
+                        overflow:hidden;
+                        box-shadow:0 2px 12px rgba(0,0,0,0.08);
+                    "
+                >
+
+                    <!-- HEADER -->
+
+                    <tr>
+
+                        <td
+                            align="center"
+                            style="
+                                background: linear-gradient(
+                                    135deg,
+
+                                    {% if branding %}
+
+                                        {{ branding.primary_color }},
+                                        {{ branding.secondary_color }}
+
+                                    {% else %}
+
+                                        #0d6efd,
+                                        #4f46e5
+
+                                    {% endif %}
+                                );
+
+                                padding:30px;
+                            "
+                        >
+
+                            <!-- LOGO -->
+                           
+                            <img
+                                src="{{ logo_url }}"
+                                alt="Logo"
+                                width="120"
+                                style="
+                                    display:block;
+                                    margin-bottom:15px;
+                                "
+                            >                           
+
+                            <!-- TITLE -->
+
+                            <h1
+                                style="
+                                    color:white;
+                                    margin:0;
+                                    font-size:28px;
+                                "
+                            >
+
+                                {{ email_title }}
+
+                            </h1>
+
+                        </td>
+
+                    </tr>
+
+                    <!-- BODY -->
+
+                    <tr>
+
+                        <td
+                            style="
+                                padding:40px;
+                            "
+                        >
+
+                            <p
+                                class="email-text"
+                                style="
+                                    font-size:16px;
+                                    color:#333333;
+                                    margin-top:0;
+                                "
+                            >
+
+                                Hello {{ first_name }},
+
+                            </p>
+
+                            <!-- ================================= -->
+                            <!-- PAGE CONTENT -->
+                            <!-- ================================= -->
+
+                            {% block email_content %}
+                            {% endblock %}
+
+                        </td>
+
+                    </tr>
+
+                    <!-- FOOTER -->
+
+                    <tr>
+
+                        <td
+                            align="center"
+                            style="
+                                background:#f8f9fa;
+                                padding:20px;
+                                font-size:13px;
+                            "
+                        >
+
+                            <span class="footer-text">
+
+                                © {{ current_year }}
+                                KRO Membership System
+
+                            </span>
+
+                        </td>
+
+                    </tr>
+
+                </table>
+
+            </td>
+
+        </tr>
+
+    </table>
+
+</body>
+
+</html>

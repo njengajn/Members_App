@@ -1,0 +1,81 @@
+{% extends "members/base.html" %}
+{% block title %}Pay Now{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <h2 class="mb-3">
+    Payment Request #{{ payment_request.id }}
+  </h2>
+
+  <div class="card p-3 mb-4">
+    <p>
+      <strong>Member:</strong>
+      {{ member.full_name }}
+    </p>
+
+    <p>
+      <strong>Amount:</strong>
+      £{{ payment_request.amount }}
+    </p>
+
+    <p>
+      <strong>Type:</strong>
+      {{ payment_request.get_request_type_display }}
+    </p>
+
+    <p>
+      <strong>Due Date:</strong>
+      {{ payment_request.due_date|date:"Y-m-d" }}
+    </p>
+
+    <p>
+      <strong>Status:</strong>
+      {{ payment_request.status|title }}
+    </p>
+  </div>
+
+  {% if payment_request.status == "active" %}
+    <form method="POST" id="pay-form">
+      {% csrf_token %}
+
+      <button
+        type="submit"
+        id="pay-btn"
+        class="btn btn-success"
+      >
+        Confirm Payment
+      </button>
+
+      <a
+        href="{% url 'members:member_payments' %}"
+        class="btn btn-secondary ms-2"
+      >
+        Cancel
+      </a>
+    </form>
+  {% else %}
+    <div class="alert alert-info">
+      This payment request is already closed.
+    </div>
+
+    <a
+      href="{% url 'members:payments' %}"
+      class="btn btn-secondary"
+    >
+      Back to Payments
+    </a>
+  {% endif %}
+
+</div>
+
+<script>
+  document
+    .getElementById("pay-form")
+    ?.addEventListener("submit", function () {
+      const btn = document.getElementById("pay-btn");
+      btn.disabled = true;
+      btn.innerText = "Processing…";
+    });
+</script>
+{% endblock %}

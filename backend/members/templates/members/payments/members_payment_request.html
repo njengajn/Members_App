@@ -1,0 +1,51 @@
+{% extends "members/members_base.html" %} 
+{% block content %}
+
+<div class="container mt-4">
+  <h3>Your Payment Requests</h3>
+
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Type</th>
+        <th>Amount</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for p in payment_requests %}
+
+      <tr>
+        <td>{{ p.id }}</td>
+
+        <td>{{ p.request_type }}</td>
+
+        <td>£{{ p.amount }}</td>
+
+        <td>{{ p.status }}</td>
+
+        <td>
+          <a
+            href="{% url 'members:payment_request_detail' p.id %}"
+            class="btn btn-primary btn-sm"
+          >
+            Pay Now
+          </a>
+        </td>
+      </tr>
+
+      {% empty %}
+
+      <tr>
+        <td colspan="5">No payment requests available.</td>
+      </tr>
+
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

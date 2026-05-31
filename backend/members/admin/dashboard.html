@@ -1,0 +1,16 @@
+{% extends "members/admin/base.html" %}
+{% block content %}
+
+<h2>Claims Overview</h2>
+
+<div class="dashboard-grid">
+  {% for status, count in counts.items %}
+    <a class="dashboard-card"
+       href="{% url 'admin_claims_list' %}?status={{ status }}">
+      <h3>{{ status|capfirst }}</h3>
+      <p>{{ count }}</p>
+    </a>
+  {% endfor %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,36 @@
+<h1>Upload for: {{ request_obj.title }}</h1>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+
+  <input type="file" name="file" required>
+
+  <button type="submit">Upload</button>
+</form>
+
+<h1>{{ request_obj.title }}</h1>
+
+<input type="file" id="fileInput">
+
+<button onclick="uploadRequested()">Upload</button>
+
+<script>
+function uploadRequested() {
+    let file = document.getElementById("fileInput").files[0];
+
+    let formData = new FormData();
+    formData.append("file", file);
+
+    fetch("{% url 'upload_requested' request_obj.id %}", {
+        method: "POST",
+        body: formData,
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}"
+        }
+    })
+    .then(() => {
+        alert("Uploaded!");
+        window.location.href = "{% url 'member_requests' %}";
+    });
+}
+</script>

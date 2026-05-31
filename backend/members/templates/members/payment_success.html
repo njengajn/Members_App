@@ -1,0 +1,11 @@
+{% extends 'members/base.html' %} 
+{% block content %}
+{% load static %}
+<div class="text-center mt-5">
+  <h3 class="text-success">✅ Payment Successful</h3>
+  <p>Your payment has been received successfully.</p>
+  <a href="{% url 'members:member_dashboard' %}" class="btn btn-primary mt-3"
+    >Go to Dashboard</a
+  >
+</div>
+{% endblock %}

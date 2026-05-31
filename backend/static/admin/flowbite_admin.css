@@ -1,0 +1,41 @@
+/* Flowbite Django Admin Tabs */
+.flowbite-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 1rem;
+}
+
+.flowbite-tab {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border-radius: 0.5rem 0.5rem 0 0;
+    font-weight: 500;
+    transition: background 0.2s ease;
+}
+
+.flowbite-tab.active {
+    background-color: #2563eb;
+    color: white;
+}
+
+.flowbite-section {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.flowbite-section.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

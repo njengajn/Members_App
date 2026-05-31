@@ -1,0 +1,35 @@
+{% extends "members/members_base.html" %} {% block content %}
+<h3>Manual Bank Transfer</h3>
+<div class="card p-3">
+  <p><strong>Amount:</strong> {{ payment_request.amount }}</p>
+  <p><strong>Description:</strong> {{ payment_request.description }}</p>
+  <div class="alert alert-info">
+    Please deposit or transfer your payment of
+    <strong>£{{ payment_request.amount }}</strong>
+    into the bank account below. Use your UID as the reference {{ member.member_uid }}.
+  </div>
+  <hr />
+  <h5>Bank Details</h5>
+  <p>Bank: XYZ Bank</p>
+  <p>Account Name: Members Association</p>
+  <p>Account Number: 123456789</p>
+  <p>Reference: {{ member.member_uid }}-{{ payment_request.id }}</p>
+  <hr />
+  <form
+    method="POST"
+    enctype="multipart/form-data"
+    action="{% url 'members:confirm_manual_payment' payment_request.id %}"
+  >
+    {% csrf_token %}
+        <div class="alert alert-warning mt-3">
+      ⚠ Make sure the transfer has been completed before clicking "Confirm payment Button".
+    </div>
+    <div class="mb-3">
+      <label>Upload Proof of Payment - Optional</label>
+      <input type="file" name="proof" class="form-control" />
+    </div>
+    <p>I confirm I have completed the bank transfer.</p>
+    <button class="btn btn-success">Confirm Payment</button>
+  </form>
+</div>
+{% endblock %}

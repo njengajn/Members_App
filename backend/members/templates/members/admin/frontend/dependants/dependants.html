@@ -1,0 +1,32 @@
+{% extends "members/base.html" %}
+{% block title %}Dependants{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Dependants</h2>
+    <hr>
+
+    <button class="btn btn-success mb-3" id="btnAddDep">Add Dependant</button>
+
+    <table class="table table-bordered">
+        <thead>
+        <tr><th>Name</th><th>Relationship</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="dependantsTable">
+
+        {% for d in dependants %}
+            <tr>
+                <td>{{ d.name }}</td>
+                <td>{{ d.relationship }}</td>
+                <td>
+                    <button class="btn btn-danger btn-sm remove-btn" data-id="{{ d.id }}">Remove</button>
+                </td>
+            </tr>
+        {% endfor %}
+
+        </tbody>
+    </table>
+</div>
+
+<script src="{% static 'js/dependants.js' %}"></script>
+{% endblock %}

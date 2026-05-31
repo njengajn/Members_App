@@ -1,0 +1,365 @@
+{% extends "members/admin/admin_base.html" %}
+{% load humanize %}
+
+{% block content %}
+
+<div class="container-fluid mt-4">
+
+    <!-- ===================================================== -->
+    <!-- PAGE HEADER -->
+    <!-- ===================================================== -->
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
+
+        <div>
+
+            <h3 class="fw-bold">
+                Treasurer Control Panel
+            </h3>
+
+            <!-- ========================================= -->
+            <!-- REPORTING PERIOD -->
+            <!-- ========================================= -->
+
+            <div class="alert alert-light border mb-4">
+
+                <div class="fw-bold mb-1">
+                    Reporting Period
+                </div>
+
+                <div>
+                    {{ period_label }}
+                </div>
+
+                <small class="text-muted">
+
+                    {{ start_date|date:"d/m/Y" }}
+                    -
+
+                    {{ end_date|date:"d/m/Y" }}
+
+                </small>
+
+            </div>
+
+        </div>
+
+        <!-- EXPORT BUTTONS -->
+
+        <div class="d-flex gap-2 flex-wrap mt-3 mt-md-0">
+
+            <a href="{% url 'members_admin:treasurer_dashboard_pdf' %}?{{ request.GET.urlencode }}"
+               class="btn btn-danger shadow-sm">
+
+                <i class="fas fa-file-pdf"></i>
+                PDF
+
+            </a>
+
+            <a href="{% url 'members_admin:treasurer_dashboard_excel' %}?{{ request.GET.urlencode }}"
+               class="btn btn-success shadow-sm">
+
+                <i class="fas fa-file-excel"></i>
+                Excel
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- FILTER -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-body">
+
+            <form method="get">
+
+                <div class="row g-3 align-items-end">
+
+                    <!-- PERIOD -->
+
+                    <div class="col-12 col-md-4 col-lg-3">
+
+                        <label class="form-label fw-semibold">
+                            Reporting Period
+                        </label>
+
+                        <select name="period"
+                                class="form-select"
+                                id="periodSelect">
+
+                            <option value="this_month"
+                                {% if period == "this_month" %}selected{% endif %}>
+                                This Month
+                            </option>
+
+                            <option value="last_month"
+                                {% if period == "last_month" %}selected{% endif %}>
+                                Last Month
+                            </option>
+
+                            <option value="90_days"
+                                {% if period == "90_days" %}selected{% endif %}>
+                                Last 90 Days
+                            </option>
+
+                            <option value="6_months"
+                                {% if period == "6_months" %}selected{% endif %}>
+                                Last 6 Months
+                            </option>
+
+                            <option value="this_year"
+                                {% if period == "this_year" %}selected{% endif %}>
+                                Current Financial Year
+                            </option>
+
+                            <option value="last_year"
+                                {% if period == "last_year" %}selected{% endif %}>
+                                Previous Financial Year
+                            </option>
+
+                            <option value="custom"
+                                {% if period == "custom" %}selected{% endif %}>
+                                Custom Range
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                    <!-- CUSTOM DATES -->
+
+                    <div id="customDateFields"
+                         class="{% if period != 'custom' %}d-none{% endif %} col-md-6">
+
+                        <div class="row g-2">
+
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+                                    Start Date
+                                </label>
+
+                                <input type="date"
+                                       name="start_date"
+                                       value="{{ start_date }}"
+                                       class="form-control">
+
+                            </div>
+
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+                                    End Date
+                                </label>
+
+                                <input type="date"
+                                       name="end_date"
+                                       value="{{ end_date }}"
+                                       class="form-control">
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <!-- APPLY -->
+
+                    <div class="col-md-2">
+
+                        <button type="submit"
+                                class="btn btn-primary w-100">
+
+                            Apply
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- SUMMARY CARDS -->
+    <!-- ===================================================== -->
+
+    <div class="row g-4">
+
+        <!-- TOTAL FUNDS -->
+
+        <div class="col-12 col-sm-6 col-lg-3">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-body text-center">
+
+                    <h6 class="text-muted mb-2">
+                        Funds Collected
+                    </h6>
+
+                    <small class="text-muted">
+                        Selected Period
+                    </small>
+
+                    <h3 class="text-success fw-bold mt-2">
+
+                        £{{ collected_total|floatformat:2|intcomma }}
+
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- COMPLIANCE -->
+
+        <div class="col-12 col-sm-6 col-lg-3">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-body text-center">
+
+                    <h6 class="text-muted mb-2">
+                        Compliance
+                    </h6>
+
+                    <small class="text-muted">
+                        Selected Period
+                    </small>
+
+                    <h3 class="fw-bold mt-2">
+
+                        {{ compliance_rate }}%
+
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- CLAIMS -->
+
+        <div class="col-12 col-sm-6 col-lg-3">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-body text-center">
+
+                    <h6 class="text-muted mb-2">
+                        Claims Paid
+                    </h6>
+
+                    <h3 class="text-danger fw-bold">
+
+                        £{{ claims_paid_total|floatformat:2|intcomma }}
+
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- DEDUCTIONS -->
+
+        <div class="col-12 col-sm-6 col-lg-3">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-body text-center">
+
+                    <h6 class="text-muted mb-2">
+                        Deductions
+                    </h6>
+
+                    <h3 class="text-primary fw-bold">
+
+                        £{{ deductions_total|floatformat:2|intcomma }}
+
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ===================================================== -->
+<!-- CUSTOM RANGE JS -->
+<!-- ===================================================== -->
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const periodSelect =
+        document.getElementById("periodSelect");
+
+    const customFields =
+        document.getElementById("customDateFields");
+
+    const startDateInput =
+        document.querySelector(
+            'input[name="start_date"]'
+        );
+
+    const endDateInput =
+        document.querySelector(
+            'input[name="end_date"]'
+        );
+
+    // =================================================
+    // TOGGLE CUSTOM FIELDS
+    // =================================================
+
+    function toggleCustomFields() {
+
+        if (periodSelect.value === "custom") {
+
+            customFields.classList.remove("d-none");
+
+        } else {
+
+            customFields.classList.add("d-none");
+
+            // =========================================
+            // IMPORTANT:
+            // Clear stale custom dates
+            // =========================================
+
+            startDateInput.value = "";
+
+            endDateInput.value = "";
+        }
+    }
+
+    toggleCustomFields();
+
+    periodSelect.addEventListener(
+        "change",
+        toggleCustomFields
+    );
+});
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,10 @@
+<!-- backend/members/templates/members/alerts.html -->
+{% if messages %}
+  <div class="container mb-3">
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags|default:'info' }}" role="alert">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}

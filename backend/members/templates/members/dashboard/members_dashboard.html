@@ -1,0 +1,644 @@
+{% extends "members/members_base.html" %}
+{% load static %}
+
+{% block title %}My Dashboard{% endblock %}
+
+{% block content %}
+
+<link rel="stylesheet" href="{% static 'css/mobile-ui.css' %}">
+
+<div class="container-fluid px-2 py-1 dashboard-container">
+
+    <!-- ===================================================== -->
+    <!-- PAGE TITLE -->
+    <!-- ===================================================== -->
+    <div class="mb-2">
+        <h3 class="fw-bold mb-1 dashboard-title">
+            Dashboard
+        </h3>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- MEMBER INFO -->
+    <!-- ===================================================== -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3 dashboard-main-card">
+
+        <div class="card-body p-3">
+
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+
+                <div>
+                    <h4 class="fw-bold mb-3 welcome-text">
+                        Welcome, {{ member.first_name }}
+                    </h4>
+                </div>
+
+                <button
+                    id="memberToggleBtn"
+                    class="btn btn-outline-primary btn-sm dashboard-toggle-btn"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#memberDetails"
+                    aria-expanded="false"
+                >
+                    View Details
+                </button>
+
+            </div>
+
+            <!-- ALWAYS VISIBLE -->
+            <div class="row g-2">
+
+                <div class="col-md-4">
+                    <div class="member-info-item">
+                        <strong>UID:</strong>
+                        {{ member.member_uid }}
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="member-info-item">
+                        <strong>Status:</strong>
+
+                        <span class="badge bg-success">
+                            {{ member.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="member-info-item">
+                        <strong>Joined:</strong>
+                        {{ member.joined_at|date:"M d, Y" }}
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- EXPANDABLE DETAILS -->
+            <div class="collapse mt-3" id="memberDetails">
+
+                <hr>
+
+                <div class="row g-3">
+
+                    <div class="col-md-6">
+
+                        <div class="member-info-item">
+                            <strong>Full Name:</strong>
+                            {{ member.first_name }}
+                            {{ member.middle_name }}
+                            {{ member.surname }}
+                        </div>
+
+                        <div class="member-info-item">
+                            <strong>Email:</strong>
+                            {{ member.email }}
+                        </div>
+
+                        <div class="member-info-item">
+                            <strong>Phone:</strong>
+                            {{ member.phone }}
+                        </div>
+
+                    </div>
+
+                    <div class="col-md-6">
+
+                        <div class="member-info-item">
+                            <strong>Address:</strong>
+                            {{ member.address }}
+                        </div>
+
+                        <div class="member-info-item">
+                            <strong>Next of Kin:</strong>
+
+                            {% if member.next_of_kin %}
+                                {{ member.next_of_kin }}
+                            {% else %}
+                                <span class="text-muted">
+                                    Not provided
+                                </span>
+                            {% endif %}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- DEPENDANTS -->
+    <!-- ===================================================== -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+
+        <div class="card-header dashboard-header d-flex justify-content-between align-items-center">
+
+            <div>
+                Dependants
+                <span class="dependant-count">
+                    ({{ dependants|length }})
+                </span>
+            </div>
+
+            <button
+                id="dependantsToggleBtn"
+                class="btn btn-sm btn-light"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#dependantsCollapse"
+                aria-expanded="false"
+            >
+                Show
+            </button>
+
+        </div>
+
+        <div class="collapse" id="dependantsCollapse">
+
+            <div class="card-body p-3">
+
+                {% if dependants %}
+
+                    <div class="list-group list-group-flush">
+
+                        {% for dep in dependants %}
+                        <div class="list-group-item px-0 py-2 border-0 border-bottom">
+
+                            <div class="d-flex flex-wrap align-items-center gap-1">
+
+                                <span class="fw-semibold">
+                                    {{ dep.first_name }}
+                                    {{ dep.middle_name }}
+                                    {{ dep.surname }}
+                                </span>
+
+                                <span class="text-muted small">
+                                    ({{ dep.relationship }})
+                                </span>
+
+                            </div>
+
+                        </div>
+                        {% endfor %}
+
+                    </div>
+
+                {% else %}
+
+                    <p class="text-muted mb-0">
+                        No dependants added.
+                    </p>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+    {% if member.status == "active" %}
+
+    <!-- ===================================================== -->
+    <!-- QUICK STATS -->
+    <!-- ===================================================== -->
+    <div class="row g-2 mb-3">
+
+        <!-- DEPENDANTS -->
+        <div class="col-12 col-md-4">
+
+            <a href="{% url 'members:dependants' %}"
+               class="text-decoration-none">
+
+                <div class="card border-0 shadow-sm stat-card stat-card-blue">
+
+                    <div class="card-body text-center">
+
+                        <div class="stat-title">
+                            Dependants
+                        </div>
+
+                        <div class="stat-value">
+                            {{ dependants|length }}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </a>
+
+        </div>
+
+        <!-- PENDING PAYMENTS -->
+        <div class="col-12 col-md-4">
+
+            <a href="{% url 'members:member_payment_requests' %}"
+               class="text-decoration-none">
+
+                <div class="card border-0 shadow-sm stat-card stat-card-warning">
+
+                    <div class="card-body text-center">
+
+                        <div class="stat-title">
+                            Pending Payments
+                        </div>
+
+                        <div class="stat-value text-warning">
+                            {{ unpaid_count }}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </a>
+
+        </div>
+
+        <!-- RECENT CLAIMS -->
+        <div class="col-12 col-md-4">
+
+            <div class="card border-0 shadow-sm stat-card stat-card-success">
+
+                <div class="card-body text-center">
+
+                    <div class="stat-title">
+                        Recent Claims
+                    </div>
+
+                    <div class="stat-value text-success">
+                        {{ recent_claims|length }}
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- PAYMENT REQUESTS -->
+    <!-- ===================================================== -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+
+        <div class="card-header dashboard-header">
+            Payment Requests
+        </div>
+
+        <div class="card-body p-2">
+
+            {% if payment_requests %}
+
+            <div class="table-responsive payment-table-wrapper">
+
+                <table class="table table-hover align-middle mb-0 payments-table">
+
+                    <thead class="table-light">
+                        <tr>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Due</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        {% for req in payment_requests %}
+
+                        {% if req.id %}
+                        <tr>
+
+                            <td data-label="Type">
+                                {{ req.request_type }}
+                            </td>
+
+                            <td data-label="Description">
+                                {{ req.description }}
+                            </td>
+
+                            <td data-label="Amount">
+                                <strong>£{{ req.amount }}</strong>
+                            </td>
+
+                            <td data-label="Due">
+                                {{ req.due_date|date:"M d, Y" }}
+                            </td>
+
+                            <td data-label="Status">
+
+                                {% if req.is_paid %}
+                                    <span class="badge bg-success">
+                                        Paid
+                                    </span>
+
+                                {% elif req.is_request_pending %}
+                                    <span class="badge bg-warning text-dark">
+                                        Awaiting Confirmation
+                                    </span>
+
+                                {% elif req.is_overdue_member %}
+                                    <span class="badge bg-danger">
+                                        Overdue
+                                    </span>
+
+                                {% elif req.total_paid > 0 %}
+                                    <span class="badge bg-info text-dark">
+                                        In Progress
+                                    </span>
+
+                                {% else %}
+                                    <span class="badge bg-secondary">
+                                        Pending
+                                    </span>
+                                {% endif %}
+
+                            </td>
+
+                            <td data-label="Action">
+
+                                {% if req.is_paid %}
+
+                                    <span class="badge bg-success">
+                                        Already Paid
+                                    </span>
+
+                                {% elif req.is_payment_pending %}
+
+                                    <span class="badge bg-warning text-dark">
+                                        Awaiting Approval
+                                    </span>
+
+                                {% elif req.is_overdue_member %}
+
+                                    <span class="badge bg-danger">
+                                        Overdue
+                                    </span>
+
+                                {% else %}
+
+                                    <a href="{% url 'members:pay_payment_request' req.id %}"
+                                       class="btn btn-primary btn-sm pay-btn">
+                                        Pay Now
+                                    </a>
+
+                                {% endif %}
+
+                            </td>
+
+                        </tr>
+                        {% endif %}
+
+                        {% empty %}
+
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                No payment requests available
+                            </td>
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            {% else %}
+
+                <p class="text-success mb-0 p-3">
+                    ✔ No outstanding payments
+                </p>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- RECENT ACTIVITY -->
+    <!-- ===================================================== -->
+    <div class="row g-3">
+
+        <!-- RECENT PAYMENTS -->
+        <div class="col-lg-6">
+
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+
+                <div class="card-header dashboard-header">
+                    Recent Payments
+                </div>
+
+                <div class="card-body">
+
+                    {% if recent_payments %}
+
+                        <div class="table-responsive">
+
+                            <table class="table table-sm align-middle mb-0 responsive-activity-table">
+
+                                <thead class="table-light">
+                                  <tr>
+                                      <th>ID</th>
+                                      <th>Description</th>
+                                      <th>Amount</th>
+                                      <th>Status</th>
+                                  </tr>
+                              </thead>
+
+                              <tbody>
+
+                                  {% for p in recent_payments %}
+                                  <tr>
+
+                                      <td data-label="ID">
+                                          {{ p.id }}
+                                      </td>
+
+                                      <td data-label="Description">
+                                          {% if p.payment_request %}
+                                              {{ p.payment_request.title }}
+                                          {% else %}
+                                              {{ p.payment_type|title }}
+                                          {% endif %}
+                                      </td>
+
+                                      <td data-label="Amount">
+                                          £{{ p.amount }}
+                                      </td>
+
+                                      <td data-label="Status">
+
+                                          <span class="badge
+                                              {% if p.status == 'completed' %}
+                                                  bg-success
+                                              {% elif p.status == 'pending' %}
+                                                  bg-warning text-dark
+                                              {% else %}
+                                                  bg-secondary
+                                              {% endif %}">
+
+                                              {{ p.status|title }}
+
+                                          </span>
+
+                                      </td>
+
+                                  </tr>
+                                  {% endfor %}
+
+                              </tbody>
+
+                            </table>
+
+                        </div>
+
+                    {% else %}
+
+                        <div class="text-muted">
+                            No payments found.
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- RECENT CLAIMS -->
+        <div class="col-lg-6">
+
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+
+                <div class="card-header dashboard-header">
+                    Recent Claims
+                </div>
+
+                <div class="card-body">
+
+                    {% if recent_claims %}
+
+                        <div class="table-responsive">
+
+                            <table class="table table-sm align-middle mb-0 responsive-activity-table">
+
+                                <thead class="table-light">
+                                  <tr>
+                                      <th>ID</th>
+                                      <th>Causer</th>
+                                      <th>Status</th>
+                                  </tr>
+                              </thead>
+
+                              <tbody>
+
+                                  {% for c in recent_claims %}
+                                  <tr>
+
+                                      <td data-label="ID">
+                                          {{ c.id }}
+                                      </td>
+
+                                      <td data-label="Causer">
+
+                                          {% if c.causer_dependant %}
+                                              {{ c.causer_dependant.first_name }}
+                                              {{ c.causer_dependant.surname }}
+                                          {% else %}
+                                              Self
+                                          {% endif %}
+
+                                      </td>
+
+                                      <td data-label="Status">
+
+                                          <span class="badge
+                                              {% if c.status == 'approved' %}
+                                                  bg-success
+                                              {% elif c.status == 'pending' %}
+                                                  bg-warning text-dark
+                                              {% else %}
+                                                  bg-secondary
+                                              {% endif %}">
+
+                                              {{ c.status|title }}
+
+                                          </span>
+
+                                      </td>
+
+                                  </tr>
+                                  {% endfor %}
+
+                              </tbody>
+
+                            </table>
+
+                        </div>
+
+                    {% else %}
+
+                        <div class="text-muted">
+                            No claims found.
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const memberCollapse = document.getElementById('memberDetails');
+    const memberBtn = document.getElementById('memberToggleBtn');
+
+    memberCollapse.addEventListener('show.bs.collapse', function () {
+        memberBtn.innerText = 'Less Details';
+    });
+
+    memberCollapse.addEventListener('hide.bs.collapse', function () {
+        memberBtn.innerText = 'View Details';
+    });
+
+    const dependantsCollapse = document.getElementById('dependantsCollapse');
+    const dependantsBtn = document.getElementById('dependantsToggleBtn');
+
+    dependantsCollapse.addEventListener('show.bs.collapse', function () {
+        dependantsBtn.innerText = 'Hide';
+    });
+
+    dependantsCollapse.addEventListener('hide.bs.collapse', function () {
+        dependantsBtn.innerText = 'Show';
+    });
+
+});
+
+</script>
+
+{% endblock %}

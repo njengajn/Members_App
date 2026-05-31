@@ -1,0 +1,65 @@
+<div class="d-flex flex-column p-3 bg-light vh-100 shadow-sm" style="width: 230px;">
+  <h5 class="fw-bold">Menu</h5>
+  <hr>
+
+  <ul class="nav nav-pills flex-column mb-auto">
+
+    <li class="nav-item">
+      <a href="{% url 'members_admin:admin_dashboard' %}"
+         class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+        Dashboard
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a href="{% url 'members_admin:admin_members' %}"
+         class="nav-link {% if request.resolver_match.url_name == 'admin_members' %}active{% endif %}">
+        Members
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a href="{% url 'members_admin:admin_payment_requests' %}"
+         class="nav-link {% if request.resolver_match.url_name == 'admin_payment_requests' %}active{% endif %}">
+        Payments
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a href="/admin/documents/" class="nav-link">
+        Documents
+      </a>
+    </li>
+
+    <li>
+      <a href="{% url 'members_admin:admin_analytics_dashboard' %}">
+        Analytics
+      </a>
+    </li>
+
+    <li>
+       <a href="{% url 'members_admin:bulk_member_activation' %}">
+        Bulk Member Activation
+      </a>
+    </li>
+
+    <li>
+        <a href="{% url 'members_admin:finance_summary' %}">
+          Finance Summary
+        </a>
+    </li>
+
+     <li>
+       <a href="{% url 'members_admin:treasurer_control_panel' %}">
+          Treasurer Panel
+       </a>
+     </li>
+
+     <li>
+      <a href="{% url 'members_admin:treasurer_analytics_dashboard' %}">
+        Finance Analytics
+      </a>
+    </li>
+  </ul>
+</div>
+

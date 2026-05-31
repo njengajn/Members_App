@@ -1,0 +1,319 @@
+{% extends "members/admin/admin_base.html" %}
+
+{% block content %}
+
+<div class="container-fluid mt-3">
+
+  <div class="card shadow-sm border-0">
+
+    <div class="card-header bg-dark text-white">
+      <h5 class="mb-0">
+        Edit Payment Request
+      </h5>
+    </div>
+
+    <div class="card-body">
+
+      <form method="POST">
+
+        {% csrf_token %}
+
+        <!-- ===================================================== -->
+        <!-- REQUEST TYPE -->
+        <!-- ===================================================== -->
+
+        <div class="mb-3">
+
+          <label class="form-label fw-bold">
+            Payment Request Type
+          </label>
+
+          <select name="request_type"
+                  class="form-select">
+
+            <option value="membership"
+              {% if payment_request.request_type == "membership" %}
+              selected
+              {% endif %}>
+              Membership
+            </option>
+
+            <option value="subscription"
+              {% if payment_request.request_type == "subscription" %}
+              selected
+              {% endif %}>
+              Subscription
+            </option>
+
+            <option value="claim"
+              {% if payment_request.request_type == "claim" %}
+              selected
+              {% endif %}>
+              Claim
+            </option>
+
+            <option value="other"
+              {% if payment_request.request_type == "other" %}
+              selected
+              {% endif %}>
+              Other
+            </option>
+
+          </select>
+
+          <small class="text-muted">
+            Membership, subscription and claim requests
+            may trigger retirement for non-payment.
+          </small>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- TITLE -->
+        <!-- ===================================================== -->
+
+        <div class="mb-3">
+
+          <label class="form-label fw-bold">
+            Title
+          </label>
+
+          <input type="text"
+                 name="title"
+                 value="{{ payment_request.title }}"
+                 class="form-control"
+                 required>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- DESCRIPTION -->
+        <!-- ===================================================== -->
+
+        <div class="mb-3">
+
+          <label class="form-label fw-bold">
+            Description
+          </label>
+
+          <textarea name="description"
+                    rows="4"
+                    class="form-control">{{ payment_request.description }}</textarea>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- AMOUNT -->
+        <!-- ===================================================== -->
+
+        <div class="mb-3">
+
+          <label class="form-label fw-bold">
+            Amount (£)
+          </label>
+
+          <input type="number"
+                 step="0.01"
+                 min="0"
+                 name="amount"
+                 value="{{ payment_request.amount }}"
+                 class="form-control"
+                 required>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- DUE DATE -->
+        <!-- ===================================================== -->
+
+        <div class="mb-4">
+
+          <label class="form-label fw-bold">
+            Due Date
+          </label>
+
+          <input type="datetime-local"
+                 name="due_date"
+                 value="{{ payment_request.due_date|date:'Y-m-d\\TH:i' }}"
+                 class="form-control">
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- TARGET MEMBERS -->
+        <!-- ===================================================== -->
+
+        <div class="mb-4">
+
+          <label class="form-label fw-bold">
+            Who Should Pay?
+          </label>
+
+          <!-- ALL MEMBERS -->
+          <div class="form-check mb-2">
+
+            <input class="form-check-input"
+                   type="radio"
+                   name="target_type"
+                   value="all"
+                   id="target_all"
+
+                   {% if payment_request.viewable_by_all %}
+                   checked
+                   {% endif %}>
+
+            <label class="form-check-label"
+                   for="target_all">
+
+              All Active Members
+
+            </label>
+
+          </div>
+
+
+          <!-- SINGLE MEMBER -->
+          <div class="form-check mb-2">
+
+            <input class="form-check-input"
+                   type="radio"
+                   name="target_type"
+                   value="single"
+                   id="target_single"
+
+                   {% if payment_request.member %}
+                   checked
+                   {% endif %}>
+
+            <label class="form-check-label"
+                   for="target_single">
+
+              Single Member
+
+            </label>
+
+          </div>
+
+          <div class="mb-3">
+
+            <select name="member"
+                    class="form-select">
+
+              <option value="">
+                Select member
+              </option>
+
+              {% for m in members %}
+
+              <option value="{{ m.id }}"
+
+                {% if payment_request.member.id == m.id %}
+                selected
+                {% endif %}>
+
+                {{ m.first_name }}
+                {{ m.surname }}
+                ({{ m.member_uid }})
+
+              </option>
+
+              {% endfor %}
+
+            </select>
+
+          </div>
+
+
+          <!-- SELECTED MEMBERS -->
+          <div class="form-check mb-2">
+
+            <input class="form-check-input"
+                   type="radio"
+                   name="target_type"
+                   value="selected"
+                   id="target_selected"
+
+                   {% if payment_request.selected_members.exists %}
+                   checked
+                   {% endif %}>
+
+            <label class="form-check-label"
+                   for="target_selected">
+
+              Selected Members
+
+            </label>
+
+          </div>
+
+          <!-- MEMBER CHECKLIST -->
+          <div class="border rounded p-3"
+               style="max-height:300px; overflow-y:auto;">
+
+            {% for m in members %}
+
+            <div class="form-check">
+
+              <input class="form-check-input"
+                     type="checkbox"
+                     name="selected_members"
+                     value="{{ m.id }}"
+                     id="member_{{ m.id }}"
+
+                     {% if m in payment_request.selected_members.all %}
+                     checked
+                     {% endif %}>
+
+              <label class="form-check-label"
+                     for="member_{{ m.id }}">
+
+                {{ m.first_name }}
+                {{ m.surname }}
+                ({{ m.member_uid }})
+
+              </label>
+
+            </div>
+
+            {% endfor %}
+
+          </div>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- ACTIONS -->
+        <!-- ===================================================== -->
+
+        <div class="d-flex flex-wrap gap-2">
+
+          <button class="btn btn-success">
+
+            Save Changes
+
+          </button>
+
+          <a href="{% url 'members_admin:admin_payments_list' %}"
+             class="btn btn-secondary">
+
+             Cancel
+
+          </a>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}

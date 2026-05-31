@@ -1,0 +1,53 @@
+{% extends "members/base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            <h4 class="mb-3">
+                Resubmit Document
+            </h4>
+
+            <p>
+                Previous document was rejected.
+                Please upload a replacement.
+            </p>
+
+            <form method="POST"
+                  enctype="multipart/form-data">
+
+                {% csrf_token %}
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Select Replacement File
+                    </label>
+
+                    <input type="file"
+                           name="document_file"
+                           class="form-control"
+                           required>
+
+                </div>
+
+                <button type="submit"
+                        class="btn btn-primary">
+
+                    Submit Replacement
+
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

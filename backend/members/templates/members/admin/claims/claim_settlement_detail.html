@@ -1,0 +1,140 @@
+{% extends "members/admin/admin_base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+
+  <h3>Claim Settlement</h3>
+
+  <!-- BASIC INFO -->
+  <div class="card p-3 mb-4">
+    <p><strong>Claim:</strong> {{ settlement.claim }}</p>
+    <p><strong>Payment Request:</strong> #{{ settlement.claim.payment_request.id }}</p>
+    <p><strong>Causer:</strong> {{ settlement.claim.causer_full_name }}</p>
+    <p><strong>Settlement Date:</strong> {{ settlement.settlement_date }}</p>
+  </div>
+
+  <!-- SUMMARY CARD -->
+  <div class="card p-3 mb-4">
+    <h5>Reconciliation Summary</h5>
+
+    <p><strong>Total Collected:</strong> £{{ settlement.total_collected }}</p>
+    <p><strong>Total Deductions:</strong> £{{ settlement.total_deductions }}</p>
+    <p><strong>Net Paid:</strong> £{{ settlement.amount_paid }}</p>
+    <p><strong>Notes:</strong> {{ settlement.notes }}</p>
+  </div>
+
+  <!-- RECONCILIATION CHECK -->
+  <div class="card p-3 mb-4">
+    <h5>Reconciliation</h5>
+
+    <p>Total Collected: £{{ reconciliation.total_collected }}</p>
+    <p>Payments Count: {{ reconciliation.payment_count }}</p>
+    <p>Unique Payers: {{ reconciliation.unique_payers }}</p>
+
+    {% if reconciliation.matches_request_total %}
+      <span class="badge bg-success">Balanced</span>
+    {% else %}
+      <span class="badge bg-danger">Mismatch</span>
+    {% endif %}
+  </div>
+
+  <!-- DEDUCTIONS -->
+  <h5>Deductions Breakdown</h5>
+
+  <table class="table table-sm">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th class="text-end">Amount (£)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in settlement.deduction_items.all %}
+      <tr>
+        <td>{{ d.title }}</td>
+        <td class="text-end">{{ d.amount }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="2">No deductions</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- CONTRIBUTIONS -->
+  <div class="card p-3 mb-4">
+    <h5>Member Contributions</h5>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>UID</th>
+          <th>Amount</th>
+          <th>Date</th>
+          <th>Method</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in breakdown %}
+        <tr>
+          <td>{{ row.member_name }}</td>
+          <td>{{ row.member_uid }}</td>
+          <td>£{{ row.amount }}</td>
+          <td>{{ row.date }}</td>
+          <td>{{ row.method }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- STATUS -->
+  <hr>
+
+  <p><strong>Prepared By:</strong> {{ settlement.prepared_by|default:"-" }}</p>
+  <p><strong>Approved By:</strong> {{ settlement.approved_by|default:"Pending" }}</p>
+
+  <p>
+    <strong>Status:</strong>
+    {% if settlement.is_approved %}
+      <span class="badge bg-success">Approved</span>
+    {% else %}
+      <span class="badge bg-warning text-dark">Pending Approval</span>
+    {% endif %}
+  </p>
+
+  <!-- ACTIONS -->
+  {% if not settlement.is_approved %}
+
+    {% if request.user != settlement.prepared_by %}
+      <form method="post" action="{% url 'members_admin:approve_claim_settlement' settlement.id %}">
+      {% csrf_token %}
+      <button class="btn btn-success">
+        Approve & Settle
+      </button>
+    </form>
+    {% else %}
+      <a href="{% url 'members_admin:reconcile_claim' settlement.claim.payment_request.id %}"
+         class="btn btn-warning">
+         Edit Reconciliation
+      </a>
+    {% endif %}
+
+  {% endif %}
+
+  <!-- EXPORT -->
+  <hr>
+
+  <a href="{% url 'members_admin:export_claim_ledger' settlement.id %}"
+     class="btn btn-primary">
+     Download Ledger (CSV)
+  </a>
+
+  <a href="{% url 'members_admin:export_claim_pdf' settlement.id %}"
+     class="btn btn-outline-dark">
+     Download Summary (PDF)
+  </a>
+
+</div>
+
+{% endblock %}

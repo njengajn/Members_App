@@ -1,0 +1,148 @@
+{% extends "members/admin/admin_base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+  <div class="card shadow-lg border-0">
+
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">Claim Reconciliation</h5>
+    </div>
+
+    <div class="card-body">
+
+      <!-- SUMMARY -->
+      <div class="row text-center mb-4">
+        <div class="col-md-4">
+          <small class="text-muted">Total Collected</small><br>
+          <strong>£{{ settlement.total_collected }}</strong>
+        </div>
+
+        <div class="col-md-4">
+          <small class="text-muted">Total Deductions</small><br>
+          <strong id="total-deductions">£0.00</strong>
+        </div>
+
+        <div class="col-md-4">
+          <small class="text-muted">Net Payout</small><br>
+          <strong id="net-payout">£{{ settlement.total_collected }}</strong>
+        </div>
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+
+        <h6 class="mb-3">Deductions</h6>
+
+        {{ formset.management_form }}
+
+        <div id="deductions-container">
+
+         {% for form in formset %}
+        <div class="row mb-2 deduction-row">
+
+          <!-- 🔥 CRITICAL FIX: INCLUDE HIDDEN ID -->
+          {{ form.id }}
+
+          <div class="col-md-5">
+            {{ form.title }}
+          </div>
+
+          <div class="col-md-3">
+            {{ form.amount }}
+          </div>
+
+          <div class="col-md-2">
+            {{ form.DELETE }} <small>Remove</small>
+          </div>
+
+        </div>
+        {% endfor %}
+
+        </div>
+
+        <!-- EMPTY TEMPLATE -->
+        <div id="empty-form-template" class="d-none">
+          <div class="row mb-2 deduction-row align-items-center">
+            <div class="col-md-5">
+              {{ empty_form.title }}
+            </div>
+            <div class="col-md-3">
+              {{ empty_form.amount }}
+            </div>
+            <div class="col-md-2">
+              {{ empty_form.DELETE }} <small>Remove</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- ADD -->
+        <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addRow()">
+          + Add deduction
+        </button>
+
+        <!-- NOTES -->
+        <div class="mt-4">
+          <label><strong>Notes</strong></label>
+          <textarea name="notes" class="form-control" rows="3"
+            placeholder="Explain deductions...">{{ settlement.notes }}</textarea>
+        </div>
+
+        <!-- ACTIONS -->
+        <button class="btn btn-success"
+                onclick="return confirm('Submit reconciliation for approval?');">
+          Save & Submit for Approval
+        </button>
+
+          <a href="{% url 'members_admin:admin_payments_list' %}"
+             class="btn btn-secondary">
+             Cancel
+          </a>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<script>
+
+// ADD ROW
+function addRow() {
+    const totalForms = document.getElementById("id_form-TOTAL_FORMS");
+    const index = parseInt(totalForms.value);
+
+    let template = document.getElementById("empty-form-template").innerHTML;
+    template = template.replace(/__prefix__/g, index);
+
+    document.getElementById("deductions-container")
+        .insertAdjacentHTML("beforeend", template);
+
+    totalForms.value = index + 1;
+}
+
+
+// LIVE TOTALS
+function calculateTotals() {
+    let total = 0;
+
+    document.querySelectorAll("input[name$='amount']").forEach(el => {
+        let val = parseFloat(el.value || 0);
+        total += val;
+    });
+
+    document.getElementById("total-deductions").innerText = "£" + total.toFixed(2);
+
+    let collected = {{ settlement.total_collected }};
+    let net = collected - total;
+
+    document.getElementById("net-payout").innerText = "£" + net.toFixed(2);
+}
+
+// run on load + input
+document.addEventListener("input", calculateTotals);
+document.addEventListener("DOMContentLoaded", calculateTotals);
+
+</script>
+
+{% endblock %}

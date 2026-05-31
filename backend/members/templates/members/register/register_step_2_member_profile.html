@@ -1,0 +1,275 @@
+{% extends "members/register/register_base.html" %}
+{% load static %}
+
+{% block register_content %}
+
+<div class="mb-4">
+
+    <h4 class="fw-bold mb-1">
+        Member Registration
+    </h4>
+
+    <p class="text-muted mb-0">
+        Please provide your personal and address details
+    </p>
+
+</div>
+
+<form method="post">
+
+    {% csrf_token %}
+
+    <!-- ========================================= -->
+    <!-- PERSONAL DETAILS -->
+    <!-- ========================================= -->
+
+    <div class="register-section mb-4">
+
+        <div class="section-title">
+            Personal Details
+        </div>
+
+        <div class="row g-3">
+
+            <div class="col-12 col-md-4">
+                <label class="form-label">
+                    First Name
+                </label>
+
+                <input
+                    name="first_name"
+                    class="form-control"
+                    placeholder="Enter first name"
+                    required
+                >
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label">
+                    Middle Name
+                </label>
+
+                <input
+                    name="middle_name"
+                    class="form-control"
+                    placeholder="Enter middle name"
+                >
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label">
+                    Surname
+                </label>
+
+                <input
+                    name="surname"
+                    class="form-control"
+                    placeholder="Enter surname"
+                    required
+                >
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ========================================= -->
+    <!-- ADDRESS -->
+    <!-- ========================================= -->
+
+    <div class="register-section mb-4">
+
+        <div class="section-title">
+            Address Details
+        </div>
+
+        <!-- SEARCH ADDRESS -->
+        <div class="mb-3 position-relative">
+
+            <label class="form-label">
+                Search Address
+            </label>
+
+            <input
+                id="line_1"
+                name="line_1"
+                class="form-control"
+                placeholder="Start typing address..."
+                autocomplete="off"
+            >
+
+            <div id="address-dropdown"
+                 class="list-group address-dropdown shadow-sm">
+            </div>
+
+        </div>
+
+        <!-- ADDRESS FIELDS -->
+        <div class="row g-3">
+
+            <div class="col-12 col-md-4">
+                <label class="form-label">
+                    House Number
+                </label>
+
+                <input
+                    id="house_number"
+                    name="house_number"
+                    class="form-control"
+                    placeholder="House number"
+                >
+            </div>
+
+            <div class="col-12 col-md-8">
+                <label class="form-label">
+                    Address Line 2
+                </label>
+
+                <input
+                    id="line_2"
+                    name="line_2"
+                    class="form-control"
+                    placeholder="Apartment, street, etc."
+                >
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label">
+                    Town / City
+                </label>
+
+                <input
+                    id="town"
+                    name="town"
+                    class="form-control"
+                    placeholder="Town or city"
+                >
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label">
+                    County
+                </label>
+
+                <input
+                    id="county"
+                    name="county"
+                    class="form-control"
+                    placeholder="County"
+                >
+            </div>
+
+            <div class="col-12 col-md-3">
+
+                <label class="form-label">
+                    Postcode
+                </label>
+
+                <input
+                    id="postcode"
+                    name="postcode"
+                    class="form-control"
+                    placeholder="Postcode"
+                    maxlength="9"
+                >
+
+            </div>
+
+            <div class="col-12 col-md-1">
+
+                <label class="form-label">
+                    Country
+                </label>
+
+                <input
+                    id="country"
+                    name="country"
+                    class="form-control"
+                    value="UK"
+                >
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- BUTTON -->
+    <div class="row g-2">
+
+        <div class="col-12">
+            <button class="btn btn-primary w-100">
+                Continue to Next Step
+            </button>
+        </div>
+
+    </div>
+
+</form>
+
+<script src="{% static 'members/js/address_autocomplete.js' %}"></script>
+
+<style>
+
+/* ========================================= */
+/* SECTIONS */
+/* ========================================= */
+
+.register-section {
+    background: #f8fafc;
+    border: 1px solid #edf1f5;
+    border-radius: 18px;
+    padding: 1.1rem;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #0d6efd;
+}
+
+/* ========================================= */
+/* ADDRESS DROPDOWN */
+/* ========================================= */
+
+.address-dropdown {
+    position: absolute;
+    width: 100%;
+    z-index: 1000;
+    border-radius: 14px;
+    overflow: hidden;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+/* ========================================= */
+/* MOBILE */
+/* ========================================= */
+
+@media (max-width: 768px) {
+
+    .register-section {
+        padding: 0.9rem;
+        border-radius: 16px;
+    }
+
+    .section-title {
+        font-size: 0.95rem;
+        margin-bottom: 0.85rem;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .register-section {
+        padding: 0.8rem;
+    }
+
+    .section-title {
+        font-size: 0.92rem;
+    }
+}
+
+</style>
+
+{% endblock %}

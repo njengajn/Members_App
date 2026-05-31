@@ -1,0 +1,70 @@
+{% extends "members/admin/admin_base.html" %}
+
+{% block content %}
+
+<h3 class="mb-3">Security Events</h3>
+
+<!-- SUMMARY -->
+<div class="row mb-4">
+
+<div class="col-md-4">
+<div class="card bg-dark text-white p-3">
+<h5>Total Events</h5>
+<h2>{{ events|length }}</h2>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="card bg-danger text-white p-3">
+<h5>High Risk</h5>
+<h2>{{ high_risk_count }}</h2>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="card bg-warning p-3">
+<h5>Unique IPs</h5>
+<h2>{{ unique_ips }}</h2>
+</div>
+</div>
+
+</div>
+
+<!-- TABLE -->
+<div class="card shadow-sm">
+<div class="card-body p-0">
+
+<table class="table table-striped mb-0">
+
+<thead class="table-dark">
+<tr>
+<th>User</th>
+<th>Event</th>
+<th>IP</th>
+<th>Date</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% for e in events %}
+<tr class="{% if e.is_high_risk %}table-danger{% endif %}">
+<td>{{ e.user }}</td>
+<td>{{ e.event_type }}</td>
+<td>{{ e.ip_address }}</td>
+<td>{{ e.created_at|date:"Y-m-d H:i" }}</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="4" class="text-center">No events</td>
+</tr>
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+</div>
+
+{% endblock %}

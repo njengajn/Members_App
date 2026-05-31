@@ -1,0 +1,64 @@
+<div class="border rounded-lg p-4
+  {% if pr.is_overdue %}
+    border-red-500 bg-red-50
+  {% elif pr.status == 'closed' %}
+    opacity-60
+  {% endif %}
+">
+
+  <div class="flex justify-between items-start">
+    <div>
+      <h5 class="font-semibold">{{ pr.title }}</h5>
+      <p class="text-sm text-gray-600">
+        Due: {{ pr.due_date|date:"M d, Y" }}
+      </p>
+    </div>
+
+    {% if pr.is_overdue %}
+      <span class="text-red-600 font-bold">OVERDUE</span>
+    {% elif pr.status == "active" %}
+      <span class="text-green-600 font-semibold">ACTIVE</span>
+    {% else %}
+      <span class="text-gray-500 font-semibold">CLOSED</span>
+    {% endif %}
+  </div>
+
+  <p class="mt-2">{{ pr.description }}</p>
+
+  {% include "members/partials/partial_payment_progress.html" %}
+
+  <!-- ADMIN NOTES (members can see, admins can edit elsewhere) -->
+  {% if pr.admin_notes %}
+    <p class="mt-2 text-sm text-blue-700">
+      <strong>Admin:</strong> {{ pr.admin_notes }}
+    </p>
+  {% endif %}
+
+  <!-- ACTIONS -->
+  <div class="mt-4 flex gap-3">
+    <a
+      href="{% url 'members:member_payments' %}"
+      class="text-sm text-blue-600 hover:underline"
+    >
+      View
+    </a>
+
+    {% if pr.status == "active" and not is_admin %}
+      <a
+        href="{% url 'members:pay_payment_request' pr.id %}"
+        class="text-sm bg-green-600 text-white px-3 py-1 rounded"
+      >
+        Pay Now
+      </a>
+    {% endif %}
+
+    {% if is_admin %}
+      <a
+        href="{% url 'admin:members_paymentrequest_change' pr.id %}"
+        class="text-sm text-purple-600 hover:underline"
+      >
+        Admin View
+      </a>
+    {% endif %}
+  </div>
+</div>

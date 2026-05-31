@@ -1,0 +1,35 @@
+{% extends "members/base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:450px;">
+    <div class="card shadow-sm">
+        <div class="card-header"><h4 class="text-center">Member Login</h4></div>
+        <div class="card-body">
+
+            {% if messages %}
+                {% for m in messages %}
+                    <div class="alert alert-danger">{{ m }}</div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="POST">
+                {% csrf_token %}
+
+                <label>Email</label>
+                <input type="email" name="email" class="form-control" required>
+
+                <label class="mt-3">Password</label>
+                <input type="password" name="password" class="form-control" required>
+
+                <button class="btn btn-success w-100 mt-4">Login</button>
+            </form>
+
+            <p class="mt-3 text-center">
+                Don’t have an account?
+                <a href="{% url 'members:register_step_1' %}" class="fw-bold">Register here</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "members/members_base.html" %}
+{% block content %}
+<div class="max-w-xl mx-auto bg-white p-6 shadow rounded">
+  <h2 class="text-xl font-bold mb-4">Payment Receipt</h2>
+
+  <p><strong>Receipt ID:</strong> {{ payment.uid }}</p>
+  <p><strong>Amount:</strong> {{ payment.amount }}</p>
+  <p><strong>Paid on:</strong> {{ payment.paid_at|date:"M d, Y H:i" }}</p>
+  <p><strong>Payment Type:</strong> {{ payment.get_payment_type_display }}</p>
+
+  {% if payment.payment_request %}
+    <p><strong>Request:</strong> {{ payment.payment_request.uid }}</p>
+  {% endif %}
+
+  <button onclick="window.print()" class="btn btn-primary mt-4">
+    Print / Save PDF
+  </button>
+</div>
+{% endblock %}

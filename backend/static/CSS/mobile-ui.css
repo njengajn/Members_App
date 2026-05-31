@@ -1,0 +1,1186 @@
+/* ========================================================= */
+/* MOBILE UI SYSTEM                                           */
+/* Shared reusable responsive UI styles                       */
+/* ========================================================= */
+
+/* ========================================================= */
+/* PAGE CONTAINERS                                            */
+/* ========================================================= */
+
+.mobile-page,
+.dashboard-page,
+.payments-page,
+.claim-page,
+.register-page {
+    padding-top: 0.2rem;
+    padding-bottom: 0.5rem;
+}
+
+/* ========================================================= */
+/* CARDS                                                      */
+/* ========================================================= */
+
+.mobile-card,
+.dashboard-card,
+.payments-card,
+.claim-card,
+.register-card {
+    overflow: hidden;
+    border-radius: 18px !important;
+    border: 1px solid #d7e4dc !important;
+    background: linear-gradient(180deg, #ffffff, #f8fbf9);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.mobile-card .card-body,
+.dashboard-card .card-body,
+.payments-card .card-body,
+.claim-card .card-body,
+.register-card .card-body {
+    background: #f3f8f5;
+    padding: 0.85rem !important;
+}
+
+/* ========================================================= */
+/* SECTION BLOCKS                                             */
+/* ========================================================= */
+
+.mobile-section,
+.claim-form-block,
+.register-section,
+.summary-card-inner,
+.dashboard-section {
+    background: linear-gradient(180deg, #ffffff, #f8fbf9);
+    border: 1px solid #d6e3da;
+    border-radius: 14px;
+    padding: 0.8rem;
+    margin-bottom: 0.8rem;
+}
+
+/* ========================================================= */
+/* HEADERS                                                    */
+/* ========================================================= */
+
+.page-title,
+.mobile-title {
+    color: #157347;
+    font-weight: 700;
+    margin-bottom: 0.15rem !important;
+    line-height: 1.2;
+}
+
+.page-subtitle,
+.mobile-subtitle {
+    font-size: 0.82rem;
+    color: #5d6d64;
+    margin-bottom: 0 !important;
+}
+
+/* ========================================================= */
+/* BADGES                                                     */
+/* ========================================================= */
+
+.mobile-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #198754, #157347);
+    color: white;
+    padding: 0.3rem 0.72rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+/* ========================================================= */
+/* FORMS                                                      */
+/* ========================================================= */
+
+.form-label {
+    font-weight: 600;
+    margin-bottom: 0.28rem;
+    color: #2f4f3e;
+    font-size: 0.88rem;
+}
+
+.form-control,
+.form-select,
+.mobile-select,
+textarea.form-control,
+select {
+    width: 100%;
+    min-height: 42px;
+    padding: 0.65rem 0.82rem;
+    border-radius: 11px;
+    border: 1px solid #c9d8cf;
+    background: #ffffff;
+    transition: all 0.2s ease;
+    color: #24352c;
+}
+
+textarea.form-control {
+    min-height: 95px;
+    resize: vertical;
+    background: linear-gradient(180deg, #ffffff, #f9fcfa);
+    border: 1px solid #b7ccbf;
+}
+
+.form-control:focus,
+.form-select:focus,
+.mobile-select:focus,
+textarea.form-control:focus,
+select:focus {
+    border-color: #198754;
+    background: #ffffff;
+    box-shadow: 0 0 0 0.14rem rgba(25,135,84,0.14);
+}
+
+/* ========================================================= */
+/* TABLES                                                     */
+/* ========================================================= */
+
+.mobile-table {
+    margin-bottom: 0;
+}
+
+.mobile-table thead th {
+    background: #dfeee5;
+    color: #2f4f3e;
+    font-size: 0.84rem;
+    font-weight: 700;
+    border-bottom: none;
+    white-space: nowrap;
+}
+
+.mobile-table td,
+.mobile-table th {
+    vertical-align: middle;
+    padding: 0.75rem;
+}
+
+.mobile-table tbody tr {
+    background: rgba(255,255,255,0.88);
+}
+
+/* ========================================================= */
+/* DESCRIPTION TEXT                                           */
+/* ========================================================= */
+
+.mobile-description {
+    color: #52635a;
+    line-height: 1.35;
+    font-size: 0.9rem;
+}
+
+/* ========================================================= */
+/* BUTTONS                                                    */
+/* ========================================================= */
+
+.mobile-btn,
+.btn {
+    border-radius: 11px;
+}
+
+.mobile-btn-primary {
+    background: linear-gradient(135deg, #198754, #157347);
+    border: none;
+    color: white;
+}
+
+.mobile-btn-success {
+    background: linear-gradient(135deg, #198754, #157347);
+    border: none;
+    color: white;
+}
+
+.mobile-btn-outline {
+    border: 1px solid #b7ccbf;
+    background: white;
+}
+
+.mobile-submit-btn {
+    width: 100%;
+    border-radius: 11px;
+    padding: 0.78rem;
+    font-weight: 700;
+    font-size: 0.94rem;
+}
+
+/* ========================================================= */
+/* UPLOAD SECTIONS                                            */
+/* ========================================================= */
+
+.upload-section {
+    background: linear-gradient(180deg, #d2e7d9, #e7f2eb);
+    border: 1px solid #bdd4c4;
+    border-radius: 16px;
+    padding: 0.8rem;
+}
+
+/* ========================================================= */
+/* DROP ZONES                                                 */
+/* ========================================================= */
+
+.drop-zone {
+    border: 2px dashed #8fb59c;
+    border-radius: 13px;
+    background: linear-gradient(180deg, #ffffff, #eef8f2);
+    padding: 1rem 0.8rem;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.drop-zone:hover {
+    border-color: #198754;
+    background: #f5fbf7;
+}
+
+.drop-zone-title {
+    font-weight: 700;
+    color: #198754;
+    margin-bottom: 0.15rem;
+    font-size: 0.92rem;
+}
+
+.drop-zone-subtitle {
+    color: #5f7067;
+    font-size: 0.78rem;
+}
+
+/* ========================================================= */
+/* BADGES                                                     */
+/* ========================================================= */
+
+.badge {
+    padding: 0.55rem 0.72rem;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 600;
+}
+
+/* ========================================================= */
+/* MOBILE RESPONSIVE TABLE CARDS                              */
+/* ========================================================= */
+
+
+
+/* ========================================================= */
+/* MOBILE DEVICES                                             */
+/* ========================================================= */
+
+@media (max-width: 768px) {
+
+    .mobile-page,
+    .dashboard-page,
+    .payments-page,
+    .claim-page,
+    .register-page {
+        padding-left: 0.35rem !important;
+        padding-right: 0.35rem !important;
+        padding-top: 0.08rem;
+    }
+
+    .mobile-card .card-body,
+    .dashboard-card .card-body,
+    .payments-card .card-body,
+    .claim-card .card-body,
+    .register-card .card-body {
+        padding: 0.75rem !important;
+    }
+
+    .page-title,
+    .mobile-title {
+        font-size: 1.15rem;
+    }
+
+    .page-subtitle,
+    .mobile-subtitle {
+        font-size: 0.78rem;
+    }
+
+    .mobile-section,
+    .claim-form-block,
+    .register-section,
+    .summary-card-inner,
+    .dashboard-section {
+        padding: 0.65rem;
+    }
+
+    .upload-section {
+        padding: 0.7rem;
+    }
+
+    .drop-zone {
+        padding: 0.85rem 0.65rem;
+    }
+
+    .mobile-btn,
+    .mobile-submit-btn {
+        width: 100%;
+    }
+
+    .form-control,
+    .form-select,
+    textarea.form-control,
+    select {
+        font-size: 0.9rem;
+    }
+}
+
+/* ========================================================= */
+/* EXTRA SMALL DEVICES                                        */
+/* ========================================================= */
+
+@media (max-width: 480px) {
+
+    .mobile-page,
+    .dashboard-page,
+    .payments-page,
+    .claim-page,
+    .register-page {
+        padding-left: 0.15rem !important;
+        padding-right: 0.15rem !important;
+    }
+
+    .mobile-card .card-body,
+    .dashboard-card .card-body,
+    .payments-card .card-body,
+    .claim-card .card-body,
+    .register-card .card-body {
+        padding: 0.65rem !important;
+    }
+
+    .page-title,
+    .mobile-title {
+        font-size: 1.05rem;
+    }
+
+    .mobile-section,
+    .claim-form-block,
+    .register-section,
+    .summary-card-inner,
+    .dashboard-section {
+        padding: 0.58rem;
+    }
+
+    .upload-section {
+        padding: 0.58rem;
+    }
+
+    .drop-zone {
+        padding: 0.72rem 0.55rem;
+    }
+
+    .drop-zone-title {
+        font-size: 0.86rem;
+    }
+
+    .drop-zone-subtitle {
+        font-size: 0.74rem;
+    }
+
+    .mobile-badge {
+        font-size: 0.66rem;
+    }
+}
+
+/* ========================================================= */
+/* PRIMARY ACTION BUTTONS                                     */
+/* ========================================================= */
+
+.mobile-btn-primary {
+    background: linear-gradient(135deg, #0d6efd, #0a58ca);
+    border: none;
+    color: white;
+}
+
+.mobile-btn-primary:hover {
+    background: linear-gradient(135deg, #0b5ed7, #084298);
+    color: white;
+}
+
+/* ========================================================= */
+/* CAPTCHA                                                    */
+/* ========================================================= */
+
+.captcha-wrapper {
+    overflow-x: auto;
+}
+
+@media (max-width: 480px) {
+
+    .g-recaptcha {
+        transform: scale(0.88);
+        transform-origin: left top;
+    }
+}
+
+/* ========================================================= */
+/* REGISTER PAGE                                              */
+/* ========================================================= */
+
+.register-page {
+    padding-top: 0.35rem;
+    padding-bottom: 0.8rem;
+}
+
+/* ========================================================= */
+/* REGISTER CARD                                              */
+/* ========================================================= */
+
+.register-card {
+    border-radius: 22px !important;
+    overflow: hidden;
+    background: linear-gradient(180deg, #ffffff, #f9fbfa);
+    border: 1px solid #d8e5dd !important;
+}
+
+/* ========================================================= */
+/* REGISTER HEADER                                            */
+/* ========================================================= */
+
+.register-header {
+    background: linear-gradient(135deg, #0d6efd, #0a58ca);
+    color: white;
+    padding: 1.3rem;
+}
+
+.step-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.18);
+    padding: 0.32rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+}
+
+.register-title {
+    font-weight: 700;
+    margin-bottom: 0.15rem;
+    font-size: 1.25rem;
+}
+
+.register-subtitle {
+    opacity: 0.92;
+    font-size: 0.9rem;
+}
+
+/* ========================================================= */
+/* REGISTER BODY                                              */
+/* ========================================================= */
+
+.register-body {
+    padding: 1rem !important;
+    background: #f4f8f5;
+}
+
+/* ========================================================= */
+/* REGISTER PROGRESS                                          */
+/* ========================================================= */
+
+.register-progress {
+    height: 10px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.register-progress-bar {
+    background: #ffffff;
+    border-radius: 999px;
+}
+
+/* ========================================================= */
+/* MOBILE                                                     */
+/* ========================================================= */
+
+@media (max-width: 768px) {
+
+    .register-page {
+        padding-top: 0.15rem;
+        padding-left: 0.35rem !important;
+        padding-right: 0.35rem !important;
+    }
+
+    .register-card {
+        border-radius: 18px !important;
+    }
+
+    .register-header {
+        padding: 1rem;
+    }
+
+    .register-body {
+        padding: 0.8rem !important;
+    }
+
+
+    .register-subtitle {
+        font-size: 0.82rem;
+    }
+}
+
+/* ========================================================= */
+/* EXTRA SMALL DEVICES                                        */
+/* ========================================================= */
+
+@media (max-width: 480px) {
+
+    .register-page {
+        padding-left: 0.2rem !important;
+        padding-right: 0.2rem !important;
+    }
+
+    .register-header {
+        padding: 0.9rem;
+    }
+
+    .register-body {
+        padding: 0.7rem !important;
+    }
+
+
+}
+
+/* ========================================= */
+/* SECTIONS */
+/* ========================================= */
+
+.register-section {
+    background: #f8fafc;
+    border: 1px solid #edf1f5;
+    border-radius: 18px;
+    padding: 1.1rem;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #0d6efd;
+}
+
+/* ========================================= */
+/* ADDRESS DROPDOWN */
+/* ========================================= */
+
+.address-dropdown {
+    position: absolute;
+    width: 100%;
+    z-index: 1000;
+    border-radius: 14px;
+    overflow: hidden;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+/* ========================================= */
+/* MOBILE */
+/* ========================================= */
+
+@media (max-width: 768px) {
+
+    .register-section {
+        padding: 0.9rem;
+        border-radius: 16px;
+    }
+
+    .section-title {
+        font-size: 0.95rem;
+        margin-bottom: 0.85rem;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .register-section {
+        padding: 0.8rem;
+    }
+
+    .section-title {
+        font-size: 0.92rem;
+    }
+}
+
+
+/* ========================================= */
+/* DASHBOARD GENERAL */
+/* ========================================= */
+
+.dashboard-container {
+    margin-top: 0 !important;
+}
+
+.card {
+    overflow: hidden;
+}
+
+.dashboard-header {
+    background: #212529;
+    color: white;
+    font-weight: 600;
+    padding: 0.8rem 1rem;
+}
+
+.member-info-item {
+    margin-bottom: 0.55rem;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.stat-card {
+    border-radius: 18px;
+    transition: 0.2s ease;
+}
+
+.stat-link-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-title {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 0.35rem;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+/* ========================================= */
+/* COLLAPSE SECTION */
+/* ========================================= */
+
+#memberDetails {
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========================================= */
+/* MOBILE */
+/* ========================================= */
+
+@media (max-width: 768px) {
+
+    .dashboard-container {
+        padding-left: 0.55rem !important;
+        padding-right: 0.55rem !important;
+    }
+
+    h3 {
+        font-size: 1.3rem;
+    }
+
+    h4 {
+        font-size: 1.05rem;
+    }
+
+    .card {
+        border-radius: 16px !important;
+    }
+
+    .card-body {
+        padding: 0.95rem !important;
+    }
+
+    .dashboard-header {
+        padding: 0.75rem 0.95rem;
+        font-size: 0.95rem;
+    }
+
+    .member-info-item {
+        font-size: 0.92rem;
+    }
+
+    .stat-card .card-body {
+        padding: 1rem 0.8rem !important;
+    }
+
+    .stat-value {
+        font-size: 1.45rem;
+    }
+
+    .btn {
+        min-height: 42px;
+    }
+
+    .badge {
+        font-size: 0.76rem;
+        padding: 0.55rem 0.7rem;
+    }
+}
+
+/* EXTRA SMALL DEVICES */
+
+@media (max-width: 480px) {
+
+    .dashboard-container {
+        padding-left: 0.35rem !important;
+        padding-right: 0.35rem !important;
+    }
+
+    .card-body {
+        padding: 0.75rem !important;
+    }
+
+    .stat-value {
+        font-size: 1.3rem;
+    }
+
+    .member-info-item {
+        font-size: 0.88rem;
+    }
+
+    .btn-sm {
+        width: 100%;
+    }
+}
+
+
+/* ========================================= */
+/* DASHBOARD COLORS */
+/* ========================================= */
+
+.dashboard-title {
+    color: #1f2937;
+}
+
+.welcome-text {
+    color: #0f172a;
+}
+
+.dashboard-main-card {
+    background: linear-gradient(
+        135deg,
+        #ffffff 0%,
+        #f8fbff 100%
+    );
+}
+
+.stat-card {
+    transition: 0.25s ease;
+    border-radius: 18px;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+}
+
+.stat-card-blue {
+    background: linear-gradient(
+        135deg,
+        #eef6ff,
+        #dbeafe
+    );
+}
+
+.stat-card-warning {
+    background: linear-gradient(
+        135deg,
+        #fff8e6,
+        #ffefbf
+    );
+}
+
+.stat-card-success {
+    background: linear-gradient(
+        135deg,
+        #eefcf3,
+        #d1fae5
+    );
+}
+
+.dashboard-toggle-btn {
+    border-radius: 30px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.dependant-count {
+    font-size: 0.9rem;
+    opacity: 0.85;
+    font-weight: 500;
+}
+
+/* ========================================= */
+/* TABLE IMPROVEMENTS */
+/* ========================================= */
+
+.payments-table td,
+.payments-table th {
+    vertical-align: middle;
+    padding: 0.8rem;
+}
+
+.table thead {
+    background: #f8fafc;
+}
+
+.table tbody tr:hover {
+    background: #f9fbfd;
+}
+
+/* ========================================= */
+/* MOBILE PAYMENT REQUEST CARDS */
+/* ========================================= */
+
+@media (max-width: 768px) {
+
+    /* REMOVE NORMAL TABLE BEHAVIOUR */
+    .payments-table,
+    .payments-table tbody,
+    .payments-table tr,
+    .payments-table td,
+    .payments-table th {
+        display: block;
+        width: 100%;
+    }
+
+    /* HIDE HEADER */
+    .payments-table thead {
+        display: none;
+    }
+
+    /* EACH ROW BECOMES CARD */
+    .payments-table tr {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        margin-bottom: 1rem;
+        padding: 0.9rem;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    /* EACH CELL */
+    .payments-table td {
+        border: none !important;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 0.45rem 0;
+        width: 100%;
+        min-width: 0;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+    }
+
+    /* LABELS */
+    .payments-table td::before {
+        content: attr(data-label);
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #6b7280;
+        margin-bottom: 0.2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    /* LONG TEXT FIX */
+    .payments-table td strong,
+    .payments-table td span,
+    .payments-table td a {
+        max-width: 100%;
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+
+    /* DESCRIPTION COLUMN */
+    .payments-table td[data-label="Description"] {
+        font-size: 0.92rem;
+        line-height: 1.45;
+    }
+
+    /* BUTTON FULL WIDTH */
+    .pay-btn {
+        width: 100%;
+        margin-top: 0.45rem;
+        min-height: 44px;
+        border-radius: 10px;
+    }
+
+    /* BADGES */
+    .payments-table .badge {
+        margin-top: 0.25rem;
+        white-space: normal;
+        text-align: center;
+    }
+
+    /* PREVENT HORIZONTAL SCROLL */
+    .table-responsive {
+        overflow-x: hidden !important;
+    }
+
+    .card-body {
+        overflow-x: hidden;
+    }
+}
+
+/* EXTRA SMALL DEVICES */
+
+@media (max-width: 480px) {
+
+    .payments-table tr {
+        padding: 0.75rem;
+        border-radius: 14px;
+    }
+
+    .payments-table td {
+        font-size: 0.88rem;
+    }
+
+    .payments-table td::before {
+        font-size: 0.68rem;
+    }
+
+    .pay-btn {
+        font-size: 0.9rem;
+    }
+}
+
+.payment-table-wrapper {
+    overflow-x: hidden;
+}
+
+/* ========================================= */
+/* RECENT ACTIVITY MOBILE TABLES */
+/* ========================================= */
+
+@media (max-width: 768px) {
+
+    .responsive-activity-table,
+    .responsive-activity-table tbody,
+    .responsive-activity-table tr,
+    .responsive-activity-table td,
+    .responsive-activity-table th {
+        display: block;
+        width: 100%;
+    }
+
+    .responsive-activity-table thead {
+        display: none;
+    }
+
+    .responsive-activity-table tr {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        margin-bottom: 0.9rem;
+        padding: 0.85rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+
+    .responsive-activity-table td {
+        border: none !important;
+        padding: 0.42rem 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+        min-width: 0;
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+
+    .responsive-activity-table td::before {
+        content: attr(data-label);
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #6b7280;
+        margin-bottom: 0.18rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .responsive-activity-table .badge {
+        margin-top: 0.2rem;
+        white-space: normal;
+    }
+
+    .responsive-activity-table td:last-child {
+        padding-bottom: 0;
+    }
+
+    /* PREVENT OVERFLOW */
+    .responsive-activity-table td,
+    .responsive-activity-table span {
+        max-width: 100%;
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+}
+
+/* EXTRA SMALL DEVICES */
+
+@media (max-width: 480px) {
+
+    .responsive-activity-table tr {
+        padding: 0.75rem;
+    }
+
+    .responsive-activity-table td {
+        font-size: 0.88rem;
+    }
+
+    .responsive-activity-table td::before {
+        font-size: 0.66rem;
+    }
+}
+
+/* ADMIN LIST */
+
+.admin-members-page {
+    padding-top: .4rem;
+}
+
+
+.admin-list-card {
+    border-radius: 18px;
+    border:1px solid #d6e3da;
+    background:#f4faf6;
+}
+
+
+.export-btn {
+    min-width:90px;
+    border-radius:10px;
+}
+
+
+@media(max-width:768px){
+
+    .export-btn{
+        width:48%;
+    }
+
+}
+
+
+/* ========================================================= */
+/* MEMBERS TABLE MOBILE                                      */
+/* ========================================================= */
+
+
+/* ========================================================= */
+/* MOBILE CARDS                                               */
+/* ========================================================= */
+
+.member-card {
+
+    background: #ffffff;
+
+    border: 1px solid #d8e5dd;
+
+    border-radius: 14px;
+
+    padding: 0.85rem;
+
+    margin-bottom: 0.85rem;
+
+    box-shadow:
+    0 2px 6px rgba(0,0,0,.05);
+
+}
+
+
+.member-card-item {
+
+    margin-bottom: 0.65rem;
+
+}
+
+
+.member-card-label {
+
+    font-size: 0.7rem;
+
+    font-weight: 700;
+
+    text-transform: uppercase;
+
+    color: #157347;
+
+    margin-bottom: 0.15rem;
+
+}
+
+
+.member-card-value {
+
+    color: #333;
+
+}
+
+
+.uid-value {
+
+    font-family: monospace;
+
+    overflow-wrap: anywhere;
+
+}
+
+
+.email-value {
+
+    overflow-wrap: anywhere;
+
+    word-break: break-word;
+
+}
+
+
+.member-card-actions {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 0.45rem;
+
+}
+
+
+.member-card-actions .btn {
+
+    width: 100%;
+
+}
+
+
+/* ========================================================= */
+/* MOBILE SWITCH                                              */
+/* ========================================================= */
+
+.desktop-members-view {
+    display: block;
+}
+
+.mobile-members-view {
+    display: none;
+}
+
+@media (max-width:768px){
+
+    .desktop-members-view {
+        display:none !important;
+    }
+
+    .mobile-members-view {
+        display:block !important;
+    }
+
+}

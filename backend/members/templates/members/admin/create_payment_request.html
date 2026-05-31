@@ -1,0 +1,81 @@
+{% extends "members/admin/admin_base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Create Payment Requests</h2>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <!-- MEMBER -->
+        <div class="mb-3">
+            <label class="form-label">Member</label>
+            <select name="member" class="form-control" required>
+                <option value="">-- Select Member --</option>
+                    {% for member in members %}
+                        <option value="{{ member.id }}"
+                            {% if preselected_member and member.id == preselected_member.id %}
+                                selected
+                            {% endif %}
+                        >
+                        {{ member.user.get_full_name }} ({{ member.member_number }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- PAYMENT TYPE -->
+        <div class="mb-3">
+            <label class="form-label">Payment Type</label>
+            <select name="payment_type" class="form-control" required>
+                <option value="">-- Select Type --</option>
+                <option value="general">General</option>
+                <option value="claim"
+                    {% if preselected_type == "claim" %}
+                        selected
+                    {% endif %}
+                >
+                    Claim
+                </option>
+            </select>
+        </div>
+
+        <!-- CLAIM -->
+        <div class="mb-3">
+            <label class="form-label">Claim (required for claim payments)</label>
+            <select name="claim" class="form-control">
+                <option value="">-- Select Claim --</option>
+                    {% for c in claims %}
+                        <option value="{{ c.id }}"
+                            {% if claim and c.id == claim.id %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ c.reference_number }} — {{ c.member.user.get_full_name }}
+                        </option>
+                    <option value="{{ claim.id }}">
+                        {{ claim.reference_number }} — {{ claim.member.user.get_full_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- AMOUNT -->
+        <div class="mb-3">
+            <label class="form-label">Amount</label>
+            <input
+                type="number"
+                step="0.01"
+                name="amount"
+                class="form-control"
+                value="{% if claim %}{{ claim.amount }}{% endif %}"
+                required
+            >
+        </div>
+        <button type="submit" class="btn btn-primary">
+            Create Payment Request
+        </button>
+    </form>
+</div>
+{% endblock %}

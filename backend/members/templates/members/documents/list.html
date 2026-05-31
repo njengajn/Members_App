@@ -1,0 +1,22 @@
+<h1>My Documents</h1>
+
+<a href="{% url 'upload_document' %}">Upload Document</a>
+<a href="{% url 'member_requests' %}">View Requests</a>
+
+<div class="documents">
+    {% for doc in documents %}
+        <div class="doc-card">
+            <h3>{{ doc.title }}</h3>
+
+            {% if doc.is_image %}
+                <img src="{{ doc.file.url }}" width="150">
+            {% elif doc.is_pdf %}
+                <a href="{{ doc.file.url }}">View PDF</a>
+            {% else %}
+                <a href="{{ doc.file.url }}">Download</a>
+            {% endif %}
+
+            <p>Status: {{ doc.status }}</p>
+        </div>
+    {% endfor %}
+</div>

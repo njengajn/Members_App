@@ -1,0 +1,37 @@
+{% extends "members/admin/admin_base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+<div class="card shadow-sm">
+<div class="card-header">
+  <h4 class="mb-0">Dependant Details</h4>
+</div>
+
+<div class="card-body">
+
+<p><strong>Full Name:</strong>
+{{ dependant.first_name }} {{ dependant.middle_name }} {{ dependant.surname }}
+</p>
+<p><strong>Date of Birth:</strong> {{ dependant.dob }}</p>
+<p><strong>Relationship:</strong>
+{{ dependant.get_relationship_display }}
+</p>
+<p><strong>Status:</strong>
+<span class="badge
+{% if dependant.status == 'active' %}bg-success{% else %}bg-secondary{% endif %}">
+{{ dependant.status|title }}
+</span>
+</p>
+
+<hr>
+
+<a href="javascript:history.back()" class="btn btn-secondary">
+Back
+</a>
+
+</div>
+</div>
+
+</div>
+{% endblock %}
