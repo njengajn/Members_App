@@ -4,6 +4,7 @@ Generated with Django 5.2.7.
 """
 
 import os
+import dj_database_url
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -79,6 +80,7 @@ CHANNEL_LAYERS = {
 # -----------------------------
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',  # before auth
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -99,11 +101,12 @@ WSGI_APPLICATION = 'backend.core.wsgi.application'
 # DATABASE
 # -----------------------------
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    "default": dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"
+    )
 }
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # -----------------------------
 # PASSWORD VALIDATORS
