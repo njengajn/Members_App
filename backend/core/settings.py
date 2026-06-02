@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # -----------------------------
 # SECURITY
 # -----------------------------
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "replace-this-with-a-secure-key")
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 DEBUG = True  # Set False in production
 ALLOWED_HOSTS = []
 

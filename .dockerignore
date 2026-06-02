@@ -1,0 +1,9 @@
+venv/
+.git/
+.vscode/
+db.sqlite3
+media/
+payment_proofs/
+__pycache__/
+.env
+.env.*
