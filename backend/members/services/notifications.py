@@ -215,6 +215,18 @@ def send_html_email(
         # =================================================
         # SEND
         # =================================================
+        
+        print("EMAIL_HOST_USER:", settings.EMAIL_HOST_USER)
+
+        print(
+            "EMAIL_HOST_PASSWORD_EXISTS:",
+            bool(settings.EMAIL_HOST_PASSWORD)
+        )
+
+        print(
+            "DEFAULT_FROM_EMAIL:",
+            settings.DEFAULT_FROM_EMAIL
+        )
 
         email_message.send(
             fail_silently=False
