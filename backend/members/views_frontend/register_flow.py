@@ -827,7 +827,7 @@ def register_step_1_userOnHold17_05_26(request):
         otp_obj.save()
 
         # -------------------------
-        # DEBUG OUTPUT (CRITICAL)
+        # DEBUG OUTPUT 
         # -------------------------
         if settings.DEBUG:
             print(f"OTP for {email}: {otp}")
@@ -843,7 +843,7 @@ def register_step_1_userOnHold17_05_26(request):
         }
 
         # -------------------------
-        # EMAIL (SAFE)
+        # EMAIL (SAFE FAIL)
         # -------------------------
         send_mail(
             "Verify your email",
