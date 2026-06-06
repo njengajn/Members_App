@@ -35,6 +35,19 @@ CSRF_TRUSTED_ORIGINS = [
     "https://*.run.app",
 ]
 
+# =========================================================
+# SESSION SECURITY
+# =========================================================
+
+# 30 minutes of inactivity
+SESSION_COOKIE_AGE = 1800
+
+# Reset timeout on every request
+SESSION_SAVE_EVERY_REQUEST = True
+
+# Logout when browser closes
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
 # -----------------------------
 # AUTHENTICATION
 # -----------------------------
