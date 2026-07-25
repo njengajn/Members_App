@@ -25,14 +25,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    ".run.app",
-]
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS",
+    "localhost,127.0.0.1",
+).split(",")
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://*.run.app",
+    origin.strip()
+    for origin in os.getenv(
+        "CSRF_TRUSTED_ORIGINS",
+        "",
+    ).split(",")
+    if origin.strip()
 ]
 
 # =========================================================
@@ -123,14 +127,13 @@ WSGI_APPLICATION = 'backend.core.wsgi.application'
 # DATABASE
 # -----------------------------
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME", "members_staging_db"),
-        "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": f"/cloudsql/{os.getenv('INSTANCE_CONNECTION_NAME')}",
-        "PORT": "",
-    }
+    "default": dj_database_url.config(
+        default=os.getenv(
+            "DATABASE_URL",
+            "sqlite:///db.sqlite3",
+        ),
+        conn_max_age=600,
+    )
 }
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -156,8 +159,6 @@ USE_TZ = True
 # -----------------------------
 # STATIC FILES
 # -----------------------------
-
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 STATIC_URL = "/static/"
 

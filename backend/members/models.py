@@ -102,7 +102,7 @@ class Member(models.Model):
     surname = models.CharField(max_length=200, default="")
 
     phone = models.CharField(max_length=32, blank=True, default="")
-    email = models.EmailField(blank=True, default="")
+    email = models.EmailField(blank=True,  unique=True, default="")
     address = models.ForeignKey("Address", on_delete=models.SET_NULL, null=True, blank=True, related_name="members")
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
     joined_at = models.DateTimeField(auto_now_add=True)
