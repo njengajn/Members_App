@@ -214,23 +214,29 @@ def admin_member_detail(request, member_id):
 @staff_member_required
 def approve_member(request, pk):
     """
-    FIX:
-    ❌ Removed manual UID generation
-    ✅ Model now controls UID
+    Approves a member application.
 
-    Flow:
-    pending → active → UID auto-generated
+    Business rules
+    ----------------
+    • applied_at = when the application was submitted.
+    • joined_at  = when membership becomes Active.
+    • UID is generated automatically by the Member model
+      when status changes to Active.
     """
 
     member = get_object_or_404(Member, pk=pk)
 
     if member.status == Member.STATUS_ACTIVE:
-        messages.warning(request, "Member already active.")
+        messages.warning(request, "Member is already active.")
         return redirect("admin_members")
+
+    # Record activation date only once.
+    if member.joined_at is None:
+        member.joined_at = timezone.now()
 
     member.status = Member.STATUS_ACTIVE
     member.can_edit = False
-    member.save()  # ✅ UID generated here
+    member.save()
 
     messages.success(request, "Member approved successfully.")
 

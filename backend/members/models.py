@@ -100,16 +100,14 @@ class Member(models.Model):
     first_name = models.CharField(max_length=200, default="")
     middle_name = models.CharField(max_length=100, blank=True, null=True)
     surname = models.CharField(max_length=200, default="")
-
+    dob = models.DateField()
     phone = models.CharField(max_length=32, blank=True, default="")
-    email = models.EmailField(blank=True,  unique=True, default="")
+    email = models.EmailField(unique=True,  blank=True, null=True,help_text="Automatically synchronised with related User email.")
     address = models.ForeignKey("Address", on_delete=models.SET_NULL, null=True, blank=True, related_name="members")
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
-    joined_at = models.DateTimeField(auto_now_add=True)
-    can_edit = models.BooleanField(
-        default=False,
-        help_text="Allow member to add/edit dependants"
-    )
+    applied_at = models.DateTimeField(auto_now_add=True,db_index=True,help_text="Date the application was submitted.")
+    joined_at = models.DateTimeField(null=True, blank=True, db_index=True, help_text="Date membership was approved.")
+    can_edit = models.BooleanField(default=False, help_text="Allow member to add/edit dependants")
     can_edit_expires_at = models.DateTimeField(null=True, blank=True )
     is_portal_access_enabled = models.BooleanField(default=True)
     retirement_reason = models.CharField(max_length=255, blank=True, null=True) 
@@ -414,6 +412,91 @@ class Member(models.Model):
             self.subscription_year == required_year
         )
 
+    def save(self, *args, **kwargs):
+        """
+        Synchronise Member.email with the related User.
+
+        Business Rules
+        ------------------------------------------------------------------
+        • User.email is the master email address.
+        • Member.email mirrors User.email.
+        """
+
+        if self.user_id:
+            self.email = self.user.email
+
+        super().save(*args, **kwargs)
+        
+    @property
+    def can_make_claim(self):
+        """
+        Returns True if the member has completed
+        the 180-day cooling-off period.
+
+        Members without an approval date
+        cannot submit claims.
+        """
+
+        if not self.joined_at:
+            return False
+
+        return timezone.now() >= (
+            self.joined_at + timedelta(days=180)
+        )
+    
+
+    @property
+    def membership_age_days(self):
+        """
+        Returns the number of days since the member's
+        membership was approved.
+        """
+        if not self.joined_at:
+            return None
+
+        return (timezone.now() - self.joined_at).days
+
+
+    @property
+    def claim_eligibility_date(self):
+        """
+        Returns the first date on which the member
+        may submit a claim.
+        """
+        if not self.joined_at:
+            return None
+
+        return self.joined_at + timedelta(days=180)
+    
+    @property
+    def claim_progress_percent(self):
+        """
+        Progress through the 180-day cooling-off period.
+
+        Returns:
+            int: 0-100
+        """
+        if not self.joined_at:
+            return 0
+
+        days = self.membership_age_days or 0
+
+        return min(round((days / 180) * 100), 100)
+
+
+    @property
+    def days_until_claim(self):
+        """
+        Days remaining before the member
+        becomes eligible to submit a claim.
+        """
+        if not self.joined_at:
+            return None
+
+        remaining = 180 - (self.membership_age_days or 0)
+
+        return max(remaining, 0)
+
 
 class NextOfKin(models.Model):
     member = models.OneToOneField(Member, on_delete=models.CASCADE, related_name="next_of_kin")
@@ -460,7 +543,7 @@ class Dependant(models.Model):
     middle_name = models.CharField(max_length=50, blank=True, null=True)
     surname = models.CharField(max_length=50, default="")
     relationship = models.CharField(max_length=50, choices=RELATIONSHIP_TYPE_CHOICES, blank=True)
-    dob = models.DateField(null=True, blank=True)
+    dob = models.DateField()
     status = models.CharField(max_length=16, choices=DEP_STATUS_CHOICES, default=STATUS_PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
 

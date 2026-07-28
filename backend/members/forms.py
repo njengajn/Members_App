@@ -9,17 +9,34 @@ from django.forms import ModelForm
 from backend.members.models import ClaimSettlementDeduction
 
 class UserRegistrationForm(UserCreationForm):
+    """
+    User account registration.
+
+    Business Rules
+    ------------------------------------------------------------------
+    • User.email is the master email address.
+    • Member.email is copied automatically from User.email.
+    """
+
     email = forms.EmailField(required=True)
 
     class Meta:
         model = User
-        fields = ["username", "email", "password1", "password2"]
+        fields = [
+            "username",
+            "email",
+            "password1",
+            "password2",
+        ]
 
     def save(self, commit=True):
         user = super().save(commit=False)
+
         user.email = self.cleaned_data["email"]
+
         if commit:
             user.save()
+
         return user
 
 
@@ -29,9 +46,35 @@ class UserLoginForm(AuthenticationForm):
 
 
 class MemberForm(forms.ModelForm):
+    """
+    Member profile form.
+
+    User.email is the master email address.
+    Member.email is displayed for information only.
+    """
+
+    email = forms.EmailField(
+        disabled=True,
+        required=False,
+        label="Email Address"
+    )
+
     class Meta:
         model = Member
-        fields = ["first_name", "middle_name", "surname", "phone", "email", "address"]
+        fields = [
+            "first_name",
+            "middle_name",
+            "surname",
+            "phone",
+            "email",
+            "address",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.instance and self.instance.user:
+            self.fields["email"].initial = self.instance.user.email
 
 
 class NextOfKinForm(forms.ModelForm):
@@ -39,16 +82,67 @@ class NextOfKinForm(forms.ModelForm):
         model = NextOfKin
         fields = ["first_name", "surname", "phone", "email", "relationship"]
 
-
 class DependantForm(forms.ModelForm):
-    class Meta:
-        model = Dependant
-        fields = ["first_name", "middle_name", "surname",  "dob", "relationship"]
+        """
+        Dependant form.
+
+        Includes optional document upload.
+        The uploaded document is saved as a MemberDocument
+        in the view rather than directly on the Dependant model.
+        """
+
+        document_title = forms.CharField(
+            max_length=255,
+            required=False,
+            label="Document Title",
+        )
+
+        document_file = forms.FileField(
+            required=False,
+            label="Upload Document",
+        )
+
+        class Meta:
+            model = Dependant
+            fields = [
+                "first_name",
+                "middle_name",
+                "surname",
+                "relationship",
+                "dob",
+            ]
+
+            widgets = {
+                "dob": forms.DateInput(
+                    attrs={"type": "date"}
+                )
+            }
+
+        def clean(self):
+            """
+            Require a title whenever a document is uploaded.
+            """
+            cleaned_data = super().clean()
+
+            file = cleaned_data.get("document_file")
+            title = cleaned_data.get("document_title")
+
+            if file and not title:
+                self.add_error(
+                    "document_title",
+                    "Document title is required when uploading a file.",
+                )
+
+            return cleaned_data
 
 
 DependantFormSet = inlineformset_factory(
-    Member, Dependant, form=DependantForm, extra=1, can_delete=True
-)
+        Member,
+        Dependant,
+        form=DependantForm,
+        extra=1,
+        can_delete=True,
+    )
 
 
 class ClaimFormOnHold(forms.ModelForm):
@@ -365,92 +459,39 @@ class PaymentRequestForm(forms.ModelForm):
         }
 
 class MemberRegistrationForm(forms.ModelForm):
+    """
+    Member registration details.
+
+    User account details are collected separately.
+
+    Business Rules
+    ------------------------------------------------------------------
+    • Email is collected in UserRegistrationForm.
+    • Member.email is copied automatically from User.email.
+    • applied_at is automatically recorded.
+    • joined_at is populated only when membership is approved.
+    """
+
     class Meta:
         model = Member
-        fields = [
-            "first_name",
-            "middle_name",
-            "surname",
+
+        exclude = [
+            "user",
+            "member_uid",
+            "uid_assigned",
+            "organization",
+            "status",
+            "applied_at",
+            "joined_at",
             "email",
-            "phone",
-            "address",
+            "can_edit",
+            "can_edit_expires_at",
+            "subscription_year",
+            "retirement_reason",
+            "retired_reason",
+            "is_portal_access_enabled",
         ]
 
-
-
-class UserRegistrationForm(forms.ModelForm):
-    password = forms.CharField(widget=forms.PasswordInput)
-    confirm_password = forms.CharField(widget=forms.PasswordInput)
-
-    class Meta:
-        model = User
-        fields = ["username", "email", "password"]
-
-    def clean(self):
-        cleaned_data = super().clean()
-        password = cleaned_data.get("password")
-        confirm_password = cleaned_data.get("confirm_password")
-        if password and confirm_password and password != confirm_password:
-            raise forms.ValidationError("Passwords do not match.")
-        return cleaned_data
-
-
-class MemberRegistrationForm(forms.ModelForm):
-    class Meta:
-        model = Member
-        exclude = ["user", "member_uid", "joined_at", "status", "can_edit", "organization"]
-
-
-class DependantForm(forms.ModelForm):
-    """
-    Dependant form WITHOUT document field from model.
-
-    Instead, added:
-    ✔ document_title
-    ✔ document_file
-
-    These will be saved into MemberDocument in the view.
-    """
-
-    # Extra (non-model) fields for document upload
-    document_title = forms.CharField(
-        max_length=255,
-        required=False,
-        label="Document Title"
-    )
-
-    document_file = forms.FileField(
-        required=False,
-        label="Upload Document"
-    )
-
-    class Meta:
-        model = Dependant
-        fields = [
-            "first_name",
-            "middle_name",
-            "surname",
-            "relationship",
-            "dob",
-        ]
-
-        widgets = {
-            "dob": forms.DateInput(attrs={"type": "date"}),
-        }
-
-    def clean(self):
-        """
-        Optional validation:
-        If file is uploaded, title should exist
-        """
-        cleaned_data = super().clean()
-        file = cleaned_data.get("document_file")
-        title = cleaned_data.get("document_title")
-
-        if file and not title:
-            self.add_error("document_title", "Document title is required when uploading a file.")
-
-        return cleaned_data
 
 class NextOfKinForm(forms.ModelForm):
     class Meta:

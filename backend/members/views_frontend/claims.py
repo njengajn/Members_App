@@ -24,44 +24,6 @@ def ensure_active_member(request):
 
     return member
 
-@login_required
-def members_create_claimOnHold(request):
-    
-    member = ensure_active_member(request)
-    if not member:
-        return redirect("members:dashboard")
-    
-    if request.method == "POST":
-        form = ClaimForm(
-            request.POST,
-            request.FILES,
-            member=member,   # 🔴 IMPORTANT — passes member to form
-        )
-
-        if form.is_valid():
-            claim = form.save(commit=False)
-            claim.member = member
-            claim.status = Claim.STATUS_RECEIVED
-            claim.save()
-
-            messages.success(request, "Claim submitted successfully.")
-            return redirect("members:dashboard")
-
-        else:
-            messages.error(request, "Please correct the errors below.")
-
-    else:
-        form = ClaimForm(member=member)  # 🔴 IMPORTANT
-
-    return render(
-        request,
-        "members/claims/members_create_claim.html",
-        {
-            "form": form,
-            "member": member,
-        },
-    )
-
 
 def create_claim_entry(request):
     """
@@ -82,64 +44,146 @@ def member_create_claim(request):
     """
     MEMBER CLAIM VIEW
 
-    - Only ACTIVE members allowed
-    - Enforces dependant-only claim
-    - Handles multi-document upload
+    Business Rules
+    --------------------------------------------------------------------
+    1. User must have a Member record.
+    2. Member must be ACTIVE.
+    3. Member must have completed the 180-day cooling-off period.
+    4. Claims are submitted only for registered dependants.
+    5. Multiple supporting documents may be uploaded.
     """
 
+    # ------------------------------------------------------------------
+    # Get the logged-in member
+    # ------------------------------------------------------------------
     member = getattr(request.user, "member", None)
 
-    # 🔒 ACCESS CONTROL
-    if not member or member.status != "active":
+    # ------------------------------------------------------------------
+    # Safety check
+    # ------------------------------------------------------------------
+    if not member:
         messages.error(
             request,
-            "Your account does not have active membership. "
-            "Wait to be activated or contact KRO"
+            "Member account not found."
         )
         return redirect("members:dashboard")
 
+    # ------------------------------------------------------------------
+    # Only ACTIVE members can submit claims
+    # ------------------------------------------------------------------
+    if member.status != Member.STATUS_ACTIVE:
+        messages.error(
+            request,
+            (
+                "Your membership is not yet active. "
+                "Please wait for approval or contact KRO."
+            )
+        )
+        return redirect("members:dashboard")
+
+    # ------------------------------------------------------------------
+    # Enforce 180-day cooling-off period
+    # Uses Member.can_make_claim property.
+    # ------------------------------------------------------------------
+    if not member.can_make_claim:
+        messages.error(
+            request,
+            (
+                "Claims can only be submitted after "
+                "180 days of active membership."
+            )
+        )
+        return redirect("members:dashboard")
+
+    # ------------------------------------------------------------------
+    # Handle form submission
+    # ------------------------------------------------------------------
     if request.method == "POST":
-        form = ClaimForm(request.POST, request.FILES, user=request.user)
+
+        form = ClaimForm(
+            request.POST,
+            request.FILES,
+            user=request.user,
+        )
 
         if form.is_valid():
+
             claim = form.save(commit=False)
 
             dependant = claim.causer_dependant
 
-            claim.cause_type = "dependant"
+            # ----------------------------------------------------------
+            # Populate claim fields automatically
+            # ----------------------------------------------------------
             claim.member = member
             claim.created_by = request.user
-            claim.causer_full_name = f"{dependant.first_name} {dependant.surname}"
-            claim.claimer = f"{member.first_name} {member.surname}"
+
+            # Claims are currently dependant-only
+            #claim.cause_type = "dependant" ***hard coding
+            claim.cause_type = Claim.CLAIM_CAUSER_DEPENDANT
+
+            claim.causer_full_name = (
+                f"{dependant.first_name} "
+                f"{dependant.surname}"
+            )
+
+            claim.claimer = (
+                f"{member.first_name} "
+                f"{member.surname}"
+            )
 
             claim.save()
 
-            # ============================
-            # DOCUMENTS
-            # ============================
+            # ----------------------------------------------------------
+            # Save uploaded supporting documents
+            # ----------------------------------------------------------
             files = request.FILES.getlist("documents")
             titles = request.POST.getlist("doc_title")
             descriptions = request.POST.getlist("doc_description")
 
             for i, file in enumerate(files):
+
                 MemberDocument.objects.create(
                     member=member,
                     dependant=dependant,
                     claim=claim,
-                    title=titles[i] if i < len(titles) else "Untitled",
-                    description=descriptions[i] if i < len(descriptions) else "",
+                    title=(
+                        titles[i]
+                        if i < len(titles)
+                        else "Untitled"
+                    ),
+                    description=(
+                        descriptions[i]
+                        if i < len(descriptions)
+                        else ""
+                    ),
                     file=file,
                 )
 
-            messages.success(request, "Claim submitted successfully.")
+            messages.success(
+                request,
+                "Claim submitted successfully."
+            )
+
             return redirect("members:dashboard")
 
+    # ------------------------------------------------------------------
+    # Display empty form
+    # ------------------------------------------------------------------
     else:
+
         form = ClaimForm(user=request.user)
 
-    return render(request, "members/claims/members_create_claim.html", {
-        "form": form
-    })
+    # ------------------------------------------------------------------
+    # Render page
+    # ------------------------------------------------------------------
+    return render(
+        request,
+        "members/claims/members_create_claim.html",
+        {
+            "form": form,
+        },
+    )
 
 @login_required
 @member_required

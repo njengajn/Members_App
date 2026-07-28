@@ -474,10 +474,8 @@ def register_step_2_member_profile(request):
             ),
 
             # =========================================
-            # ALWAYS USE VERIFIED EMAIL
+            # ALWAYS USE VERIFIED EMAIL - stored in "reg_user" ( "email": verified_email,)
             # =========================================
-
-            "email": verified_email,
         }
 
         # =============================================
@@ -683,7 +681,16 @@ def register_step_5_confirmation(request):
 
         # =================================================
         # CREATE MEMBER
-        # =================================================
+        #==================================================
+        # Business Rules
+        # -------------------------------------------------
+        # • User.email is the master email address.
+        # • Member.email is automatically synchronised
+        #   from User.email in Member.save().
+        # • applied_at is automatically recorded.
+        # • joined_at remains NULL until the member is
+        #   approved by an administrator.
+        # -----------------------------------------------
         # IMPORTANT:
         # GDPR audit fields stored immediately
         # during member creation.
@@ -710,7 +717,7 @@ def register_step_5_confirmation(request):
             gdpr_version="v1",
 
             # =============================================
-            # MEMBER DATA
+            #  Member details collected during registration
             # =============================================
 
             **reg_member
