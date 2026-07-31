@@ -117,6 +117,12 @@ MIDDLEWARE = [
     'backend.members.middleware.RetiredMemberMiddleware',
 ]
 
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
 # -----------------------------
 # URLS & WSGI
 # -----------------------------
