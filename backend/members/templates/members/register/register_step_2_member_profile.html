@@ -3,14 +3,43 @@
 
 {% block register_content %}
 
+<!--
+==================================================================
+STEP 2 - MEMBER PROFILE
+==================================================================
+Collects:
+  - Personal details
+  - Verified email (read-only)
+  - Date of Birth
+  - Phone
+  - Structured Address
+
+Expected view context:
+    step_num
+    verified_email
+
+Expected POST fields:
+    first_name
+    middle_name
+    surname
+    dob
+    phone
+    house_number
+    line_1
+    line_2
+    town
+    county
+    postcode
+    country
+==================================================================
+-->
+
 <div class="mb-4">
 
-    <h4 class="fw-bold mb-1">
-        Member Registration
-    </h4>
+    <h4 class="fw-bold mb-1">Member Registration</h4>
 
     <p class="text-muted mb-0">
-        Please provide your personal and address details
+        Please provide your personal and address details.
     </p>
 
 </div>
@@ -19,9 +48,9 @@
 
     {% csrf_token %}
 
-    <!-- ========================================= -->
+    <!-- ============================= -->
     <!-- PERSONAL DETAILS -->
-    <!-- ========================================= -->
+    <!-- ============================= -->
 
     <div class="register-section mb-4">
 
@@ -31,51 +60,70 @@
 
         <div class="row g-3">
 
-            <div class="col-12 col-md-4">
-                <label class="form-label">
-                    First Name
-                </label>
-
+            <div class="col-md-4">
+                <label class="form-label">First Name</label>
                 <input
+                    class="form-control"
                     name="first_name"
-                    class="form-control"
-                    placeholder="Enter first name"
-                    required
-                >
+                    value="{{ request.session.reg_member.first_name|default:'' }}"
+                    required>
             </div>
 
-            <div class="col-12 col-md-4">
-                <label class="form-label">
-                    Middle Name
-                </label>
-
+            <div class="col-md-4">
+                <label class="form-label">Middle Name</label>
                 <input
+                    class="form-control"
                     name="middle_name"
-                    class="form-control"
-                    placeholder="Enter middle name"
-                >
+                    value="{{ request.session.reg_member.middle_name|default:'' }}">
             </div>
 
-            <div class="col-12 col-md-4">
-                <label class="form-label">
-                    Surname
-                </label>
-
+            <div class="col-md-4">
+                <label class="form-label">Surname</label>
                 <input
-                    name="surname"
                     class="form-control"
-                    placeholder="Enter surname"
-                    required
-                >
+                    name="surname"
+                    value="{{ request.session.reg_member.surname|default:'' }}"
+                    required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Date of Birth</label>
+                <input
+                    type="date"
+                    class="form-control"
+                    name="dob"
+                    value="{{ request.session.reg_member.dob|default:'' }}"
+                    required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Phone Number</label>
+                <input
+                    class="form-control"
+                    name="phone"
+                    value="{{ request.session.reg_member.phone|default:'' }}"
+                    required>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Verified Email</label>
+                <input
+                    type="email"
+                    class="form-control"
+                    value="{{ verified_email }}"
+                    readonly>
+                <div class="form-text">
+                    This email has already been verified by OTP and cannot be changed here.
+                </div>
             </div>
 
         </div>
 
     </div>
 
-    <!-- ========================================= -->
+    <!-- ============================= -->
     <!-- ADDRESS -->
-    <!-- ========================================= -->
+    <!-- ============================= -->
 
     <div class="register-section mb-4">
 
@@ -83,12 +131,9 @@
             Address Details
         </div>
 
-        <!-- SEARCH ADDRESS -->
         <div class="mb-3 position-relative">
 
-            <label class="form-label">
-                Search Address
-            </label>
+            <label class="form-label">Search Address</label>
 
             <input
                 id="line_1"
@@ -96,107 +141,80 @@
                 class="form-control"
                 placeholder="Start typing address..."
                 autocomplete="off"
-            >
+                value="{{ request.session.reg_address.line_1|default:'' }}">
 
-            <div id="address-dropdown"
-                 class="list-group address-dropdown shadow-sm">
+            <div
+                id="address-dropdown"
+                class="list-group address-dropdown shadow-sm">
             </div>
 
         </div>
 
-        <!-- ADDRESS FIELDS -->
         <div class="row g-3">
 
-            <div class="col-12 col-md-4">
-                <label class="form-label">
-                    House Number
-                </label>
-
-                <input
-                    id="house_number"
-                    name="house_number"
-                    class="form-control"
-                    placeholder="House number"
-                >
+            <div class="col-md-4">
+                <label class="form-label">House Number</label>
+                <input id="house_number"
+                       name="house_number"
+                       class="form-control"
+                       value="{{ request.session.reg_address.house_number|default:'' }}">
             </div>
 
-            <div class="col-12 col-md-8">
-                <label class="form-label">
-                    Address Line 2
-                </label>
-
-                <input
-                    id="line_2"
-                    name="line_2"
-                    class="form-control"
-                    placeholder="Apartment, street, etc."
-                >
+            <div class="col-md-8">
+                <label class="form-label">Address Line 2</label>
+                <input id="line_2"
+                       name="line_2"
+                       class="form-control"
+                       value="{{ request.session.reg_address.line_2|default:'' }}">
             </div>
 
-            <div class="col-12 col-md-4">
-                <label class="form-label">
-                    Town / City
-                </label>
-
-                <input
-                    id="town"
-                    name="town"
-                    class="form-control"
-                    placeholder="Town or city"
-                >
+            <div class="col-md-4">
+                <label class="form-label">Town / City</label>
+                <input id="town"
+                       name="town"
+                       class="form-control"
+                       value="{{ request.session.reg_address.town|default:'' }}">
             </div>
 
-            <div class="col-12 col-md-4">
-                <label class="form-label">
-                    County
-                </label>
-
-                <input
-                    id="county"
-                    name="county"
-                    class="form-control"
-                    placeholder="County"
-                >
+            <div class="col-md-4">
+                <label class="form-label">County</label>
+                <input id="county"
+                       name="county"
+                       class="form-control"
+                       value="{{ request.session.reg_address.county|default:'' }}">
             </div>
 
-            <div class="col-12 col-md-3">
-
-                <label class="form-label">
-                    Postcode
-                </label>
-
-                <input
-                    id="postcode"
-                    name="postcode"
-                    class="form-control"
-                    placeholder="Postcode"
-                    maxlength="9"
-                >
-
+            <div class="col-md-3">
+                <label class="form-label">Postcode</label>
+                <input id="postcode"
+                       name="postcode"
+                       maxlength="9"
+                       class="form-control"
+                       value="{{ request.session.reg_address.postcode|default:'' }}">
             </div>
 
-            <div class="col-12 col-md-1">
-
-                <label class="form-label">
-                    Country
-                </label>
-
-                <input
-                    id="country"
-                    name="country"
-                    class="form-control"
-                    value="UK"
-                >
-
+            <div class="col-md-1">
+                <label class="form-label">Country</label>
+                <input id="country"
+                       name="country"
+                       class="form-control"
+                       value="{{ request.session.reg_address.country|default:'UK' }}">
             </div>
+
         </div>
 
     </div>
 
-    <!-- BUTTON -->
     <div class="row g-2">
 
-        <div class="col-12">
+        <div class="col-md-6">
+            <a href="{% url 'members:register_verify_email' %}"
+               class="btn btn-light w-100">
+                Back
+            </a>
+        </div>
+
+        <div class="col-md-6">
             <button class="btn btn-primary w-100">
                 Continue to Next Step
             </button>
@@ -209,67 +227,25 @@
 <script src="{% static 'members/js/address_autocomplete.js' %}"></script>
 
 <style>
-
-/* ========================================= */
-/* SECTIONS */
-/* ========================================= */
-
-.register-section {
-    background: #f8fafc;
-    border: 1px solid #edf1f5;
-    border-radius: 18px;
-    padding: 1.1rem;
+.register-section{
+    background:#f8fafc;
+    border:1px solid #edf1f5;
+    border-radius:18px;
+    padding:1.1rem;
 }
-
-.section-title {
-    font-size: 1rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    color: #0d6efd;
+.section-title{
+    font-size:1rem;
+    font-weight:700;
+    margin-bottom:1rem;
+    color:#0d6efd;
 }
-
-/* ========================================= */
-/* ADDRESS DROPDOWN */
-/* ========================================= */
-
-.address-dropdown {
-    position: absolute;
-    width: 100%;
-    z-index: 1000;
-    border-radius: 14px;
-    overflow: hidden;
-    max-height: 240px;
-    overflow-y: auto;
+.address-dropdown{
+    position:absolute;
+    width:100%;
+    z-index:1000;
+    max-height:240px;
+    overflow-y:auto;
 }
-
-/* ========================================= */
-/* MOBILE */
-/* ========================================= */
-
-@media (max-width: 768px) {
-
-    .register-section {
-        padding: 0.9rem;
-        border-radius: 16px;
-    }
-
-    .section-title {
-        font-size: 0.95rem;
-        margin-bottom: 0.85rem;
-    }
-}
-
-@media (max-width: 480px) {
-
-    .register-section {
-        padding: 0.8rem;
-    }
-
-    .section-title {
-        font-size: 0.92rem;
-    }
-}
-
 </style>
 
 {% endblock %}

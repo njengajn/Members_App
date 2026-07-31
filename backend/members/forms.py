@@ -44,8 +44,54 @@ class UserLoginForm(AuthenticationForm):
     username = forms.CharField(widget=forms.TextInput(attrs={'placeholder': 'Username'}))
     password = forms.CharField(widget=forms.PasswordInput(attrs={'placeholder': 'Password'}))
 
-
 class MemberForm(forms.ModelForm):
+    """
+    Member profile form.
+
+    Business Rules
+    ------------------------------------------------------------------
+    • User.email is the master email address.
+    • Member.email is displayed for information only.
+    • Member.email is synchronised during the registration workflow.
+    """
+
+    email = forms.EmailField(
+        label="Email Address",
+        required=False,
+        disabled=True,
+    )
+
+    class Meta:
+        model = Member
+        fields = [
+            "first_name",
+            "middle_name",
+            "surname",
+            "dob",
+            "phone",
+            "email",
+            "address",
+        ]
+
+        widgets = {
+            "dob": forms.DateInput(
+                attrs={"type": "date"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if (
+            self.instance
+            and self.instance.pk
+            and self.instance.user
+        ):
+            self.fields["email"].initial = (
+                self.instance.user.email
+            )
+
+class MemberForm_onHold_31_07_26(forms.ModelForm):
     """
     Member profile form.
 
@@ -135,6 +181,103 @@ class DependantForm(forms.ModelForm):
 
             return cleaned_data
 
+class MemberRegistrationForm(forms.ModelForm):
+    """
+    Registration form used during the multi-step registration wizard.
+
+    Business Rules
+    ------------------------------------------------------------------
+    • User account details are collected separately.
+    • Email is verified by OTP before this form.
+    • Member.email is copied from User.email.
+    • applied_at is created automatically.
+    • joined_at is populated when membership is approved.
+    """
+
+    class Meta:
+        model = Member
+
+        exclude = [
+
+            # User relationship
+            "user",
+
+            # UID management
+            "member_uid",
+            "uid_assigned",
+
+            # Organisation / status
+            "organization",
+            "status",
+
+            # System-managed dates
+            "applied_at",
+            "joined_at",
+
+            # Email comes from verified User.email
+            "email",
+
+            # Portal / editing
+            "can_edit",
+            "can_edit_expires_at",
+            "is_portal_access_enabled",
+
+            # Subscription / retirement
+            "subscription_year",
+            "retirement_reason",
+            "retired_reason",
+            "retired_at",
+        ]
+
+        widgets = {
+            "dob": forms.DateInput(
+                attrs={"type": "date"}
+            ),
+        }
+
+class MemberRegistrationForm_onHold_31_07_26(forms.ModelForm):
+    """
+    Member registration details.
+
+    User account details are collected separately.
+
+    Business Rules
+    ------------------------------------------------------------------
+    • Email is collected in UserRegistrationForm.
+    • Member.email is copied automatically from User.email.
+    • applied_at is automatically recorded.
+    • joined_at is populated only when membership is approved.
+    """
+
+    class Meta:
+        model = Member
+
+        exclude = [
+            "user",
+            "member_uid",
+            "uid_assigned",
+            "organization",
+            "status",
+            "applied_at",
+            "joined_at",
+            "email",
+            "can_edit",
+            "can_edit_expires_at",
+            "subscription_year",
+            "retirement_reason",
+            "retired_reason",
+            "is_portal_access_enabled",
+        ]
+
+
+class NextOfKinForm(forms.ModelForm):
+    class Meta:
+        model = NextOfKin
+        exclude = ["member", "created_at"]
+
+
+DependantFormSet = inlineformset_factory(Member, Dependant, form=DependantForm, extra=1, can_delete=True)
+NextOfKinFormSet = inlineformset_factory(Member, NextOfKin, form=NextOfKinForm, extra=1, can_delete=True)
 
 DependantFormSet = inlineformset_factory(
         Member,
@@ -255,196 +398,6 @@ class ClaimForm(forms.ModelForm):
             lambda obj: f"{obj.first_name} {obj.surname}"
         )
 
-class ClaimFormOnHold2(forms.ModelForm):
-    """
-    FINAL FIX:
-    - Correct dependant filtering
-    - No global leakage
-    """
-
-    class Meta:
-        model = Claim
-        fields = [
-            "cause_type",
-            "causer_dependant",
-            "claimer_is_next_of_kin",
-        ]
-
-    def __init__(self, *args, user=None, selected_member=None, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.user = user
-        self.selected_member = selected_member
-
-        is_admin = user and user.is_staff
-
-        # ============================
-        # MEMBER FLOW
-        # ============================
-        if not is_admin and hasattr(user, "member"):
-            member = user.member
-
-            self.fields["cause_type"].initial = "dependant"
-            self.fields["cause_type"].widget = forms.HiddenInput()
-
-            self.fields["causer_dependant"].queryset = Dependant.objects.filter(
-                member=member,
-                status="active"
-            ).exclude(
-                caused_claims__isnull=False
-            )
-
-        # ============================
-        # ADMIN FLOW (FIXED)
-        # ============================
-        else:
-            if selected_member:
-                qs = Dependant.objects.filter(
-                    member=selected_member,
-                    status="active"
-                )
-            elif hasattr(user, "member"):
-                # 🔥 ADMIN DEFAULT → own dependants only
-                qs = Dependant.objects.filter(
-                    member=user.member,
-                    status="active"
-                )
-            else:
-                qs = Dependant.objects.none()
-
-            qs = qs.exclude(caused_claims__isnull=False)
-
-            self.fields["causer_dependant"].queryset = qs
-
-        # Clean labels
-        self.fields["causer_dependant"].label_from_instance = (
-            lambda obj: f"{obj.first_name} {obj.surname}"
-        )
-
-    def clean(self):
-        cleaned_data = super().clean()
-
-        if not self.data:
-            return cleaned_data
-
-        cause_type = cleaned_data.get("cause_type")
-        dependant = cleaned_data.get("causer_dependant")
-
-        is_admin = self.user and self.user.is_staff
-
-        if not is_admin:
-            cleaned_data["cause_type"] = "dependant"
-
-            if not dependant:
-                raise forms.ValidationError("Dependant must be selected.")
-
-        else:
-            if cause_type == "dependant" and not dependant:
-                raise forms.ValidationError("Select a dependant.")
-
-        return cleaned_data
-
-
-class ClaimFormOnHold(forms.ModelForm):
-    """
-    FINAL CLEAN IMPLEMENTATION
-
-    Key guarantees:
-    - Admin always sees BOTH claim types
-    - Member forced to dependant
-    - Dependants filtered correctly
-    - No global leakage
-    """
-
-    class Meta:
-        model = Claim
-        fields = [
-            "cause_type",
-            "causer_dependant",
-            "claimer_is_next_of_kin",
-        ]
-
-    def __init__(self, *args, user=None, selected_member=None, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.user = user
-        self.selected_member = selected_member
-
-        is_admin = user and user.is_staff
-
-        # ----------------------------------------
-        # MEMBER FLOW
-        # ----------------------------------------
-        if not is_admin and hasattr(user, "member"):
-            member = user.member
-
-            # Force dependant only
-            self.fields["cause_type"].choices = [
-                ("dependant", "Dependant")
-            ]
-            self.fields["cause_type"].initial = "dependant"
-            self.fields["cause_type"].widget = forms.HiddenInput()
-
-            # Only this member's dependants
-            self.fields["causer_dependant"].queryset = Dependant.objects.filter(
-                member=member,
-                status="active"
-            ).exclude(
-                caused_claims__isnull=False
-            )
-
-        # ----------------------------------------
-        # ADMIN FLOW (FIXED PROPERLY)
-        # ----------------------------------------
-        else:
-            # Always show BOTH options
-            self.fields["cause_type"].choices = [
-                ("member", "Member"),
-                ("dependant", "Dependant"),
-            ]
-
-            self.fields["cause_type"].widget = forms.Select()
-
-            # Show dependants ONLY for selected member
-            if selected_member:
-                qs = Dependant.objects.filter(
-                    member=selected_member,
-                    status="active"
-                ).exclude(
-                    caused_claims__isnull=False
-                )
-            else:
-                # Show NONE until member selected
-                qs = Dependant.objects.none()
-
-            self.fields["causer_dependant"].queryset = qs
-
-            # Clean readable label
-            self.fields["causer_dependant"].label_from_instance = (
-                lambda obj: f"{obj.first_name} {obj.surname}"
-            )
-
-    def clean(self):
-        cleaned_data = super().clean()
-
-        # Avoid validation on GET
-        if not self.data:
-            return cleaned_data
-
-        cause_type = cleaned_data.get("cause_type")
-        dependant = cleaned_data.get("causer_dependant")
-
-        is_admin = self.user and self.user.is_staff
-
-        if not is_admin:
-            if not dependant:
-                raise forms.ValidationError("Dependant must be selected.")
-
-        else:
-            if cause_type == "dependant" and not dependant:
-                raise forms.ValidationError("Dependant must be selected.")
-
-        return cleaned_data
         
 class PaymentRequestForm(forms.ModelForm):
     class Meta:
@@ -457,50 +410,6 @@ class PaymentRequestForm(forms.ModelForm):
             'request_type': forms.Select(attrs={'class': 'form-select'}),
             'authorised_by': forms.Select(attrs={'class': 'form-select'}),
         }
-
-class MemberRegistrationForm(forms.ModelForm):
-    """
-    Member registration details.
-
-    User account details are collected separately.
-
-    Business Rules
-    ------------------------------------------------------------------
-    • Email is collected in UserRegistrationForm.
-    • Member.email is copied automatically from User.email.
-    • applied_at is automatically recorded.
-    • joined_at is populated only when membership is approved.
-    """
-
-    class Meta:
-        model = Member
-
-        exclude = [
-            "user",
-            "member_uid",
-            "uid_assigned",
-            "organization",
-            "status",
-            "applied_at",
-            "joined_at",
-            "email",
-            "can_edit",
-            "can_edit_expires_at",
-            "subscription_year",
-            "retirement_reason",
-            "retired_reason",
-            "is_portal_access_enabled",
-        ]
-
-
-class NextOfKinForm(forms.ModelForm):
-    class Meta:
-        model = NextOfKin
-        exclude = ["member", "created_at"]
-
-
-DependantFormSet = inlineformset_factory(Member, Dependant, form=DependantForm, extra=1, can_delete=True)
-NextOfKinFormSet = inlineformset_factory(Member, NextOfKin, form=NextOfKinForm, extra=1, can_delete=True)
 
 
 class ClaimSettlementDeductionForm(ModelForm):
