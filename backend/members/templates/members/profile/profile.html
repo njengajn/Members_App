@@ -203,60 +203,70 @@ cropper = new Cropper(image, {
 ========================= */
 document.getElementById("cropBtn").addEventListener("click", function(){
 
-if (!cropper) return;
+    if (!cropper) return;
 
-const canvas = cropper.getCroppedCanvas({
-    width: 300,
-    height: 300
-});
+    const canvas = cropper.getCroppedCanvas({
+        width: 300,
+        height: 300
+    });
 
-const base64 = canvas.toDataURL("image/jpeg");
+    if (!canvas) return;
 
-/* SAVE */
-hiddenInput.value = base64;
-cropApplied = true;   // 🔥 MARK SUCCESS
+    const base64 = canvas.toDataURL("image/jpeg");
 
-/* UPDATE PREVIEW */
-document.getElementById("avatarPreview").innerHTML =
-`<img src="${base64}" class="avatar-img">`;
+    /* SAVE */
+    hiddenInput.value = base64;
+    cropApplied = true;   // 🔥 MARK SUCCESS
 
-modal.hide();
+    /* UPDATE PREVIEW */
+    document.getElementById("avatarPreview").innerHTML =
+    `<img src="${base64}" class="avatar-img">`;
 
-});
+    modal.hide();
+
+    });
 
 /* =========================
    RESET FUNCTION
 ========================= */
 function resetCropper() {
 
-if (cropper) {
-    cropper.destroy();
-    cropper = null;
-}
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
 
-/* ONLY reset if user did NOT crop */
-if (!cropApplied) {
-    input.value = "";
-    hiddenInput.value = "";
-}
+    /* ONLY reset if user did NOT crop */
+    if (!cropApplied) {
+        input.value = "";
+        hiddenInput.value = "";
+    }
 
-}
+    }
 
 /* Cancel button */
-document.getElementById("cancelCropBtn").addEventListener("click", function(){
+document.getElementById("cancelCropBtn").addEventListener("click", function () {
 
-cropApplied = false;
-resetCropper();
-modal.hide();
+    cropApplied = false;
+
+    input.value = "";
+    hiddenInput.value = "";
+
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+
+    modal.hide();
 
 });
 
 /* Close modal (X or outside click) */
 modalEl.addEventListener("hidden.bs.modal", function(){
 
-resetCropper();
+    resetCropper();
 
-});
+    });
 
 /* =========================
    BLOCK BAD SUBMIT

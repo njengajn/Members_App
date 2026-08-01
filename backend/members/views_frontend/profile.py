@@ -51,7 +51,12 @@ def profile_view(request):
         # =========================
         # SAVE MEMBER
         # =========================
-        member.save()
+        member.save(update_fields=[
+            "first_name",
+            "surname",
+            "phone",
+            "avatar",
+        ])
 
         messages.success(request, "Profile updated.")
         return redirect("members:profile")
