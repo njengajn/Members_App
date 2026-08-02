@@ -19,7 +19,10 @@ load_dotenv()
 # -----------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-load_dotenv(BASE_DIR / ".env")
+env_file = BASE_DIR / ".env"
+
+if env_file.exists():
+    load_dotenv(env_file)
 
 # -----------------------------
 # SECURITY
