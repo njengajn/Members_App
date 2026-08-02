@@ -394,6 +394,8 @@ def register_verify_email(request):
                     request,
                     "Too many attempts."
                 )
+                
+                print("VERIFY SESSION:", dict(request.session))
 
                 return redirect(
                     "members:register_verify_email"
@@ -546,11 +548,13 @@ def register_verify_email(request):
             request,
             "Email verified successfully."
         )
+        
+        print("VERIFY SESSION:", dict(request.session))
 
         return redirect(
             "members:register_step_2"
         )
-
+    
     return render(
 
         request,
@@ -580,10 +584,15 @@ def register_step_2_member_profile(request):
     The verified email always comes from
     request.session["reg_user"].
     """
+    
+    print("STEP2 SESSION:", dict(request.session))
 
     if "reg_user" not in request.session:
-
-        return redirect("members:register")
+        messages.error(
+            request,
+            "Your registration session has expired. Please start again."
+        )
+        return redirect("members:register_step_1")
 
     verified_email = request.session["reg_user"]["email"]
 
@@ -1174,4 +1183,4 @@ def register_submit(request):
     if request.method == "POST":
         return redirect("members:login")
 
-    return redirect("members:register")
+    return redirect("members:register_step_1")

@@ -57,6 +57,20 @@ SESSION_SAVE_EVERY_REQUEST = True
 # Logout when browser closes
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
+# ==========================================
+# Reverse proxy (Coolify / Traefik)
+# ==========================================
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# ==========================================
+# Session cookies
+# ==========================================
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
 # -----------------------------
 # AUTHENTICATION
 # -----------------------------
