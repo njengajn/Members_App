@@ -87,6 +87,40 @@ def register_step_1_user(request):
             return redirect("members:register_step_1")
 
         # =================================================
+        # DUPLICATE USERNAME / EMAIL CHECK
+        # =================================================
+
+        # Existing Django username
+        if User.objects.filter(username__iexact=username).exists():
+
+            messages.error(
+                request,
+                "That username is already in use."
+            )
+
+            return redirect("members:register_step_1")
+
+        # Existing Django user email
+        if User.objects.filter(email__iexact=email).exists():
+
+            messages.error(
+                request,
+                "An account with this email address already exists."
+            )
+
+            return redirect("members:register_step_1")
+
+        # Existing member email (extra safety)
+        if Member.objects.filter(email__iexact=email).exists():
+
+            messages.error(
+                request,
+                "This email address is already registered as a member."
+            )
+
+            return redirect("members:register_step_1")
+
+        # =================================================
         # RATE LIMIT
         # =================================================
 
@@ -394,8 +428,6 @@ def register_verify_email(request):
                     request,
                     "Too many attempts."
                 )
-                
-                print("VERIFY SESSION:", dict(request.session))
 
                 return redirect(
                     "members:register_verify_email"
@@ -548,8 +580,6 @@ def register_verify_email(request):
             request,
             "Email verified successfully."
         )
-        
-        print("VERIFY SESSION:", dict(request.session))
 
         return redirect(
             "members:register_step_2"
@@ -584,8 +614,6 @@ def register_step_2_member_profile(request):
     The verified email always comes from
     request.session["reg_user"].
     """
-    
-    print("STEP2 SESSION:", dict(request.session))
 
     if "reg_user" not in request.session:
         messages.error(
@@ -905,14 +933,54 @@ def register_step_5_confirmation(request):
         return redirect("members:register_step_1")
 
     if request.method == "POST":
-        try:
+
+            # -------------------------
+            # DUPLICATE CHECKS
+            # -------------------------
+
+            # Existing Django User
+            if User.objects.filter(email__iexact=reg_user["email"]).exists():
+
+                messages.error(
+                    request,
+                    "An account with this email address already exists. Please log in or use a different email address."
+                )
+
+                return redirect("members:register_step_1")
+
+
+            # Existing Member
+            if Member.objects.filter(email__iexact=reg_user["email"]).exists():
+
+                messages.error(
+                    request,
+                    "This email address is already registered as a member."
+                )
+
+                return redirect("members:register_step_1")
+
+
+            # Existing Username
+            if User.objects.filter(username__iexact=reg_user["username"]).exists():
+
+                messages.error(
+                    request,
+                    "That username is already in use."
+                )
+
+                return redirect("members:register_step_1")
+
 
             # -------------------------
             # CREATE USER
             # -------------------------
+
             user = User.objects.create_user(
+
                 username=reg_user["username"],
+
                 email=reg_user["email"],
+
                 password=reg_user["password"],
             )
 
@@ -954,29 +1022,24 @@ def register_step_5_confirmation(request):
 
             Dependant.objects.bulk_create(dependants)
 
-        except Exception:
-            import traceback
-            traceback.print_exc()
-            raise
-
         # -------------------------
         # CLEAR SESSION
         # -------------------------
-        for key in [
-            "reg_user",
-            "reg_member",
-            "reg_nok",
-            "reg_dependants",
-            "reg_address",
-        ]:
-            request.session.pop(key, None)
+            for key in [
+                "reg_user",
+                "reg_member",
+                "reg_nok",
+                "reg_dependants",
+                "reg_address",
+            ]:
+                request.session.pop(key, None)
 
-        messages.success(
-            request,
-            "Registration completed.",
-        )
+            messages.success(
+                request,
+                "Registration completed.",
+            )
 
-        return redirect("members:login")
+            return redirect("members:login")
 
     return render(
 
