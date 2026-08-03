@@ -901,110 +901,75 @@ def register_step_5_confirmation(request):
         [],
     )
 
-    if not all([reg_user, reg_member, reg_nok, reg_dependants]):
+    if not all([reg_user, reg_member, reg_nok]):
         return redirect("members:register_step_1")
 
     if request.method == "POST":
+        try:
 
-        # -------------------------
-        # CREATE USER
-        # -------------------------
-
-        user = User.objects.create_user(
-
-            username=reg_user["username"],
-
-            email=reg_user["email"],
-
-            password=reg_user["password"],
-        )
-
-        # -------------------------
-        # ADDRESS
-        # -------------------------
-
-        address = create_address_from_session(request)
-
-        # -------------------------
-        # MEMBER
-        # -------------------------
-
-        member = Member.objects.create(
-
-            user=user,
-
-            address=address,
-
-            # Synchronise Member.email
-            email=user.email,
-
-            can_edit=False,
-
-            gdpr_consent=True,
-
-            gdpr_consent_at=timezone.now(),
-
-            gdpr_consent_ip=get_client_ip(request),
-
-            gdpr_version="v1",
-
-            **reg_member,
-
-        )
-
-        # -------------------------
-        # NEXT OF KIN
-        # -------------------------
-
-        NextOfKin.objects.create(
-
-            member=member,
-
-            **reg_nok,
-
-        )
-
-        # -------------------------
-        # DEPENDANTS
-        # -------------------------
-
-        dependants = [
-
-            Dependant(
-                member=member,
-                **d,
+            # -------------------------
+            # CREATE USER
+            # -------------------------
+            user = User.objects.create_user(
+                username=reg_user["username"],
+                email=reg_user["email"],
+                password=reg_user["password"],
             )
 
-            for d in reg_dependants
+            # -------------------------
+            # ADDRESS
+            # -------------------------
+            address = create_address_from_session(request)
 
-        ]
+            # -------------------------
+            # MEMBER
+            # -------------------------
+            member = Member.objects.create(
+                user=user,
+                address=address,
+                email=user.email,
+                can_edit=False,
+                gdpr_consent=True,
+                gdpr_consent_at=timezone.now(),
+                gdpr_consent_ip=get_client_ip(request),
+                gdpr_version="v1",
+                **reg_member,
+            )
 
-        Dependant.objects.bulk_create(
-            dependants
-        )
+            # -------------------------
+            # NEXT OF KIN
+            # -------------------------
+            NextOfKin.objects.create(
+                member=member,
+                **reg_nok,
+            )
+
+            # -------------------------
+            # DEPENDANTS
+            # -------------------------
+            dependants = [
+                Dependant(member=member, **d)
+                for d in reg_dependants
+            ]
+
+            Dependant.objects.bulk_create(dependants)
+
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            raise
 
         # -------------------------
         # CLEAR SESSION
         # -------------------------
-
         for key in [
-
             "reg_user",
-
             "reg_member",
-
             "reg_nok",
-
             "reg_dependants",
-
             "reg_address",
-
         ]:
-
-            request.session.pop(
-                key,
-                None,
-            )
+            request.session.pop(key, None)
 
         messages.success(
             request,
