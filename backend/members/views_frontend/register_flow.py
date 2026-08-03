@@ -901,8 +901,8 @@ def register_step_5_confirmation(request):
         [],
     )
 
-    if not all([reg_user, reg_member, reg_nok]):
-        return redirect("members:register")
+    if not all([reg_user, reg_member, reg_nok, reg_dependants]):
+        return redirect("members:register_step_1")
 
     if request.method == "POST":
 
