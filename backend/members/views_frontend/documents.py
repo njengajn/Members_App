@@ -475,7 +475,7 @@ def resubmit_document(request, pk):
 
         if uploaded_file:
 
-            document.document_file = uploaded_file
+            document.file = uploaded_file
 
             document.status = MemberDocument.STATUS_PENDING
 
