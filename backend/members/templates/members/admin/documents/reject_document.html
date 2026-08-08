@@ -1,0 +1,216 @@
+{% extends "members/admin/admin_base.html" %}
+{% load static %}
+
+{% block title %}
+Reject Document
+{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <!-- ====================================================== -->
+    <!-- PAGE TITLE -->
+    <!-- ====================================================== -->
+
+    <div class="card shadow-sm">
+
+        <div class="card-header bg-danger text-white">
+
+            <h4 class="mb-0">
+
+                Reject Uploaded Document
+
+            </h4>
+
+        </div>
+
+        <div class="card-body">
+
+            <!-- =============================================== -->
+            <!-- DOCUMENT DETAILS -->
+            <!-- =============================================== -->
+
+            <div class="mb-4">
+
+                <table class="table table-borderless">
+
+                    <tr>
+
+                        <th width="180">
+
+                            Member
+
+                        </th>
+
+                        <td>
+
+                            {{ document.member }}
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <th>
+
+                            Document
+
+                        </th>
+
+                        <td>
+
+                            {{ document.title }}
+
+                        </td>
+
+                    </tr>
+
+                    {% if document.document_request %}
+
+                    <tr>
+
+                        <th>
+
+                            Requested For
+
+                        </th>
+
+                        <td>
+
+                            {{ document.document_request.title }}
+
+                        </td>
+
+                    </tr>
+
+                    {% endif %}
+
+                    <tr>
+
+                        <th>
+
+                            Uploaded
+
+                        </th>
+
+                        <td>
+
+                            {{ document.uploaded_at|date:"d M Y H:i" }}
+
+                        </td>
+
+                    </tr>
+
+                </table>
+
+            </div>
+
+            <!-- =============================================== -->
+            <!-- WARNING -->
+            <!-- =============================================== -->
+
+            <div class="alert alert-warning">
+
+                <strong>Important</strong>
+
+                <br>
+
+                Rejecting this document will:
+
+                <ul class="mb-0 mt-2">
+
+                    <li>Mark the document as <strong>Rejected</strong>.</li>
+
+                    <li>Allow the member to upload a replacement document.</li>
+
+                    <li>Return the document request to <strong>Pending</strong>.</li>
+
+                </ul>
+
+            </div>
+
+            <!-- =============================================== -->
+            <!-- REJECTION FORM -->
+            <!-- =============================================== -->
+
+            <form method="post">
+
+                {% csrf_token %}
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+
+                        Rejection Reason
+                        <span class="text-danger">*</span>
+
+                    </label>
+
+                    <textarea
+                        name="rejection_reason"
+                        class="form-control"
+                        rows="5"
+                        required
+                        autofocus
+                        placeholder="Explain why this document has been rejected. This message will be visible to the member.">{{ document.rejection_reason }}</textarea>
+
+                    <div class="form-text">
+
+                        This reason will be shown to the member.
+
+                    </div>
+
+                </div>
+
+                <div class="mb-4">
+
+                    <label class="form-label">
+
+                        Internal Admin Notes
+                        <small class="text-muted">(Optional)</small>
+
+                    </label>
+
+                    <textarea
+                        name="admin_note"
+                        class="form-control"
+                        rows="3"
+                        placeholder="Visible only to administrators.">{{ document.admin_notes }}</textarea>
+
+                </div>
+
+                <!-- =========================================== -->
+                <!-- ACTION BUTTONS -->
+                <!-- =========================================== -->
+
+                <div class="d-flex gap-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-danger">
+
+                        Reject Document
+
+                    </button>
+
+                    <a
+                        href="/admin-panel/admin/documents/member/{{ document.member_id }}/"
+                        class="btn btn-secondary">
+
+                        Cancel
+
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

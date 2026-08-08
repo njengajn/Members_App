@@ -454,30 +454,58 @@ def member_requests(request):
     )
     
 @login_required
-def resubmit_document(request, pk):
+def resubmit_document(
+    request,
+    document_id,
+):
+    """
+    Upload a replacement document for a rejected document.
+
+    The document remains linked to the same
+    DocumentRequest and is returned to
+    Pending Review.
+    """
+
+    # --------------------------------------------------
+    # CURRENT MEMBER
+    # --------------------------------------------------
 
     member = get_object_or_404(
         Member,
-        user=request.user
+        user=request.user,
     )
+
+    # --------------------------------------------------
+    # REJECTED DOCUMENT
+    # --------------------------------------------------
 
     document = get_object_or_404(
         MemberDocument,
-        pk=pk,
+        id=document_id,
         member=member,
         status=MemberDocument.STATUS_REJECTED,
         can_resubmit=True,
     )
 
+    # --------------------------------------------------
+    # SAVE REPLACEMENT
+    # --------------------------------------------------
+
     if request.method == "POST":
 
-        uploaded_file = request.FILES.get("document_file")
+        uploaded_file = request.FILES.get(
+            "document_file"
+        )
 
         if uploaded_file:
 
             document.file = uploaded_file
 
-            document.status = MemberDocument.STATUS_PENDING
+            document.status = (
+                MemberDocument.STATUS_PENDING
+            )
+
+            document.rejection_reason = ""
 
             document.admin_notes = ""
 
@@ -485,22 +513,23 @@ def resubmit_document(request, pk):
 
             document.save()
 
+            # Keep the linked request in sync
+            if document.document_request:
+                document.document_request.update_request_status()
+
             messages.success(
                 request,
-                "Replacement document submitted successfully."
+                "Replacement document submitted successfully.",
             )
 
             return redirect(
-                "member_document_details",
-                pk=document.pk
+                "members:member_requests"
             )
-
-    context = {
-        "document": document,
-    }
 
     return render(
         request,
         "members/documents/resubmit_document.html",
-        context,
+        {
+            "document": document,
+        },
     )

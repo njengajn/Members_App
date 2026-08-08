@@ -102,25 +102,19 @@
 <td>{{ r.description|default:"-" }}</td>
 <td>
 
-{% if r.completed or r.status == "completed" %}
+{% if r.completed %}
 
-    <span class="badge badge-approved">
+Completed
 
-        Completed
+{% elif r.status == "overdue" %}
 
-    </span>
+Overdue
 
 {% else %}
 
-    <span class="badge badge-pending">
-
-        Pending
-
-    </span>
+Pending
 
 {% endif %}
-
-</td>
 
 <!-- ACTIONS -->
 <td>
@@ -299,7 +293,8 @@
                     </a>
 
                     <!-- REJECT -->
-                    <a href="{% url 'members_admin:admin_document_review' doc.id 'reject' %}"
+                    <!-- REJECT -->
+                    <a href="{% url 'members_admin:reject_document_form' doc.id %}"
                     class="btn btn-sm btn-danger"
                     onclick="return confirmReject();"
                     style="white-space: nowrap;">
@@ -378,7 +373,15 @@
         <!-- CONFIRMATION SCRIPTS -->
         <!-- ================================================== -->
 
-       <script>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6">No documents found</td>
+        </tr>
+     
+    {% endfor %}
+
+   <script>
 
         function confirmApprove() {
 
@@ -387,6 +390,7 @@
                 "The member will now see this document as approved.\n\n" +
                 "Do you want to continue?"
             );
+
         }
 
         function confirmReject() {
@@ -396,6 +400,7 @@
                 "The member will be allowed to upload a replacement document.\n\n" +
                 "Do you want to continue?"
             );
+
         }
 
         function confirmArchive() {
@@ -405,6 +410,7 @@
                 "Archived documents are hidden from active member views.\n\n" +
                 "Do you want to continue?"
             );
+
         }
 
         function confirmDelete() {
@@ -414,15 +420,10 @@
                 "This action cannot be undone.\n\n" +
                 "Do you want to continue?"
             );
+
         }
 
         </script>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="6">No documents found</td>
-        </tr>
-        {% endfor %}
     </tbody>
 </table>
 </div>

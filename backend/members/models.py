@@ -1283,6 +1283,11 @@ class MemberDocument(models.Model):
         blank=True,
         help_text="Reason provided when document is rejected",
     )
+    
+    admin_notes = models.TextField(
+        blank=True,
+        help_text="Internal notes added by administrators during review."
+    )
 
     can_resubmit = models.BooleanField(
         default=False,
@@ -1293,6 +1298,8 @@ class MemberDocument(models.Model):
         null=True,
         blank=True,
     )
+    
+    original_filename = models.CharField(max_length=255, blank=True,)
 
     # ======================================================
     # SECURITY / VISIBILITY
@@ -1445,39 +1452,51 @@ class MemberDocument(models.Model):
     # ======================================================
     def approve(self, user=None):
         """
-        Approve document.
+        Approve a document.
+
+        The linked request is automatically
+        marked completed.
         """
 
         self.status = self.STATUS_APPROVED
 
-        self.reviewed_at = timezone.now()
-
         self.reviewed_by = user
+
+        self.reviewed_at = timezone.now()
 
         self.rejection_reason = ""
 
         self.can_resubmit = False
 
         self.save()
+
+        if self.document_request:
+
+            self.document_request.mark_completed()
         
-    def reject(self, user=None, reason=""):
+    def reject(self, user=None, reason="", ):
         """
-        Reject document and allow replacement upload.
+        Reject a document.
+
+        The request remains pending
+        awaiting another upload.
         """
 
         self.status = self.STATUS_REJECTED
 
-        self.reviewed_at = timezone.now()
-
         self.reviewed_by = user
+
+        self.reviewed_at = timezone.now()
 
         self.rejection_reason = reason
 
-        # IMPORTANT:
-        # Allow member to upload replacement document
         self.can_resubmit = True
 
         self.save()
+
+        if self.document_request:
+
+            self.document_request.mark_pending()
 
     # ======================================================
     # SECURITY HELPERS
@@ -1939,8 +1958,123 @@ class DocumentRequest(models.Model):
     def is_completed(self):
         return self.status == self.STATUS_COMPLETED
     
-    
-    
+    def update_request_status(self):
+        """
+        Synchronise the request with its uploaded documents.
+
+        This is the ONLY place that updates
+
+            status
+            completed
+
+        Every approval/rejection should call this method.
+        """
+
+        # --------------------------------------------------
+        # ACTIVE DOCUMENTS
+        # --------------------------------------------------
+
+        documents = self.submitted_documents.filter(
+            is_archived=False,
+        )
+
+        # --------------------------------------------------
+        # DEFAULT VALUES
+        # --------------------------------------------------
+
+        new_status = self.STATUS_PENDING
+        new_completed = False
+
+        # --------------------------------------------------
+        # APPROVED DOCUMENT EXISTS
+        # --------------------------------------------------
+
+        if documents.filter(
+            status=MemberDocument.STATUS_APPROVED
+        ).exists():
+
+            new_status = self.STATUS_COMPLETED
+            new_completed = True
+
+        # --------------------------------------------------
+        # OVERDUE
+        # --------------------------------------------------
+
+        elif (
+            self.due_date
+            and
+            timezone.localdate() > self.due_date
+        ):
+
+            new_status = self.STATUS_OVERDUE
+            new_completed = False
+
+        # --------------------------------------------------
+        # SAVE ONLY IF SOMETHING CHANGED
+        # --------------------------------------------------
+
+        if (
+            self.status != new_status
+            or
+            self.completed != new_completed
+        ):
+
+            self.status = new_status
+            self.completed = new_completed
+
+            self.save(
+                update_fields=[
+                    "status",
+                    "completed",
+                ]
+            )
+        
+    def mark_completed(self):
+        """
+        Marks this request as completed.
+
+        Called only after a linked document
+        has been approved.
+        """
+
+        if self.status != self.STATUS_COMPLETED:
+
+            self.status = self.STATUS_COMPLETED
+
+            self.completed = True
+
+            self.save(
+                update_fields=[
+                    "status",
+                    "completed",
+                ]
+            )
+            
+    def mark_pending(self):
+        """
+        Returns the request to Pending.
+
+        Used when
+
+        • document rejected
+
+        • replacement required
+
+        """
+
+        if self.status != self.STATUS_PENDING or self.completed:
+
+            self.status = self.STATUS_PENDING
+
+            self.completed = False
+
+            self.save(
+                update_fields=[
+                    "status",
+                    "completed",
+                ]
+            )
+        
 # =========================================================
 # NOTIFICATIONS
 # =========================================================

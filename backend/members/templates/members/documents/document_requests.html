@@ -398,34 +398,48 @@
                     <!-- STATUS -->
                     <td>
 
+                        {# -------------------------------------------------- #}
+                        {# DOCUMENT APPROVED                                #}
+                        {# -------------------------------------------------- #}
+
                         {% if document.status == "approved" %}
 
                             <span class="status-badge completed">
                                 Approved
                             </span>
 
-                        {% if document.status == "rejected" %}
+                        {# -------------------------------------------------- #}
+                        {# DOCUMENT REJECTED                                #}
+                        {# -------------------------------------------------- #}
+
+                        {% elif document.status == "rejected" %}
 
                             <span class="status-badge rejected">
                                 Rejected
                             </span>
 
+                            {# ---------------------------------------------- #}
+                            {# MEMBER MAY UPLOAD A REPLACEMENT               #}
+                            {# ---------------------------------------------- #}
+
                             {% if document.can_resubmit %}
 
-                            <div class="mt-2">
+                                <div class="mt-2">
 
-                                <a href="{% url 'members:resubmit_document' document.id %}"
-                                class="btn btn-danger btn-sm">
+                                    <a href="{% url 'members:resubmit_document' document.id %}"
+                                    class="btn btn-danger btn-sm">
 
-                                    Upload Replacement Document
+                                        Upload Replacement Document
 
-                                </a>
+                                    </a>
 
-                            </div>
+                                </div>
 
                             {% endif %}
 
-                        {% endif %}
+                        {# -------------------------------------------------- #}
+                        {# DOCUMENT AWAITING REVIEW                          #}
+                        {# -------------------------------------------------- #}
 
                         {% else %}
 

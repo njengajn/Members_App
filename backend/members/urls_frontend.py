@@ -150,8 +150,7 @@ urlpatterns = [
     path("documents/requests/", member_requests, name="member_requests"),
     #path("documents/requests/", upload_document, name="upload_document"),
     path("documents/upload/", upload_document, name="upload_document"),
-    path("documents/<int:pk>/resubmit/", resubmit_document, name="resubmit_document",),
-    
+    path("documents/<int:document_id>/resubmit/", resubmit_document, name="resubmit_document",),
     path("privacy-policy/",  privacy_policy, name="privacy_policy",),
     
 ]

@@ -92,7 +92,8 @@ from backend.members.views_admin.admin_documents import (
     reject_document,
     archive_document,
     delete_document,
-    upload_requested_document_admin,   
+    upload_requested_document_admin,
+    reject_document_form,  
 )
 from backend.members.views_admin import admin_dashboard, payment_filters
 from backend.members.views_admin.admin_member_search import admin_member_search
@@ -272,6 +273,7 @@ urlpatterns = [
     #path("admin/documents/", document_dashboard, name="admin_documents"),
     path("admin/documents/<int:pk>/approve/", approve_document, name="approve_document"),
     path("admin/documents/<int:pk>/reject/", reject_document, name="reject_document"),
+    path("admin/documents/<int:document_id>/reject/", reject_document_form, name="reject_document_form",),
     
     #======================
     # MEMBER EDIT AND UPDATE
