@@ -383,20 +383,25 @@
                 <tr>
 
                     <!-- TITLE -->
-                    <td>
-
+                    <td data-label="Title">
                         <a href="{{ document.file.url }}"
-                           target="_blank"
-                           class="document-link">
+                        target="_blank"
+                        class="document-link">
 
                             {{ document.title }}
 
                         </a>
 
+                        {% if document.original_filename %}
+                            <div class="document-original-name">
+                                {{ document.original_filename }}
+                            </div>
+                        {% endif %}
+
                     </td>
 
                     <!-- STATUS -->
-                    <td>
+                    <td data-label="Status">
 
                         {# -------------------------------------------------- #}
                         {# DOCUMENT APPROVED                                #}
@@ -452,15 +457,12 @@
                     </td>
 
                     <!-- DATE -->
-                    <td>
-
+                    <td data-label="Uploaded">
                         {{ document.uploaded_at|date:"Y-m-d H:i" }}
-
                     </td>
 
                     <!-- PREVIEW -->
-                    <td>
-
+                    <td data-label="Preview">
                         {% if document.file_type == "image" %}
 
                             <img src="{{ document.file.url }}"

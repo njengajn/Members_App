@@ -32,7 +32,7 @@
     <tbody>
         {% for doc in documents %}
         <tr>
-            <td>
+            <td data-label="Member">
                 {{ doc.member }}
                 <br>
 
@@ -42,11 +42,23 @@
                 </a>
             </td>
 
-            <td>{{ doc.title }}</td>
-            <td>{{ doc.status }}</td>
-            <td>{{ doc.uploaded_at }}</td>
+            <td data-label="Title">
+                {{ doc.title }}
 
-            <td>
+                {% if doc.original_filename %}
+                    <div class="document-original-name">
+                        {{ doc.original_filename }}
+                    </div>
+                {% endif %}
+            </td>
+            <td data-label="Status">
+                {{ doc.status }}
+            </td>
+            <td data-label="Uploaded">
+                {{ doc.uploaded_at }}
+            </td>
+
+            <td data-label="Open">
                 <a href="{{ doc.file.url }}" target="_blank">
                     Open
                 </a>
@@ -80,18 +92,22 @@
     <tbody>
         {% for r in requests %}
         <tr>
-            <td>{{ r.member }}</td>
-            <td>{{ r.title }}</td>
+            <td data-label="Member">
+                {{ r.member }}
+            </td>
+            <td data-label="Title">
+                {{ r.title }}
+            </td>
 
-            <td>
-                {% if r.completed %}
+            <td data-label="Status">
+                 {% if r.completed %}
                     ✔ Completed
                 {% else %}
                     ⏳ Pending
                 {% endif %}
             </td>
 
-            <td>
+            <td data-label="Go to Member">
                 <!-- 🔑 DIRECT NAVIGATION -->
                 <a href="{% url 'members_admin:admin_documents_list' r.member.id %}">
                     Open Documents

@@ -3,17 +3,9 @@ from django.http import FileResponse, JsonResponse, Http404
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.contrib import messages
-
-import zipfile
-import os
-import tempfile
-
-from backend.members.models import (
-    Member,
-    MemberDocument,
-    DocumentRequest,
-)
-
+import os, tempfile, zipfile
+from backend.members.models import (Member, MemberDocument, DocumentRequest,)
+from backend.members.services.document_files import (prepare_document_file,)
 
 # =========================================================
 # DOCUMENT UPLOAD
@@ -64,21 +56,30 @@ def upload_document(request):
             )
 
             return redirect("members:member_requests")
+        original_filename = uploaded_file.name
+        document_title = request.POST.get(
+            "title",
+            original_filename,
+        )
+
+        uploaded_file = prepare_document_file(
+            uploaded_file=uploaded_file,
+            member=member,
+            document_title=document_title,
+        )
 
         # =================================================
         # CREATE DOCUMENT
         # =================================================
         doc = MemberDocument.objects.create(
-            member=member,
-            title=request.POST.get(
-                "title",
-                uploaded_file.name
-            ),
-            description=request.POST.get(
-                "description",
-                ""
-            ),
-            file=uploaded_file,
+        member=member,
+        title=document_title,
+        description=request.POST.get(
+            "description",
+            ""
+        ),
+        file=uploaded_file,
+        original_filename=original_filename,
         )
 
         # =================================================
@@ -194,11 +195,7 @@ def documents_list(request):
 # =========================================================
 # DOWNLOAD SINGLE DOCUMENT
 # =========================================================
-#
-# SECURITY FIX:
-# Prevent downloading other members' files
-#
-# =========================================================
+
 @login_required
 def download_document(request, file_id):
 
@@ -226,11 +223,7 @@ def download_document(request, file_id):
 # =========================================================
 # DOWNLOAD ALL DOCUMENTS AS ZIP
 # =========================================================
-#
-# SECURITY FIX:
-# Only zip current member documents
-#
-# =========================================================
+
 @login_required
 def download_zip(request):
 
@@ -286,11 +279,7 @@ def download_zip(request):
 # =========================================================
 # DOCUMENT REQUESTS
 # =========================================================
-#
-# SECURITY FIX:
-# Only show requests for logged-in member
-#
-# =========================================================
+
 @login_required
 def document_requests(request):
 
@@ -320,11 +309,7 @@ def document_requests(request):
 # =========================================================
 # UPLOAD REQUESTED DOCUMENT
 # =========================================================
-#
-# SECURITY FIX:
-# Prevent uploading to another member's request
-#
-# =========================================================
+
 @login_required
 def upload_requested_document(request, request_id):
 
@@ -333,10 +318,6 @@ def upload_requested_document(request, request_id):
         user=request.user
     )
 
-    # =====================================================
-    # SECURITY:
-    # Request MUST belong to current member
-    # =====================================================
     doc_request = get_object_or_404(
         DocumentRequest,
         id=request_id,
@@ -362,11 +343,19 @@ def upload_requested_document(request, request_id):
         # =================================================
         # CREATE DOCUMENT
         # =================================================
+        original_filename = uploaded_file.name
+        uploaded_file = prepare_document_file(
+            uploaded_file=uploaded_file,
+            member=member,
+            document_title=doc_request.title,
+        )
+
         document = MemberDocument.objects.create(
             member=member,
             file=uploaded_file,
             title=doc_request.title,
             document_request=doc_request,
+            original_filename=original_filename,
         )
 
         # =================================================
@@ -404,13 +393,7 @@ def upload_requested_document(request, request_id):
 # =========================================================
 # MEMBER REQUESTS PAGE
 # =========================================================
-#
-# SECURITY FIX:
-# Members ONLY see:
-# - their own requests
-# - their own uploaded documents
-#
-# =========================================================
+
 @login_required
 def member_requests(request):
 
@@ -419,18 +402,12 @@ def member_requests(request):
         user=request.user
     )
 
-    # =====================================================
-    # ONLY MEMBER REQUESTS
-    # =====================================================
     requests = (
         DocumentRequest.objects
         .filter(member=member)
         .order_by("-created_at")
     )
 
-    # =====================================================
-    # ONLY MEMBER DOCUMENTS
-    # =====================================================
     uploaded_documents = (
         MemberDocument.objects
         .filter(member=member)
@@ -454,10 +431,7 @@ def member_requests(request):
     )
     
 @login_required
-def resubmit_document(
-    request,
-    document_id,
-):
+def resubmit_document(request, document_id,):
     """
     Upload a replacement document for a rejected document.
 
@@ -466,9 +440,6 @@ def resubmit_document(
     Pending Review.
     """
 
-    # --------------------------------------------------
-    # CURRENT MEMBER
-    # --------------------------------------------------
 
     member = get_object_or_404(
         Member,
@@ -499,7 +470,17 @@ def resubmit_document(
 
         if uploaded_file:
 
+            original_filename = uploaded_file.name
+
+            uploaded_file = prepare_document_file(
+                uploaded_file=uploaded_file,
+                member=member,
+                document_title=document.title,
+            )
+
             document.file = uploaded_file
+
+            document.original_filename = original_filename
 
             document.status = (
                 MemberDocument.STATUS_PENDING

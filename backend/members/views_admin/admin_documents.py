@@ -4,8 +4,8 @@ from backend.members.models import DocumentRequest, Member, MemberDocument
 from backend.members.decorators import admin_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
-
 from backend.members.views_frontend import documents
+from backend.members.services.document_files import (prepare_document_file,)
 
 @admin_required
 def admin_documents_list(request, member_id):
@@ -162,7 +162,7 @@ def review_document(request, document_id, action):
     return redirect("admin_documents_list", member_id=doc.member_id)
 
 
-# ✅ NEW FEATURE
+# NEW FEATURE
 @staff_member_required
 def request_document(request, member_id):
     """
@@ -229,18 +229,23 @@ def upload_requested_document_admin(request, request_id):
         # ================================================
         # CREATE DOCUMENT
         # ================================================
-        MemberDocument.objects.create(
-
+        original_filename = uploaded_file.name
+        uploaded_file = prepare_document_file(
+            uploaded_file=uploaded_file,
             member=member,
-
+            document_title=document_request.title,
+        )
+        MemberDocument.objects.create(
+            member=member,
             title=document_request.title,
-
             description=(
                 "Uploaded by admin "
                 "from external member submission."
             ),
 
             file=uploaded_file,
+
+            original_filename=original_filename,
 
             document_request=document_request,
 
@@ -474,54 +479,36 @@ def reject_document(
         },
     )
 
-@staff_member_required
-def reject_documentReplacedAbove(request, pk):
-    """
-    Wrapper view.
-
-    Keeps existing URL and permissions,
-    but delegates rejection to the model.
-    """
-
-    document = get_object_or_404(
-        MemberDocument,
-        pk=pk,
-    )
-
-    rejection_reason = request.POST.get(
-        "rejection_reason",
-        "",
-    )
-
-    admin_note = request.POST.get(
-        "admin_note",
-        "",
-    )
-
-    document.reject(
-        user=request.user,
-        reason=rejection_reason,
-        admin_note=admin_note,
-    )
-
-    return redirect("admin_documents")
-
 @admin_required
 def reject_document_form(
-        request,
-        document_id,
+    request,
+    document_id,
     ):
     """
-    Display and process the rejection form.
+    Display and process the document rejection form.
 
-    This page collects the rejection reason
-    before rejecting the document.
+    GET:
+        Display the rejection form.
+
+    POST:
+        Validate the rejection reason,
+        reject the document,
+        save internal admin notes,
+        and return to the member's admin document list.
     """
+
+    # =====================================================
+    # GET DOCUMENT
+    # =====================================================
 
     document = get_object_or_404(
         MemberDocument,
         id=document_id,
     )
+
+    # =====================================================
+    # PROCESS REJECTION
+    # =====================================================
 
     if request.method == "POST":
 
@@ -535,56 +522,74 @@ def reject_document_form(
             "",
         ).strip()
 
-        if request.method == "POST":
+        # -------------------------------------------------
+        # REJECTION REASON IS REQUIRED
+        # -------------------------------------------------
 
-            rejection_reason = request.POST.get(
-                "rejection_reason",
-                "",
-            ).strip()
+        if not rejection_reason:
 
-            admin_note = request.POST.get(
-                "admin_note",
-                "",
-            ).strip()
+            messages.error(
+                request,
+                "Please enter a rejection reason.",
+            )
 
-            if not rejection_reason:
+        else:
 
-                messages.error(
-                    request,
-                    "Please enter a rejection reason.",
-                )
+            # -------------------------------------------------
+            # REJECT DOCUMENT
+            # -------------------------------------------------
+            #
+            # MemberDocument.reject() owns the rejection
+            # business logic.
+            #
+            # IMPORTANT:
+            # Do NOT pass admin_note to reject().
+            # reject() accepts only user and reason.
+            # -------------------------------------------------
 
-            else:
+            document.reject(
+                user=request.user,
+                reason=rejection_reason,
+            )
 
-                # ------------------------------------------
-                # Reject document
-                # ------------------------------------------
+            # -------------------------------------------------
+            # SAVE INTERNAL ADMIN NOTE
+            # -------------------------------------------------
 
-                document.reject(
-                    user=request.user,
-                    reason=rejection_reason,
-                )
+            document.admin_notes = admin_note
 
-                # ------------------------------------------
-                # Save internal notes
-                # ------------------------------------------
+            document.save(
+                update_fields=[
+                    "admin_notes",
+                ]
+            )
 
-                document.admin_notes = admin_note
+            # -------------------------------------------------
+            # SUCCESS MESSAGE
+            # -------------------------------------------------
 
-                document.save(
-                    update_fields=[
-                        "admin_notes",
-                    ]
-                )
+            messages.success(
+                request,
+                "Document rejected successfully.",
+            )
 
-                messages.success(
-                    request,
-                    "Document rejected successfully.",
-                )
+            # -------------------------------------------------
+            # RETURN TO MEMBER'S DOCUMENT LIST
+            # -------------------------------------------------
 
-                return redirect(
-                    f"/admin-panel/admin/documents/member/{document.member_id}/"
-                )
+            return redirect(
+                f"/admin-panel/admin/documents/member/{document.member_id}/"
+            )
+
+    # =====================================================
+    # GET REQUEST / INVALID POST
+    # =====================================================
+    #
+    # Display the rejection form.
+    #
+    # A GET request MUST NEVER reject the document.
+    # =====================================================
+
     return render(
         request,
         "members/admin/documents/reject_document.html",

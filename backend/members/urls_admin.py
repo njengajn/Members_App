@@ -270,9 +270,7 @@ urlpatterns = [
     #DOCUMENTS
     # ===========================
     path("admin/documents/", document_dashboard, name="admin_documents"),
-    #path("admin/documents/", document_dashboard, name="admin_documents"),
     path("admin/documents/<int:pk>/approve/", approve_document, name="approve_document"),
-    path("admin/documents/<int:pk>/reject/", reject_document, name="reject_document"),
     path("admin/documents/<int:document_id>/reject/", reject_document_form, name="reject_document_form",),
     
     #======================

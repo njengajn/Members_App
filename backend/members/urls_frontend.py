@@ -100,12 +100,11 @@ urlpatterns = [
 
 
     # PAYMENTS
-     path("payments/", payment_views.member_payment_requests, name="member_payments",),
+    path("payments/", payment_views.member_payment_requests, name="member_payments",),
     path("payments/<int:pk>/pay/", pay_payment_request, name="pay"),
     path("payments/receipt/<uuid:uid>/", payment_receipt, name="receipt"),
     path("payments/requests/", member_payment_requests, name="member_payment_requests"),
     path("payments/<int:pk>/pay/", pay_payment_request, name="pay_payment_request"), 
-    path("payments/<int:pk>/pay/", pay_payment_request, name="pay_payment_request"),
     path("payments/<int:pk>/confirm/", confirm_manual_payment, name="confirm_manual_payment"),
     path("payments/<int:pk>/manual/", manual_payment_page, name="manual_payment_page"),
     path("payments/<int:pk>/manual/", manual_payment_page, name="manual_payment",),

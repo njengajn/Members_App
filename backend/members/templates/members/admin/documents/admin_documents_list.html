@@ -5,48 +5,6 @@
 <link rel="stylesheet" href="{% static 'css/documents-responsive.css' %}">
 
 <style>
-.table-container {
-    margin-top: 20px;
-}
-
-.admin-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.admin-table th {
-    background: #f8f8f8;
-    padding: 10px;
-    text-align: left;
-    border-bottom: 2px solid #ddd;
-}
-
-.admin-table td {
-    padding: 12px;
-    border-bottom: 1px solid #eee;
-    vertical-align: middle;
-}
-
-.badge {
-    padding: 5px 10px;
-    border-radius: 6px;
-    color: white;
-    font-size: 12px;
-}
-
-.badge-pending { background: orange; }
-.badge-approved { background: green; }
-.badge-rejected { background: red; }
-
-.preview-thumb {
-    width: 60px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.action-links a {
-    margin-right: 10px;
-}
 
 /* REQUEST BOX */
 .request-box {
@@ -86,81 +44,105 @@
 <h4>Pending Requests</h4>
 
 <table class="admin-table">
-<thead>
-<tr>
-<th>Title</th>
-<th>Description</th>
-<th>Status</th>
-<th>Actions</th>
-</tr>
-</thead>
 
-<tbody>
-{% for r in requests %}
-<tr>
-<td>{{ r.title }}</td>
-<td>{{ r.description|default:"-" }}</td>
-<td>
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
 
-{% if r.completed %}
+    <tbody>
 
-Completed
+        {% for r in requests %}
 
-{% elif r.status == "overdue" %}
+        <tr>
 
-Overdue
+            <td data-label="Title">
+                {{ r.title }}
+            </td>
 
-{% else %}
+            <td data-label="Description">
+                {{ r.description|default:"-" }}
+            </td>
 
-Pending
+            <td data-label="Status">
 
-{% endif %}
+                {% if r.completed %}
 
-<!-- ACTIONS -->
-<td>
+                    <span class="badge badge-approved">
+                        Completed
+                    </span>
 
-{% if not r.completed and r.status != "completed" %}
+                {% elif r.status == "overdue" %}
 
-<form method="POST"
-      action="{% url 'members_admin:upload_requested_document_admin' r.id %}"
-      enctype="multipart/form-data"
-      style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <span class="badge badge-rejected">
+                        Overdue
+                    </span>
 
-    {% csrf_token %}
+                {% else %}
 
-    <input type="file"
-           name="file"
-           required
-           class="form-control form-control-sm"
-           style="max-width:240px;">
+                    <span class="badge badge-pending">
+                        Pending
+                    </span>
 
-    <button type="submit"
-            class="btn btn-primary btn-sm">
+                {% endif %}
 
-        Upload Document
+            </td>
 
-    </button>
+            <td data-label="Actions">
 
-</form>
+                {% if not r.completed and r.status != "completed" %}
 
-{% else %}
+                    <form method="POST"
+                          action="{% url 'members_admin:upload_requested_document_admin' r.id %}"
+                          enctype="multipart/form-data"
+                          class="admin-request-upload-form">
 
-<span style="color:green; font-weight:600;">
+                        {% csrf_token %}
 
-    ✔ Uploaded
+                        <input type="file"
+                               name="file"
+                               required
+                               class="form-control form-control-sm admin-request-file">
 
-</span>
+                        <button type="submit"
+                                class="btn btn-primary btn-sm">
 
-{% endif %}
+                            Upload Document
 
-</td>
-</tr>
-{% empty %}
-<tr>
-<td colspan="4">No requests</td>
-</tr>
-{% endfor %}
-</tbody>
+                        </button>
+
+                    </form>
+
+                {% else %}
+
+                    <span style="color:green; font-weight:600;">
+                        ✔ Uploaded
+                    </span>
+
+                {% endif %}
+
+            </td>
+
+        </tr>
+
+        {% empty %}
+
+        <tr>
+
+            <td colspan="4">
+                No requests
+            </td>
+
+        </tr>
+
+        {% endfor %}
+
+    </tbody>
+
 </table>
 
 <!-- ========================= -->
@@ -223,163 +205,173 @@ Pending
         </tr>
     </thead>
 
-    <tbody>
-        {% for doc in documents %}
-        <tr>
-            <td>{{ doc.title }}</td>
+   <tbody>
 
-            <td>{{ doc.dependant|default:"Member" }}</td>
+    {% for doc in documents %}
 
-            <td>
-                {% if doc.status == "pending" %}
-                    <span class="badge badge-pending">Pending</span>
-                {% elif doc.status == "approved" %}
-                    <span class="badge badge-approved">Approved</span>
-                {% else %}
-                    <span class="badge badge-rejected">Rejected</span>
-                {% endif %}
-            </td>
+    <tr>
 
-            <td>{{ doc.uploaded_at|date:"Y-m-d H:i" }}</td>
+        <td data-label="Title">
 
-            <td>
-                {% if doc.file_type == "image" %}
-                    <img src="{{ doc.file.url }}" class="preview-thumb"
-                         onclick="openPreview('{{ doc.file.url }}', 'image')">
-                {% elif doc.file_type == "pdf" %}
-                    <button onclick="openPreview('{{ doc.file.url }}', 'pdf')">
-                        View PDF
-                    </button>
-                {% else %}
-                    <a href="{{ doc.file.url }}">Download</a>
-                {% endif %}
-            </td>
+            {{ doc.title }}
 
-            <!-- ================================================== -->
-            <!-- ACTIONS -->
-            <!-- ================================================== -->
-            <!--
-            Adds:
-            - Approve confirmation
-            - Reject confirmation
-            - Better button styling
-            - Prevents accidental clicks
-            -->
-            <!-- ================================================== -->
-
-        <td class="action-links">
-
-            <div style="
-                display: flex;
-                gap: 8px;
-                align-items: center;
-                flex-wrap: wrap;
-            ">
-
-                <!-- ====================================== -->
-                <!-- PENDING DOCUMENT -->
-                <!-- ====================================== -->
-
-                {% if doc.status == "pending" %}
-
-                    <!-- APPROVE -->
-                    <a href="{% url 'members_admin:admin_document_review' doc.id 'approve' %}"
-                    class="btn btn-sm btn-success"
-                    onclick="return confirmApprove();"
-                    style="white-space: nowrap;">
-
-                        ✔ Approve
-
-                    </a>
-
-                    <!-- REJECT -->
-                    <!-- REJECT -->
-                    <a href="{% url 'members_admin:reject_document_form' doc.id %}"
-                    class="btn btn-sm btn-danger"
-                    onclick="return confirmReject();"
-                    style="white-space: nowrap;">
-
-                        ✖ Reject
-
-                    </a>
-
-                {% endif %}
-
-                <!-- ====================================== -->
-                <!-- APPROVED DOCUMENT -->
-                <!-- ====================================== -->
-
-                {% if doc.status == "approved" %}
-
-                    <!-- ARCHIVE -->
-                    {% if not doc.is_archived %}
-
-                    <a href="{% url 'members_admin:archive_document' doc.id %}"
-                    class="btn btn-sm btn-secondary"
-                    onclick="return confirmArchive();">
-
-                        Archive
-
-                    </a>
-
-                    {% endif %}
-
-                    <!-- DELETE -->
-                    <a href="{% url 'members_admin:delete_document' doc.id %}"
-                    class="btn btn-sm btn-dark"
-                    onclick="return confirmDelete();">
-
-                        Delete
-
-                    </a>
-
-                {% endif %}
-
-                <!-- ====================================== -->
-                <!-- REJECTED DOCUMENT -->
-                <!-- ====================================== -->
-
-                {% if doc.status == "rejected" %}
-
-                    <!-- ARCHIVE -->
-                    {% if not doc.is_archived %}
-
-                    <a href="{% url 'members_admin:archive_document' doc.id %}"
-                    class="btn btn-sm btn-secondary"
-                    onclick="return confirmArchive();">
-
-                        Archive
-
-                    </a>
-
-                    {% endif %}
-
-                    <!-- DELETE -->
-                    <a href="{% url 'members_admin:delete_document' doc.id %}"
-                    class="btn btn-sm btn-dark"
-                    onclick="return confirmDelete();">
-
-                        Delete
-
-                    </a>
-
-                {% endif %}
-
-            </div>
+            {% if doc.original_filename %}
+                <div class="document-original-name">
+                    {{ doc.original_filename }}
+                </div>
+            {% endif %}
 
         </td>
 
-        <!-- ================================================== -->
-        <!-- CONFIRMATION SCRIPTS -->
-        <!-- ================================================== -->
+        <td data-label="Ref: Subject">
+            {{ doc.dependant|default:"Member" }}
+        </td>
 
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="6">No documents found</td>
-        </tr>
-     
+        <td data-label="Status">
+
+            {% if doc.status == "pending" %}
+
+                <span class="badge badge-pending">
+                    Pending
+                </span>
+
+            {% elif doc.status == "approved" %}
+
+                <span class="badge badge-approved">
+                    Approved
+                </span>
+
+            {% else %}
+
+                <span class="badge badge-rejected">
+                    Rejected
+                </span>
+
+            {% endif %}
+
+        </td>
+
+        <td data-label="Uploaded">
+            {{ doc.uploaded_at|date:"Y-m-d H:i" }}
+        </td>
+
+        <td data-label="Preview">
+
+            {% if doc.file_type == "image" %}
+
+                <img src="{{ doc.file.url }}"
+                     class="preview-thumb"
+                     alt="{{ doc.original_filename|default:doc.title }}"
+                     onclick="openPreview('{{ doc.file.url }}', 'image')">
+
+            {% elif doc.file_type == "pdf" %}
+
+                <button type="button"
+                        class="btn btn-sm btn-secondary"
+                        onclick="openPreview('{{ doc.file.url }}', 'pdf')">
+
+                    View PDF
+
+                </button>
+
+            {% else %}
+
+                <a href="{{ doc.file.url }}"
+                   target="_blank"
+                   class="btn btn-sm btn-secondary">
+
+                    Download
+
+                </a>
+
+            {% endif %}
+
+        </td>
+
+        <td data-label="Actions"
+            class="action-links">
+
+            {% if doc.status == "pending" %}
+
+                <a href="{% url 'members_admin:admin_document_review' doc.id 'approve' %}"
+                   class="btn btn-sm btn-success"
+                   onclick="return confirmApprove();">
+
+                    ✔ Approve
+
+                </a>
+
+                <a href="{% url 'members_admin:reject_document_form' doc.id %}"
+                   class="btn btn-sm btn-danger"
+                   onclick="return confirmReject();">
+
+                    ✖ Reject
+
+                </a>
+
+            {% elif doc.status == "approved" %}
+
+                {% if not doc.is_archived %}
+
+                    <a href="{% url 'members_admin:archive_document' doc.id %}"
+                       class="btn btn-sm btn-secondary"
+                       onclick="return confirmArchive();">
+
+                        Archive
+
+                    </a>
+
+                {% endif %}
+
+                <a href="{% url 'members_admin:delete_document' doc.id %}"
+                   class="btn btn-sm btn-dark"
+                   onclick="return confirmDelete();">
+
+                    Delete
+
+                </a>
+
+            {% elif doc.status == "rejected" %}
+
+                {% if not doc.is_archived %}
+
+                    <a href="{% url 'members_admin:archive_document' doc.id %}"
+                       class="btn btn-sm btn-secondary"
+                       onclick="return confirmArchive();">
+
+                        Archive
+
+                    </a>
+
+                {% endif %}
+
+                <a href="{% url 'members_admin:delete_document' doc.id %}"
+                   class="btn btn-sm btn-dark"
+                   onclick="return confirmDelete();">
+
+                    Delete
+
+                </a>
+
+            {% endif %}
+
+        </td>
+
+    </tr>
+
+    {% empty %}
+
+    <tr>
+
+        <td colspan="6">
+            No documents found
+        </td>
+
+    </tr>
+
     {% endfor %}
+
+</tbody>
 
    <script>
 
@@ -429,8 +421,20 @@ Pending
 </div>
 
 <!-- PREVIEW MODAL -->
-<div id="previewModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7);">
-    <div style="background:white; margin:5% auto; padding:20px; width:70%; position:relative;">
+<div id="previewModal"
+     style="
+        display:none;
+        position:fixed;
+        inset:0;
+        width:100%;
+        height:100%;
+        background:rgba(0,0,0,0.7);
+        overflow:auto;
+        z-index:9999;
+     ">
+
+    <div class="preview-modal-content"
+         style="position:relative;">
         <span onclick="closePreview()" style="position:absolute; right:15px; cursor:pointer;">✖</span>
         <div id="previewContent"></div>
     </div>
