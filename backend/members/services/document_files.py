@@ -2,6 +2,9 @@ import re
 from datetime import date
 from pathlib import Path
 from uuid import uuid4
+from io import BytesIO
+from django.core.files.base import ContentFile
+from PIL import Image
 
 
 def sanitize_filename_part(value, fallback="document"):
@@ -110,4 +113,152 @@ def prepare_document_file(
     # filesystem/storage limits.
     uploaded_file.name = stored_filename
 
-    return uploaded_file
+    prepared_file = compress_uploaded_image(
+        uploaded_file
+    )
+
+    # Preserve the browser-uploaded filename for the caller.
+    prepared_file._original_filename = original_name
+
+    return prepared_file
+
+def compress_uploaded_image(
+    uploaded_file,
+    quality=85,
+    minimum_size=300 * 1024,
+):
+    """
+    Compress an uploaded image when worthwhile.
+
+    Step 4 scope:
+    - JPEG/JPG: recompress at the requested quality.
+    - PNG: optimise without changing format.
+    - WebP: recompress at the requested quality.
+    - Other file types: leave unchanged.
+    - Do not resize images.
+    - Do not convert PNG to another format.
+    - Keep the original uploaded file if compression does
+      not produce a smaller file.
+
+    Returns the original uploaded file or a replacement
+    ContentFile with the same filename.
+    """
+
+    if not uploaded_file:
+        return uploaded_file
+
+    original_size = getattr(uploaded_file, "size", 0) or 0
+
+    # Avoid processing small images where compression is
+    # unlikely to provide a meaningful benefit.
+    if original_size < minimum_size:
+        return uploaded_file
+
+    extension = Path(
+        getattr(uploaded_file, "name", "")
+    ).suffix.lower()
+
+    supported_extensions = {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+    }
+
+    if extension not in supported_extensions:
+        return uploaded_file
+
+    try:
+        uploaded_file.seek(0)
+
+        image = Image.open(uploaded_file)
+
+        # Verify that Pillow can fully read the image.
+        image.verify()
+
+        uploaded_file.seek(0)
+        image = Image.open(uploaded_file)
+
+    except Exception:
+        # If Pillow cannot process the image, leave the
+        # original upload untouched.
+        try:
+            uploaded_file.seek(0)
+        except Exception:
+            pass
+
+        return uploaded_file
+
+    output = BytesIO()
+
+    try:
+        save_kwargs = {}
+
+        # -------------------------------------------------
+        # JPEG
+        # -------------------------------------------------
+
+        if extension in {".jpg", ".jpeg"}:
+
+            # JPEG cannot store transparency.
+            if image.mode not in {"RGB", "L"}:
+                image = image.convert("RGB")
+
+            save_kwargs = {
+                "format": "JPEG",
+                "quality": quality,
+                "optimize": True,
+                "progressive": True,
+            }
+
+        # -------------------------------------------------
+        # PNG
+        # -------------------------------------------------
+
+        elif extension == ".png":
+
+            save_kwargs = {
+                "format": "PNG",
+                "optimize": True,
+            }
+
+        # -------------------------------------------------
+        # WEBP
+        # -------------------------------------------------
+
+        elif extension == ".webp":
+
+            save_kwargs = {
+                "format": "WEBP",
+                "quality": quality,
+                "method": 6,
+            }
+
+        image.save(output, **save_kwargs)
+
+    except Exception:
+        return uploaded_file
+
+    compressed_data = output.getvalue()
+
+    # -----------------------------------------------------
+    # Only use the compressed version if it is smaller.
+    # -----------------------------------------------------
+
+    if not compressed_data:
+        return uploaded_file
+
+    if len(compressed_data) >= original_size:
+        try:
+            uploaded_file.seek(0)
+        except Exception:
+            pass
+
+        return uploaded_file
+
+    compressed_file = ContentFile(
+        compressed_data,
+        name=uploaded_file.name,
+    )
+
+    return compressed_file

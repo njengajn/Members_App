@@ -39,9 +39,58 @@
         ➕ Request Document
     </button>
 </div>
+
+<!-- ========================= -->
+<!-- REQUEST FORM (UPDATED) -->
+<!-- ========================= -->
+<div id="requestBox" class="request-box">
+
+    <form id="requestForm" method="POST"
+          action="{% url 'members_admin:request_document' member.id %}">
+
+        {% csrf_token %}
+
+        <!-- TITLE -->
+        <div style="margin-bottom:10px;">
+            <label class="fw-bold">Document Title</label>
+            <input type="text"
+                   name="title"
+                   id="requestTitle"
+                   class="form-control"
+                   placeholder="e.g. Passport, Bank Statement"
+                   required>
+        </div>
+
+        <!-- DESCRIPTION -->
+        <div style="margin-bottom:10px;">
+            <label class="fw-bold">Description / Instructions</label>
+            <textarea name="description"
+                      id="requestDescription"
+                      class="form-control"
+                      rows="3"
+                      placeholder="Provide details, requirements, format, etc."></textarea>
+        </div>
+
+        <div style="margin-top:10px;">
+            <button type="submit" class="btn btn-primary btn-sm">
+                Send Request
+            </button>
+
+            <button type="button"
+                    class="btn btn-secondary btn-sm"
+                    onclick="toggleRequestBox()">
+                Cancel
+            </button>
+        </div>
+
+    </form>
+
+</div>
+
 <hr>
 
 <h4>Pending Requests</h4>
+<hr>
 
 <table class="admin-table">
 
@@ -144,53 +193,10 @@
     </tbody>
 
 </table>
+<hr>
 
-<!-- ========================= -->
-<!-- REQUEST FORM (UPDATED) -->
-<!-- ========================= -->
-<div id="requestBox" class="request-box">
-
-    <form id="requestForm" method="POST"
-          action="{% url 'members_admin:request_document' member.id %}">
-
-        {% csrf_token %}
-
-        <!-- TITLE -->
-        <div style="margin-bottom:10px;">
-            <label class="fw-bold">Document Title</label>
-            <input type="text"
-                   name="title"
-                   id="requestTitle"
-                   class="form-control"
-                   placeholder="e.g. Passport, Bank Statement"
-                   required>
-        </div>
-
-        <!-- DESCRIPTION -->
-        <div style="margin-bottom:10px;">
-            <label class="fw-bold">Description / Instructions</label>
-            <textarea name="description"
-                      id="requestDescription"
-                      class="form-control"
-                      rows="3"
-                      placeholder="Provide details, requirements, format, etc."></textarea>
-        </div>
-
-        <div style="margin-top:10px;">
-            <button type="submit" class="btn btn-primary btn-sm">
-                Send Request
-            </button>
-
-            <button type="button"
-                    class="btn btn-secondary btn-sm"
-                    onclick="toggleRequestBox()">
-                Cancel
-            </button>
-        </div>
-
-    </form>
-
-</div>
+<h4>Uploaded documents</h4>
+<hr>
 
     <div class="table-responsive-documents">
         <table class="documents-table">
@@ -266,17 +272,36 @@
 
             {% elif doc.file_type == "pdf" %}
 
-                <button type="button"
-                        class="btn btn-sm btn-secondary"
-                        onclick="openPreview('{{ doc.file.url }}', 'pdf')">
+                <!-- ================================================== -->
+                <!-- SECURE PDF PREVIEW -->
+                <!-- ================================================== -->
+                <!--
+                Do NOT use doc.file.url here.
+
+                The raw media URL bypasses the authenticated document
+                access path and is also blocked by X-Frame-Options.
+
+                Instead, request the PDF through the authenticated
+                admin preview view.
+                -->
+
+                <button
+                    type="button"
+                    class="btn btn-sm btn-secondary"
+                    onclick="openPreview(
+                        '{% url 'members_admin:admin_document_preview' doc.id %}',
+                        'pdf'
+                    )">
 
                     View PDF
 
                 </button>
 
+
+
             {% else %}
 
-                <a href="{{ doc.file.url }}"
+                <a href="{% url 'members_admin:admin_document_preview' doc.id %}"
                    target="_blank"
                    class="btn btn-sm btn-secondary">
 

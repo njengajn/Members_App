@@ -49,6 +49,11 @@
            name="step"
            value="4">
 
+    <input type="hidden"
+           name="dependant_indexes"
+           id="dependantIndexes"
+           value="1">
+
     <!-- ========================================= -->
     <!-- DEPENDANTS LIST -->
     <!-- ========================================= -->
@@ -127,8 +132,8 @@
                         type="date"
                         name="dep_1_dob"
                         class="form-control"
-                    >
-
+                        required
+                        >
                 </div>
 
                 <div class="col-12 col-md-6">
@@ -139,7 +144,8 @@
 
                     <select
                         name="dep_1_relation"
-                        class="form-select">
+                        class="form-select"
+                        required>
 
                         <option value="CHILD">
                             Child
@@ -212,6 +218,7 @@
 
 </form>
 
+{{ dependants|json_script:"cachedDependants" }}
 <script src="{% static 'js/dependants.js' %}"></script>
 
 <style>

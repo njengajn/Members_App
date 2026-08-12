@@ -6,6 +6,7 @@ from django.contrib import messages
 import os, tempfile, zipfile
 from backend.members.models import (Member, MemberDocument, DocumentRequest,)
 from backend.members.services.document_files import (prepare_document_file,)
+from backend.members.services.document_files import prepare_document_file
 
 # =========================================================
 # DOCUMENT UPLOAD
@@ -57,29 +58,31 @@ def upload_document(request):
 
             return redirect("members:member_requests")
         original_filename = uploaded_file.name
-        document_title = request.POST.get(
-            "title",
-            original_filename,
-        )
 
         uploaded_file = prepare_document_file(
             uploaded_file=uploaded_file,
             member=member,
-            document_title=document_title,
+            document_title=request.POST.get(
+                "title",
+                uploaded_file.name,
+            ),
         )
 
         # =================================================
         # CREATE DOCUMENT
         # =================================================
         doc = MemberDocument.objects.create(
-        member=member,
-        title=document_title,
-        description=request.POST.get(
-            "description",
-            ""
-        ),
-        file=uploaded_file,
-        original_filename=original_filename,
+            member=member,
+            title=request.POST.get(
+                "title",
+                uploaded_file.name,
+            ),
+            description=request.POST.get(
+                "description",
+                "",
+            ),
+            file=uploaded_file,
+            original_filename=original_filename,
         )
 
         # =================================================
@@ -344,20 +347,20 @@ def upload_requested_document(request, request_id):
         # CREATE DOCUMENT
         # =================================================
         original_filename = uploaded_file.name
+
         uploaded_file = prepare_document_file(
             uploaded_file=uploaded_file,
             member=member,
             document_title=doc_request.title,
         )
 
-        document = MemberDocument.objects.create(
+        MemberDocument.objects.create(
             member=member,
             file=uploaded_file,
+            original_filename=original_filename,
             title=doc_request.title,
             document_request=doc_request,
-            original_filename=original_filename,
         )
-
         # =================================================
         # MARK REQUEST COMPLETE
         # =================================================

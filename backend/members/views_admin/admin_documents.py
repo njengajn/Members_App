@@ -5,7 +5,11 @@ from backend.members.decorators import admin_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from backend.members.views_frontend import documents
-from backend.members.services.document_files import (prepare_document_file,)
+from backend.members.services.document_files import prepare_document_file
+from django.http import FileResponse, Http404
+from django.views.decorators.http import require_GET
+from django.views.decorators.clickjacking import xframe_options_sameorigin
+import os
 
 @admin_required
 def admin_documents_list(request, member_id):
@@ -55,12 +59,101 @@ def admin_documents_list(request, member_id):
         context,
     )
     
+# =========================================================
+# SECURE ADMIN PDF PREVIEW
+# =========================================================
+
+@admin_required
+@require_GET
+@xframe_options_sameorigin
+def admin_document_preview(request, document_id):
+    """
+    Securely preview a member PDF document for administrators.
+
+    SECURITY:
+    - Requires an authenticated administrator.
+    - Looks up the document through MemberDocument.
+    - Does not expose the raw /media/ URL to the browser.
+    - Only PDF files are allowed through this endpoint.
+    - The response is explicitly intended for same-origin
+      iframe display.
+    - Global X-Frame-Options protection remains unchanged.
+    """
+
+    # =====================================================
+    # GET DOCUMENT
+    # =====================================================
+    #
+    # admin_required ensures that only authorised admin
+    # users can reach this view.
+    #
+    document = get_object_or_404(
+        MemberDocument,
+        id=document_id,
+    )
+
+    # =====================================================
+    # VERIFY FILE EXISTS
+    # =====================================================
+    if not document.file:
+        raise Http404("Document file not found.")
+
+    # =====================================================
+    # VERIFY THIS IS A PDF
+    # =====================================================
+    #
+    # Do not allow this endpoint to become a generic
+    # file-serving endpoint.
+    #
+    if not document.is_pdf:
+        raise Http404("PDF preview is only available for PDF files.")
+
+    # =====================================================
+    # OPEN FILE SAFELY THROUGH DJANGO STORAGE
+    # =====================================================
+    #
+    # Use Django's storage API instead of constructing
+    # a filesystem path manually.
+    #
+    try:
+        file_handle = document.file.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404("Document file could not be opened.")
+
+    # =====================================================
+    # RETURN PDF INLINE
+    # =====================================================
+    #
+    # as_attachment=False tells the browser that this is
+    # intended for inline display rather than download.
+    #
+    response = FileResponse(
+        file_handle,
+        as_attachment=False,
+        filename=os.path.basename(document.file.name),
+        content_type="application/pdf",
+    )
+
+    # =====================================================
+    # SECURITY / BROWSER BEHAVIOUR
+    # =====================================================
+    #
+    # @xframe_options_sameorigin above changes the
+    # X-Frame-Options header ONLY for this response.
+    #
+    # The PDF can therefore be displayed in an iframe
+    # belonging to the same application, while the rest
+    # of the application retains its normal protection.
+    #
+
+    return response
+
 @admin_required
 def admin_document_review(
     request,
     document_id,
     action
-):
+    ):
 
     # =====================================================
     # GET DOCUMENT
@@ -230,6 +323,7 @@ def upload_requested_document_admin(request, request_id):
         # CREATE DOCUMENT
         # ================================================
         original_filename = uploaded_file.name
+
         uploaded_file = prepare_document_file(
             uploaded_file=uploaded_file,
             member=member,
@@ -242,20 +336,13 @@ def upload_requested_document_admin(request, request_id):
                 "Uploaded by admin "
                 "from external member submission."
             ),
-
             file=uploaded_file,
-
             original_filename=original_filename,
-
             document_request=document_request,
-
             status=MemberDocument.STATUS_APPROVED,
-
             reviewed_at=timezone.now(),
-
             reviewed_by=request.user,
         )
-
         # ================================================
         # MARK REQUEST COMPLETED
         # ================================================

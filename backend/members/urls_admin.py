@@ -93,7 +93,8 @@ from backend.members.views_admin.admin_documents import (
     archive_document,
     delete_document,
     upload_requested_document_admin,
-    reject_document_form,  
+    reject_document_form,
+    admin_document_preview,
 )
 from backend.members.views_admin import admin_dashboard, payment_filters
 from backend.members.views_admin.admin_member_search import admin_member_search
@@ -407,6 +408,13 @@ urlpatterns = [
 
     path("treasurer-dashboard/excel/", treasurer_dashboard_excel,name="treasurer_dashboard_excel",),
     
+    # =========================================================
+    # SECURE DOCUMENT PREVIEW
+    # =========================================================
+
+    path("documents/<int:document_id>/preview/", admin_document_preview,
+        name="admin_document_preview",),
+
     # =====================================================
     # PAYMENT REQUEST ARCHIVE
     # =====================================================

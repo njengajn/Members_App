@@ -46,6 +46,7 @@
                     name="first_name"
                     class="form-control"
                     placeholder="Enter first name"
+                    value="{{ nok.first_name|default:'' }}"
                     required
                 >
 
@@ -61,6 +62,7 @@
                     name="middle_name"
                     class="form-control"
                     placeholder="Enter middle name"
+                    value="{{ nok.middle_name|default:'' }}"
                 >
 
             </div>
@@ -75,6 +77,7 @@
                     name="surname"
                     class="form-control"
                     placeholder="Enter surname"
+                    value="{{ nok.surname|default:'' }}"
                     required
                 >
 
@@ -106,6 +109,7 @@
                     name="phone"
                     class="form-control"
                     placeholder="Enter phone number"
+                    value="{{ nok.phone|default:'' }}"
                 >
 
             </div>
@@ -121,6 +125,8 @@
                     name="email"
                     class="form-control"
                     placeholder="Enter email address"
+                    value="{{ nok.email|default:'' }}"
+                    required
                 >
 
             </div>
@@ -147,7 +153,9 @@
             name="relationship"
             maxlength="50"
             class="form-control"
-            placeholder="Example: Brother, Sister, Parent"
+            placeholder="Example: Spouse, Sibling, Parent, Friend, Cousin, etc."
+            value="{{ nok.relationship|default:'' }}"
+            required
         >
 
     </div>
