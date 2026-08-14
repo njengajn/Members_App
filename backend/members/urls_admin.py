@@ -122,6 +122,12 @@ from backend.members.views_admin.admin_documents import(
     admin_document_review,
     request_document,
     )
+
+from backend.members.views_admin.admin_members import (
+    toggle_member_dependant_edit,
+    toggle_member_portal_access,
+)
+
 app_name = "members_admin"
 
 urlpatterns = [
@@ -171,6 +177,18 @@ urlpatterns = [
     ),
     path("members/<int:member_id>/restore/", restore_member_view, name="restore_member"),
     path("members/<int:member_id>/retire/", retire_member_view, name="retire_member"),
+    
+    path(
+        "members/<int:member_id>/toggle-dependant-edit/",
+        toggle_member_dependant_edit,
+        name="toggle_member_dependant_edit",
+    ),
+
+    path(
+        "members/<int:member_id>/toggle-portal-access/",
+        toggle_member_portal_access,
+        name="toggle_member_portal_access",
+    ),
     
 
     # ======================

@@ -52,13 +52,11 @@ class Member(models.Model):
     # STATUS
     # -----------------------------
     STATUS_PENDING = "pending"
-    STATUS_APPROVED = "approved"
     STATUS_ACTIVE = "active"
     STATUS_RETIRED = "retired"
 
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending"),
-        (STATUS_APPROVED, "Approved"),
         (STATUS_ACTIVE, "Active"),
         (STATUS_RETIRED, "Retired"),
     ]
@@ -106,7 +104,7 @@ class Member(models.Model):
     address = models.ForeignKey("Address", on_delete=models.SET_NULL, null=True, blank=True, related_name="members")
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
     applied_at = models.DateTimeField(auto_now_add=True,db_index=True,help_text="Date the application was submitted.")
-    joined_at = models.DateTimeField(null=True, blank=True, db_index=True, help_text="Date membership was approved.")
+    joined_at = models.DateTimeField(null=True, blank=True, db_index=True, help_text="Date membership was activated.")
     can_edit = models.BooleanField(default=False, help_text="Allow member to add/edit dependants")
     can_edit_expires_at = models.DateTimeField(null=True, blank=True )
     is_portal_access_enabled = models.BooleanField(default=True)
@@ -155,12 +153,18 @@ class Member(models.Model):
     # -----------------------------
     def save(self, *args, **kwargs):
         """
-        Assign UID ONLY when:
-        - Status transitions → ACTIVE
-        - UID not already assigned
+        Central Member save logic.
+
+        Business Rules
+        ------------------------------------------------------------------
+        • User.email is the master email address.
+        • Member.email mirrors User.email.
+        • UID is allocated only on first transition to ACTIVE.
+        • uid_assigned prevents UID regeneration.
         """
 
         previous = None
+
         if self.pk:
             try:
                 previous = Member.objects.get(pk=self.pk)
@@ -168,14 +172,34 @@ class Member(models.Model):
                 previous = None
 
         becoming_active = (
-            self.status == self.STATUS_ACTIVE and
-            (not previous or previous.status != self.STATUS_ACTIVE)
+            self.status == self.STATUS_ACTIVE
+            and (
+                previous is None
+                or previous.status != self.STATUS_ACTIVE
+            )
         )
 
-        if becoming_active and not self.uid_assigned:
-            from backend.members.utils.member_uid import generate_member_uid
+        # ------------------------------------------------------
+        # SYNCHRONISE EMAIL
+        # ------------------------------------------------------
 
-            self.member_uid = generate_member_uid(self.organization)
+        if self.user_id:
+            self.email = self.user.email
+
+        # ------------------------------------------------------
+        # FIRST ACTIVATION → UID
+        # ------------------------------------------------------
+
+        if becoming_active and not self.uid_assigned:
+
+            from backend.members.utils.member_uid import (
+                generate_member_uid
+            )
+
+            self.member_uid = generate_member_uid(
+                self.organization
+            )
+
             self.uid_assigned = True
 
         super().save(*args, **kwargs)
@@ -305,18 +329,22 @@ class Member(models.Model):
 
         self.status = self.STATUS_ACTIVE
 
-        # CLEAR NEW FIELD
+        # Reactivation starts a new membership/claim eligibility period.
+        self.joined_at = timezone.now()
+
+        # Portal access is restored.
+        self.is_portal_access_enabled = True
+
+        # Clear retirement fields.
         self.retired_reason = None
-
-        # CLEAR LEGACY FIELD
         self.retirement_reason = None
-
-        # CLEAR RETIREMENT TIMESTAMP
         self.retired_at = None
 
         self.save(
             update_fields=[
                 "status",
+                "joined_at",
+                "is_portal_access_enabled",
                 "retired_reason",
                 "retirement_reason",
                 "retired_at",
@@ -412,30 +440,19 @@ class Member(models.Model):
             self.subscription_year == required_year
         )
 
-    def save(self, *args, **kwargs):
-        """
-        Synchronise Member.email with the related User.
-
-        Business Rules
-        ------------------------------------------------------------------
-        • User.email is the master email address.
-        • Member.email mirrors User.email.
-        """
-
-        if self.user_id:
-            self.email = self.user.email
-
-        super().save(*args, **kwargs)
-        
+       
     @property
     def can_make_claim(self):
         """
-        Returns True if the member has completed
-        the 180-day cooling-off period.
+        Returns True when the active member has completed
+        the 180-day claim cooling-off period.
 
-        Members without an approval date
-        cannot submit claims.
+        Pending members cannot make claims because
+        joined_at is NULL.
         """
+
+        if self.status != self.STATUS_ACTIVE:
+            return False
 
         if not self.joined_at:
             return False
@@ -448,10 +465,16 @@ class Member(models.Model):
     @property
     def membership_age_days(self):
         """
-        Returns the number of days since the member's
-        membership was approved.
+        Number of days since the member's latest activation.
+
+        This is also the number of days elapsed in the
+        current claim cooling-off period.
         """
-        if not self.joined_at:
+
+        if (
+            self.status != self.STATUS_ACTIVE
+            or not self.joined_at
+        ):
             return None
 
         return (timezone.now() - self.joined_at).days
@@ -460,10 +483,14 @@ class Member(models.Model):
     @property
     def claim_eligibility_date(self):
         """
-        Returns the first date on which the member
-        may submit a claim.
+        Date the active member completes the
+        180-day claim cooling-off period.
         """
-        if not self.joined_at:
+
+        if (
+            self.status != self.STATUS_ACTIVE
+            or not self.joined_at
+        ):
             return None
 
         return self.joined_at + timedelta(days=180)

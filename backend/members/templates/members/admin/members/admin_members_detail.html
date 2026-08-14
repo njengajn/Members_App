@@ -68,6 +68,7 @@
         </div>
 
         <!-- Membership Approved -->
+
         <div class="col-12 col-sm-6">
 
             <div class="card h-100 shadow-sm">
@@ -97,6 +98,7 @@
         </div>
 
         <!-- Membership Age -->
+
         <div class="col-12 col-sm-6">
 
             <div class="card h-100 shadow-sm">
@@ -107,14 +109,27 @@
                         Membership Age
                     </div>
 
-                    {% if member.membership_age_days is not None %}
+                    {% if member.status == "active" and member.joined_at %}
 
-                        {{ member.membership_age_days }} day{{ member.membership_age_days|pluralize }}
+                        {{ member.membership_age_days }}
+                        day{{ member.membership_age_days|pluralize }}
+
+                    {% elif member.status == "pending" %}
+
+                        <span class="text-muted">
+                            Not Yet Active
+                        </span>
+
+                    {% elif member.status == "retired" %}
+
+                        <span class="text-muted">
+                            Membership Retired
+                        </span>
 
                     {% else %}
 
                         <span class="text-muted">
-                            Not Yet Approved
+                            —
                         </span>
 
                     {% endif %}
@@ -225,33 +240,64 @@
 
     </div>
 
-    <!-- ========================================= -->
-    <!-- CLAIM PROGRESS -->
-    <!-- ========================================= -->
+<!-- ========================================= -->
+<!-- CLAIM COOLING-OFF PROGRESS -->
+<!-- ========================================= -->
 
-    <div class="card shadow-sm mt-4">
+<div class="card shadow-sm mt-4">
 
-        <div class="card-body">
+    <div class="card-body">
 
-            <label class="fw-bold mb-2">
+        <label class="fw-bold mb-2">
+            Claim Cooling-off Progress
+        </label>
 
-                Claim Cooling-off Progress
+        {% if member.status == "pending" %}
 
-            </label>
+            <div class="progress" style="height:24px;">
+                <div
+                    class="progress-bar bg-secondary"
+                    style="width: 0%;"
+                >
+                    0%
+                </div>
+            </div>
+
+            <div class="small text-muted mt-3">
+                Member is awaiting activation.
+                Claim cooling-off has not started.
+            </div>
+
+        {% elif member.status == "retired" %}
+
+            <div class="progress" style="height:24px;">
+                <div
+                    class="progress-bar bg-secondary"
+                    style="width: 0%;"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="small text-muted mt-3">
+                Member is retired.
+                Claim eligibility is unavailable.
+            </div>
+
+        {% elif member.status == "active" %}
 
             <div class="progress" style="height:24px;">
 
-                <div class="progress-bar
+                <div
+                    class="progress-bar
                     {% if member.can_make_claim %}
                         bg-success
                     {% else %}
                         bg-warning
                     {% endif %}"
-
-                    style="width: {{ member.claim_progress_percent }}%;">
-
+                    style="width: {{ member.claim_progress_percent }}%;"
+                >
                     {{ member.claim_progress_percent }}%
-
                 </div>
 
             </div>
@@ -260,34 +306,31 @@
 
                 {% if member.can_make_claim %}
 
-                    ✅ Member is eligible to submit claims.
+                    Member is eligible to submit claims.
 
-                {% elif member.joined_at %}
+                {% else %}
 
                     {{ member.membership_age_days }}
-                    of 180 days completed.
+                    day{{ member.membership_age_days|pluralize }}
+                    completed.
 
                     <br>
 
                     <strong>
-
                         {{ member.days_until_claim }}
                         day{{ member.days_until_claim|pluralize }}
                         remaining.
-
                     </strong>
-
-                {% else %}
-
-                    Membership has not yet been approved.
 
                 {% endif %}
 
             </div>
 
-        </div>
+        {% endif %}
 
     </div>
+
+</div>
 
     <!-- ========================================= -->
     <!-- MEMBER SETTINGS -->
@@ -359,137 +402,243 @@
           </td>
         </div>
 
-        <div class="col-md-4">
-          <form
+        <!-- ===================================================== -->
+<!-- MEMBER ADMIN CONTROLS -->
+<!-- ===================================================== -->
+
+<div class="col-12 col-md-4">
+
+    <!-- ================================================ -->
+    <!-- UPDATE MEMBER STATUS -->
+    <!-- ================================================ -->
+
+    <div class="card bg-light p-3 mb-3">
+
+        <form
             method="POST"
-            action="{% url 'members_admin:update_member_permissions' member.id %}"
-            onsubmit="return confirmMemberUpdate();"
-          >
+            action="{% url 'members_admin:update_member_status' member.id %}"
+            onsubmit="return confirmMemberStatusChange(this);"
+        >
+
             {% csrf_token %}
 
-            <div class="card bg-light p-3">
-              <label class="fw-bold">Update Member</label>
+            <label
+                for="memberStatusSelect"
+                class="fw-bold mb-2"
+            >
+                Update Member Status
+            </label>
 
-              <select
+            <select
+                id="memberStatusSelect"
                 name="status"
-                class="form-select mb-3"
-                {%
-                if
-                request.user="" ="member.user" %}disabled{%
-                endif
-                %}
-              >
-                <option
-                  value="pending"
-                  {%
-                  if
-                  member.status=""
-                  ="pending"
-                  %}selected{%
-                  endif
-                  %}
-                >
-                  Pending
-                </option>
-                <option
-                  value="active"
-                  {%
-                  if
-                  member.status=""
-                  ="active"
-                  %}selected{%
-                  endif
-                  %}
-                >
-                  Active
-                </option>
-                <option
-                  value="retired"
-                  {%
-                  if
-                  member.status=""
-                  ="retired"
-                  %}selected{%
-                  endif
-                  %}
-                >
-                  Retired
-                </option>
-              </select>
+                class="form-select mb-3 w-100"
+                {% if request.user == member.user %}disabled{% endif %}
+            >
 
-              <!-- ========================= -->
-              <!-- CAN EDIT -->
-              <!-- ========================= -->
-              <div class="mb-3 p-3 rounded border border-2">
-                <label class="fw-bold d-block mb-2">
-                  Allow member to manage dependants
-                </label>
+                <option value="" selected>
+                    Choose status
+                </option>
 
-                <div class="d-flex align-items-center justify-content-between">
-                  <span class="text-danger fw-bold small">DISABLED</span>
+                <option value="pending">
+                    Pending
+                </option>
 
-                  <div class="form-check form-switch m-0">
+                <option value="active">
+                    Active
+                </option>
+
+                <option value="retired">
+                    Retired
+                </option>
+
+            </select>
+
+            <button
+                type="submit"
+                class="btn btn-primary w-100"
+                {% if request.user == member.user %}disabled{% endif %}
+            >
+                Update Member Status
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <!-- ================================================ -->
+    <!-- DEPENDANTS MANAGEMENT -->
+    <!-- ================================================ -->
+
+    <div class="card bg-light p-3 mb-3">
+
+        <label class="fw-bold d-block mb-2">
+            Allow member to manage dependants
+        </label>
+
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+
+            {% if member.can_edit %}
+
+                <span class="badge bg-success">
+                    ENABLED
+                </span>
+
+                {% if member.can_edit_expires_at %}
+                    <span class="small text-muted">
+                        Expires:
+                        {{ member.can_edit_expires_at|date:"d M Y H:i" }}
+                    </span>
+                {% endif %}
+
+            {% else %}
+
+                <span class="badge bg-danger">
+                    DISABLED
+                </span>
+
+            {% endif %}
+
+        </div>
+
+
+        {% if member.status == "active" %}
+
+            <form
+                method="POST"
+                action="{% url 'members_admin:toggle_member_dependant_edit' member.id %}"
+                onsubmit="return confirmDependantsPermission(this);"
+                class="w-100"
+            >
+
+                {% csrf_token %}
+
+                {% if member.can_edit %}
+
                     <input
-                      type="checkbox"
-                      name="can_edit"
-                      class="form-check-input toggle-switch"
-                      id="canEditSwitch"
-                      {%
-                      if
-                      member.can_edit
-                      %}checked{%
-                      endif
-                      %}
-                      {%
-                      if
-                      request.user=""
-                      ="member.user"
-                      %}disabled{%
-                      endif
-                      %}
-                    />
-                  </div>
+                        type="hidden"
+                        name="enable"
+                        value="0"
+                    >
 
-                  <span class="text-success fw-bold small">ENABLED</span>
-                </div>
-              </div>
+                    <button
+                        type="submit"
+                        class="btn btn-outline-danger w-100"
+                        {% if request.user == member.user %}disabled{% endif %}
+                    >
+                        Disable Dependants Management
+                    </button>
 
-              <!-- ========================= -->
-              <!-- PORTAL ACCESS -->
-              <!-- ========================= -->
-              <div class="mb-3 p-3 rounded border border-2">
-                <label class="fw-bold d-block mb-2">
-                  Allow access to Members Portal
-                </label>
+                {% else %}
 
-                <div class="d-flex align-items-center justify-content-between">
-                  <span class="text-danger fw-bold small">DISABLED</span>
-
-                  <div class="form-check form-switch m-0">
                     <input
-                      type="checkbox"
-                      name="portal_access"
-                      class="form-check-input toggle-switch"
-                      id="portalSwitch"
-                      {%
-                      if
-                      member.is_portal_access_enabled
-                      %}checked{%
-                      endif
-                      %}
-                      {%
-                      if
-                      request.user=""
-                      ="member.user"
-                      %}disabled{%
-                      endif
-                      %}
-                    />
-                  </div>
+                        type="hidden"
+                        name="enable"
+                        value="1"
+                    >
 
-                  <span class="text-success fw-bold small">ENABLED</span>
-                </div>
-              </div>
+                    <button
+                        type="submit"
+                        class="btn btn-outline-success w-100"
+                        {% if request.user == member.user %}disabled{% endif %}
+                    >
+                        Enable Dependants Management
+                    </button>
+
+                {% endif %}
+
+            </form>
+
+        {% else %}
+
+            <div class="alert alert-secondary small mb-0">
+                Dependants management is available only
+                for an Active member.
+            </div>
+
+        {% endif %}
+
+    </div>
+
+
+    <!-- ================================================ -->
+    <!-- MEMBERS PORTAL ACCESS -->
+    <!-- ================================================ -->
+
+    <div class="card bg-light p-3 mb-3">
+
+        <label class="fw-bold d-block mb-2">
+            Allow access to Members Portal
+        </label>
+
+        <div class="mb-3">
+
+            {% if member.is_portal_access_enabled %}
+
+                <span class="badge bg-success">
+                    ENABLED
+                </span>
+
+            {% else %}
+
+                <span class="badge bg-danger">
+                    DISABLED
+                </span>
+
+            {% endif %}
+
+        </div>
+
+
+        <form
+            method="POST"
+            action="{% url 'members_admin:toggle_member_portal_access' member.id %}"
+            onsubmit="return confirmPortalAccessChange(this);"
+            class="w-100"
+        >
+
+            {% csrf_token %}
+
+            {% if member.is_portal_access_enabled %}
+
+                <input
+                    type="hidden"
+                    name="enable"
+                    value="0"
+                >
+
+                <button
+                    type="submit"
+                    class="btn btn-outline-danger w-100"
+                    {% if request.user == member.user %}disabled{% endif %}
+                >
+                    Disable Members Portal Access
+                </button>
+
+            {% else %}
+
+                <input
+                    type="hidden"
+                    name="enable"
+                    value="1"
+                >
+
+                <button
+                    type="submit"
+                    class="btn btn-outline-success w-100"
+                    {% if request.user == member.user %}disabled{% endif %}
+                >
+                    Enable Members Portal Access
+                </button>
+
+            {% endif %}
+
+        </form>
+
+    </div>
+
+</div>
 
               <style>
                 .toggle-switch {
@@ -531,6 +680,8 @@
     function confirmMemberUpdate() {
       return confirm("Are you sure you want to update this member?");
     }
+
+
   </script>
 
   <!-- ========================= -->
@@ -826,6 +977,96 @@
     function confirmMemberUpdate() {
       return confirm("Are you sure you want to update this member?");
     }
+
+    function confirmMemberStatusChange(form) {
+
+        const select = form.querySelector(
+            '#memberStatusSelect'
+        );
+
+        const newStatus = select.value;
+
+        if (!newStatus) {
+            alert(
+                'Please choose a member status before updating.'
+            );
+
+            return false;
+        }
+
+        const labels = {
+            pending: 'PENDING',
+            active: 'ACTIVE',
+            retired: 'RETIRED'
+        };
+
+        const statusLabel = labels[newStatus] || newStatus;
+
+        return confirm(
+            'WARNING\n\n' +
+            'You are about to change this member\'s status to ' +
+            statusLabel +
+            '.\n\n' +
+            'Please confirm that you want to continue.'
+        );
+    }
+
+
+    function confirmDependantsPermission(form) {
+
+        const enable = form.querySelector(
+            'input[name="enable"]'
+        ).value === '1';
+
+        if (enable) {
+
+            return confirm(
+                'WARNING\n\n' +
+                'You are about to ENABLE this member\'s ' +
+                'ability to manage their dependants.\n\n' +
+                'This permission is temporary and will expire ' +
+                'automatically after 24 hours.\n\n' +
+                'Do you want to continue?'
+            );
+
+        }
+
+        return confirm(
+            'WARNING\n\n' +
+            'You are about to DISABLE this member\'s ' +
+            'ability to manage their dependants.\n\n' +
+            'Do you want to continue?'
+        );
+    }
+
+
+    function confirmPortalAccessChange(form) {
+
+        const enable = form.querySelector(
+            'input[name="enable"]'
+        ).value === '1';
+
+        if (enable) {
+
+            return confirm(
+                'WARNING\n\n' +
+                'You are about to ENABLE access to the ' +
+                'Members Portal for this member.\n\n' +
+                'The member will be able to access their ' +
+                'member portal.\n\n' +
+                'Do you want to continue?'
+            );
+
+        }
+
+        return confirm(
+            'WARNING\n\n' +
+            'You are about to DISABLE this member\'s ' +
+            'access to the Members Portal.\n\n' +
+            'Do you want to continue?'
+        );
+    }
+
   </script>
 
   <style>

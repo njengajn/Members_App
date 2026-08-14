@@ -426,45 +426,188 @@ from datetime import timedelta
 
 @staff_member_required
 def admin_update_member_permissions(request, member_id):
+    """
+    Update member status and permissions.
 
-    member = get_object_or_404(Member, id=member_id)
-    member.is_portal_access_enabled = "portal_access" in request.POST
-    
-    if request.method == "POST":
+    Membership lifecycle
+    --------------------
+    PENDING -> ACTIVE
+    ACTIVE  -> RETIRED
+    RETIRED -> ACTIVE
 
-        # CRITICAL SAFETY CHECK - MEMBER/ADMIN SHOULD NOT CHANGE OWN STATUS.
-        if request.user == member.user:
-            messages.error(request, "You cannot modify your own account.")
-            return redirect("members_admin:admin_member_detail", member_id=member.id)
+    Activation rules
+    ----------------
+    • joined_at is set to the activation date.
+    • UID is allocated on first activation by Member.save().
+    • All dependants become active.
+    • Members Portal access is enabled.
+    • Claim cooling-off starts from joined_at.
 
-        member.status = request.POST.get("status")
+    Reactivation rules
+    ------------------
+    • joined_at is reset to the reactivation date.
+    • Existing UID is retained.
+    • Dependants become active.
+    • Portal access is enabled.
+    • Claim cooling-off starts again.
+    """
 
-        #  SAFE CHECKBOX HANDLING
-        can_edit_requested = "can_edit" in request.POST
+    member = get_object_or_404(
+        Member,
+        id=member_id,
+    )
 
-        if can_edit_requested:
-            member.enable_can_edit()
+    if request.method != "POST":
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
 
-            #  NOTIFY USER - VIA EMAIL
-            if member.user and member.user.email:
-                send_mail(
-                    subject="Dependants Editing Enabled",
-                    message=(
-                        "You have been granted permission to manage dependants. "
-                        "This access will expire in 24 hours."
-                    ),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[member.user.email],
-                    fail_silently=True,
-                )
-        else:
-            member.disable_can_edit()
+    # ------------------------------------------------------
+    # SAFETY: ADMIN CANNOT MODIFY OWN MEMBER RECORD
+    # ------------------------------------------------------
 
-        member.save()
+    if request.user == member.user:
+        messages.error(
+            request,
+            "You cannot modify your own account.",
+        )
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
 
-        messages.success(request, "Member updated successfully.")
+    new_status = request.POST.get("status")
 
-    return redirect("members_admin:admin_member_detail", member_id=member.id)
+    allowed_statuses = {
+        Member.STATUS_PENDING,
+        Member.STATUS_ACTIVE,
+        Member.STATUS_RETIRED,
+    }
+
+    if new_status not in allowed_statuses:
+        messages.error(
+            request,
+            "Invalid member status selected.",
+        )
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
+
+    old_status = member.status
+
+    # ------------------------------------------------------
+    # STATUS CHANGE
+    # ------------------------------------------------------
+
+    if new_status == Member.STATUS_ACTIVE:
+
+        # Activation OR reactivation
+        if old_status != Member.STATUS_ACTIVE:
+
+            # Cooling-off starts from every activation.
+            member.joined_at = timezone.now()
+
+            # Portal must be enabled on activation.
+            member.is_portal_access_enabled = True
+
+            # Dependants become active.
+            member.dependants.update(
+                status="active"
+            )
+
+            # Member should not retain temporary edit access
+            # simply because they were activated.
+            member.can_edit = False
+            member.can_edit_expires_at = None
+
+    elif new_status == Member.STATUS_RETIRED:
+
+        member.status = Member.STATUS_RETIRED
+
+        member.can_edit = False
+        member.can_edit_expires_at = None
+
+        # Retired members cannot access the portal.
+        member.is_portal_access_enabled = False
+
+        # Dependants follow member lifecycle.
+        member.dependants.update(
+            status="retired"
+        )
+
+    elif new_status == Member.STATUS_PENDING:
+
+        # Pending means not activated.
+        member.can_edit = False
+        member.can_edit_expires_at = None
+
+        # Pending members cannot use the portal.
+        member.is_portal_access_enabled = False
+
+        # A pending member cannot be in claim cooling-off.
+        # joined_at is cleared because there is no active
+        # membership period.
+        member.joined_at = None
+
+    member.status = new_status
+
+    # ------------------------------------------------------
+    # DEPENDANT MANAGEMENT PERMISSION
+    # ------------------------------------------------------
+
+    can_edit_requested = (
+        "can_edit" in request.POST
+    )
+
+    if (
+        new_status == Member.STATUS_ACTIVE
+        and can_edit_requested
+    ):
+        member.can_edit = True
+        member.can_edit_expires_at = (
+            timezone.now() + timedelta(hours=24)
+        )
+
+        if member.user and member.user.email:
+            send_mail(
+                subject="Dependants Editing Enabled",
+                message=(
+                    "You have been granted permission "
+                    "to manage dependants. "
+                    "This access will expire in 24 hours."
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[
+                    member.user.email
+                ],
+                fail_silently=True,
+            )
+
+    elif new_status != Member.STATUS_ACTIVE:
+        member.can_edit = False
+        member.can_edit_expires_at = None
+
+    else:
+        member.can_edit = False
+        member.can_edit_expires_at = None
+
+    # ------------------------------------------------------
+    # SAVE
+    # ------------------------------------------------------
+
+    member.save()
+
+    messages.success(
+        request,
+        "Member updated successfully.",
+    )
+
+    return redirect(
+        "members_admin:admin_member_detail",
+        member_id=member.id,
+    )
 
 @staff_member_required
 def dependant_detail(request, pk):
@@ -817,4 +960,143 @@ def membership_history(request):
         {
             "records": records,
         },
+    )
+    
+
+@staff_member_required
+def toggle_member_dependant_edit(request, member_id):
+    member = get_object_or_404(Member, id=member_id)
+
+    if request.method != "POST":
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
+
+    # --------------------------------------------------
+    # SAFETY: ADMIN CANNOT CHANGE OWN MEMBER PERMISSIONS
+    # --------------------------------------------------
+
+    if request.user == member.user:
+        messages.error(
+            request,
+            "You cannot modify your own account permissions.",
+        )
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
+
+    # --------------------------------------------------
+    # ONLY ACTIVE MEMBERS MAY MANAGE DEPENDANTS
+    # --------------------------------------------------
+
+    if member.status != Member.STATUS_ACTIVE:
+        messages.error(
+            request,
+            "Dependants management can only be enabled for an active member.",
+        )
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
+
+    enable = request.POST.get("enable") == "1"
+
+    if enable:
+        member.enable_can_edit()
+
+        if member.user and member.user.email:
+            send_mail(
+                subject="Dependants Management Enabled",
+                message=(
+                    "You have been granted permission to manage "
+                    "your dependants. This permission will expire "
+                    "automatically after 24 hours."
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[member.user.email],
+                fail_silently=True,
+            )
+
+        messages.success(
+            request,
+            "Dependants management has been enabled for this member.",
+        )
+
+    else:
+        member.disable_can_edit()
+
+        messages.success(
+            request,
+            "Dependants management has been disabled for this member.",
+        )
+
+    return redirect(
+        "members_admin:admin_member_detail",
+        member_id=member.id,
+    )
+    
+@staff_member_required
+def toggle_member_portal_access(request, member_id):
+    member = get_object_or_404(Member, id=member_id)
+
+    if request.method != "POST":
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
+
+    # --------------------------------------------------
+    # SAFETY: ADMIN CANNOT CHANGE OWN MEMBER ACCESS
+    # --------------------------------------------------
+
+    if request.user == member.user:
+        messages.error(
+            request,
+            "You cannot modify your own portal access.",
+        )
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
+
+    enable = request.POST.get("enable") == "1"
+
+    # --------------------------------------------------
+    # PORTAL ACCESS RULES
+    # --------------------------------------------------
+
+    if enable and member.status != Member.STATUS_ACTIVE:
+        messages.error(
+            request,
+            "Members Portal access can only be enabled for an active member.",
+        )
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
+
+    member.is_portal_access_enabled = enable
+
+    member.save(
+        update_fields=[
+            "is_portal_access_enabled",
+        ]
+    )
+
+    if enable:
+        messages.success(
+            request,
+            "Members Portal access has been enabled.",
+        )
+    else:
+        messages.success(
+            request,
+            "Members Portal access has been disabled.",
+        )
+
+    return redirect(
+        "members_admin:admin_member_detail",
+        member_id=member.id,
     )
