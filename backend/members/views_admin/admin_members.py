@@ -139,44 +139,180 @@ def admin_members_list(request):
 # UPDATE MEMBER STATUS (CRITICAL FIX)
 # ======================================================
 
+# ======================================================
+# UPDATE MEMBER STATUS
+# ======================================================
+
 @admin_required
 def update_member_status(request, member_id):
     """
-    FIXES:
-    - Removed UID generation from here
-    - Model handles UID when status → ACTIVE
+    Update the member's membership status.
+
+    Membership lifecycle
+    --------------------
+    PENDING  -> ACTIVE
+    ACTIVE   -> RETIRED
+    RETIRED  -> ACTIVE
+
+    Business rules
+    --------------
+    • Approve = Activate.
+    • joined_at is the activation date.
+    • First activation starts the claim cooling-off period.
+    • Reactivation starts a NEW cooling-off period.
+    • UID is allocated automatically by Member.save()
+      on the first transition to ACTIVE.
+    • Existing UID is retained on reactivation.
+    • All dependants are activated when the member becomes ACTIVE.
+    • Retired members and dependants are set to retired.
+    • Portal access remains an independent permission and is
+      NOT changed by this status operation.
     """
 
-    member = get_object_or_404(Member, id=member_id)
+    member = get_object_or_404(
+        Member,
+        id=member_id,
+    )
 
-    if request.method == "POST":
-        new_status = request.POST.get("status")
+    if request.method != "POST":
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
 
-        if new_status in ["pending", "approved", "active", "retired"]:
-            member.status = new_status
-            member.save()  # ✅ UID auto handled
+    new_status = request.POST.get("status")
 
-            # -----------------------------------------
-            # AUTO DEPENDANT STATUS SYNC
-            # -----------------------------------------
-            if new_status == "active":
-                member.dependants.update(status="active")
-                member.can_edit = False
-            elif new_status == "retired":
-                member.dependants.update(status="retired")
-                member.can_edit = False
+    # --------------------------------------------------
+    # ONLY THESE MEMBERSHIP STATUSES ARE VALID
+    # --------------------------------------------------
 
-            member.save()
+    allowed_statuses = {
+        Member.STATUS_PENDING,
+        Member.STATUS_ACTIVE,
+        Member.STATUS_RETIRED,
+    }
 
-            messages.success(request, "Member status updated successfully.")
-        else:
-            messages.error(request, "Invalid status selected.")
+    if new_status not in allowed_statuses:
+        messages.error(
+            request,
+            "Invalid member status selected.",
+        )
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
+
+    old_status = member.status
+
+    # --------------------------------------------------
+    # PENDING -> ACTIVE
+    # OR
+    # RETIRED -> ACTIVE
+    # --------------------------------------------------
+
+    if new_status == Member.STATUS_ACTIVE:
+
+        if old_status != Member.STATUS_ACTIVE:
+
+            # ------------------------------------------
+            # ACTIVATION DATE
+            # ------------------------------------------
+            #
+            # This is the date:
+            # • Membership Approved card displays
+            # • Membership Age starts
+            # • Claim cooling-off starts
+            # • Eligible From is calculated from
+            #
+            # On reactivation this is deliberately
+            # reset to the new activation date.
+            #
+            member.joined_at = timezone.now()
+
+            # ------------------------------------------
+            # ACTIVATE ALL DEPENDANTS
+            # ------------------------------------------
+
+            member.dependants.update(
+                status="active"
+            )
+
+            # ------------------------------------------
+            # RESET TEMPORARY DEPENDANT EDIT ACCESS
+            # ------------------------------------------
+
+            member.can_edit = False
+            member.can_edit_expires_at = None
+
+            # ------------------------------------------
+            # PORTAL ACCESS
+            # ------------------------------------------
+            #
+            # DO NOT change is_portal_access_enabled here.
+            #
+            # Portal access is an independent permission.
+            # Pending members may legitimately have portal
+            # access, with portal views restricting what
+            # they can see/use.
+            #
+            # Therefore this status operation must not
+            # disable or otherwise override that setting.
+
+    # --------------------------------------------------
+    # ACTIVE -> RETIRED
+    # --------------------------------------------------
+
+    elif new_status == Member.STATUS_RETIRED:
+
+        member.dependants.update(
+            status="retired"
+        )
+
+        member.can_edit = False
+        member.can_edit_expires_at = None
+
+        # Do NOT clear joined_at here.
+        #
+        # It preserves the previous activation date/history.
+        #
+        # If the member is later reactivated, joined_at will
+        # be replaced with the new reactivation date.
+
+    # --------------------------------------------------
+    # ACTIVE/RETIRED -> PENDING
+    # --------------------------------------------------
+
+    elif new_status == Member.STATUS_PENDING:
+
+        # A Pending member cannot be in a cooling-off period.
+        member.joined_at = None
+
+        member.can_edit = False
+        member.can_edit_expires_at = None
+
+    # --------------------------------------------------
+    # SET STATUS
+    # --------------------------------------------------
+
+    member.status = new_status
+
+    # --------------------------------------------------
+    # SAVE
+    # --------------------------------------------------
+    #
+    # Member.save() handles first-time UID allocation.
+    #
+    member.save()
+
+    messages.success(
+        request,
+        "Member status updated successfully.",
+    )
 
     return redirect(
         "members_admin:admin_member_detail",
         member_id=member.id,
     )
-
 
 # ======================================================
 # ADMIN MEMBER DETAIL

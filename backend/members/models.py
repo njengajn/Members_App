@@ -444,11 +444,8 @@ class Member(models.Model):
     @property
     def can_make_claim(self):
         """
-        Returns True when the active member has completed
-        the 180-day claim cooling-off period.
-
-        Pending members cannot make claims because
-        joined_at is NULL.
+        Returns True only when the member is currently ACTIVE
+        and has completed the 180-day claim cooling-off period.
         """
 
         if self.status != self.STATUS_ACTIVE:
@@ -465,35 +462,36 @@ class Member(models.Model):
     @property
     def membership_age_days(self):
         """
-        Number of days since the member's latest activation.
+        Number of days since the member's current activation.
 
-        This is also the number of days elapsed in the
-        current claim cooling-off period.
+        Pending members have no active membership period.
+        Retired members are not currently active.
         """
 
-        if (
-            self.status != self.STATUS_ACTIVE
-            or not self.joined_at
-        ):
+        if self.status != self.STATUS_ACTIVE:
+            return None
+
+        if not self.joined_at:
             return None
 
         return (timezone.now() - self.joined_at).days
-
-
+    
     @property
     def claim_eligibility_date(self):
         """
-        Date the active member completes the
-        180-day claim cooling-off period.
+        Date the currently active member completes
+        the 180-day claim cooling-off period.
         """
 
-        if (
-            self.status != self.STATUS_ACTIVE
-            or not self.joined_at
-        ):
+        if self.status != self.STATUS_ACTIVE:
+            return None
+
+        if not self.joined_at:
             return None
 
         return self.joined_at + timedelta(days=180)
+
+
     
     @property
     def claim_progress_percent(self):
@@ -514,13 +512,19 @@ class Member(models.Model):
     @property
     def days_until_claim(self):
         """
-        Days remaining before the member
-        becomes eligible to submit a claim.
+        Number of days remaining before the currently active
+        member becomes eligible to submit a claim.
         """
+
+        if self.status != self.STATUS_ACTIVE:
+            return None
+
         if not self.joined_at:
             return None
 
-        remaining = 180 - (self.membership_age_days or 0)
+        remaining = 180 - (
+            self.membership_age_days or 0
+        )
 
         return max(remaining, 0)
 
