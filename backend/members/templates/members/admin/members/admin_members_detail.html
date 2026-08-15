@@ -565,292 +565,341 @@
                 </div>
                 <!-- END MEMBER INFORMATION -->
 
-
+                
                 <!-- ================================================= -->
                 <!-- MEMBER ADMIN CONTROLS -->
                 <!-- ================================================= -->
 
-                    <!-- ====================================================== -->
-                    <!-- UPDATE MEMBER STATUS -->
-                    <!-- ====================================================== -->
+                <div class="col-12 col-lg-4">
 
-                    <div class="col-12 col-lg-4">
+                    <div class="card mb-4">
 
-                        <label
-                            for="memberStatusSelect"
-                            class="form-label fw-bold"
-                        >
-                            Update member status
-                        </label>
-
-                        <select
-                            name="status"
-                            id="memberStatusSelect"
-                            class="form-select"
-                            data-current-status="{{ member.status }}"
-                            required
-                            {% if request.user == member.user %}disabled{% endif %}
-                        >
-
-                            <!-- ================================================= -->
-                            <!-- PENDING -->
-                            <!-- ================================================= -->
-                            <option
-                                value="pending"
-                                {% if member.status == "pending" %}selected{% endif %}
-                            >
-                                Pending
-                            </option>
-
-
-                            <!-- ========================================== -->
-                            <!-- APPROVED -->
-                            <!-- ============================================ -->
-                            <option
-                                value="approved"
-                                {% if member.status == "approved" %}selected{% endif %}
-                            >
-                                Approved
-                            </option>
-
-
-                            <!-- ============================================== -->
-                            <!-- ACTIVE -->
-                            <!-- ============================================== -->
-                            <option
-                                value="active"
-                                {% if member.status == "active" %}selected{% endif %}
-                            >
-                                Active
-                            </option>
-
-
-                            <!-- ================================================= -->
-                            <!-- RETIRED -->
-                            <!-- =================================================- -->
-                            <option
-                                value="retired"
-                                {% if member.status == "retired" %}selected{% endif %}
-                            >
-                                Retired
-                            </option>
-
-                        </select>
-
-                        <div
-                            id="statusTransitionHelp"
-                            class="form-text mt-2"
-                        ></div>
-
-                    </div>
-
-
-                            <button
-                                type="submit"
-                                class="btn btn-primary w-100"
-                                {% if request.user == member.user %}
-                                    disabled
-                                {% endif %}
-                            >
-                                Update Member Status
-                            </button>
-
-                        </form>
-
-                    </div>
-
-
-                    <!-- ============================================= -->
-                    <!-- DEPENDANTS MANAGEMENT -->
-                    <!-- ============================================= -->
-
-                    <div class="card bg-light p-3 mb-3">
-
-                        <label class="fw-bold d-block mb-2">
-                            Allow member to manage dependants
-                        </label>
-
-
-                        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-
-                            {% if member.can_edit %}
-
-                                <span class="badge bg-success">
-                                    ENABLED
-                                </span>
-
-
-                                {% if member.can_edit_expires_at %}
-
-                                    <span class="small text-muted">
-                                        Expires:
-                                        {{ member.can_edit_expires_at|date:"d M Y H:i" }}
-                                    </span>
-
-                                {% endif %}
-
-                            {% else %}
-
-                                <span class="badge bg-danger">
-                                    DISABLED
-                                </span>
-
-                            {% endif %}
-
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                Member Admin Controls
+                            </h5>
                         </div>
 
 
-                        {% if member.status == "active" %}
+                        <div class="card-body">
 
-                            <form
-                                method="POST"
-                                action="{% url 'members_admin:toggle_member_dependant_edit' member.id %}"
-                                onsubmit="
-                                    return confirmDependantsPermission(this);
-                                "
-                                class="w-100"
-                            >
+                            <!-- ================================================= -->
+                            <!-- UPDATE MEMBER STATUS -->
+                            <!-- ================================================= -->
 
-                                {% csrf_token %}
+                            <div class="card bg-light mb-3">
 
+                                <div class="card-body">
 
-                                {% if member.can_edit %}
-
-                                    <input
-                                        type="hidden"
-                                        name="enable"
-                                        value="0"
+                                    <form
+                                        method="post"
+                                        action="{% url 'members_admin:update_member_status' member.id %}"
+                                        id="memberStatusForm"
                                     >
 
-
-                                    <button
-                                        type="submit"
-                                        class="btn btn-outline-danger w-100"
-                                        {% if request.user == member.user %}
-                                            disabled
-                                        {% endif %}
-                                    >
-                                        Disable Dependants Management
-                                    </button>
-
-                                {% else %}
-
-                                    <input
-                                        type="hidden"
-                                        name="enable"
-                                        value="1"
-                                    >
+                                        {% csrf_token %}
 
 
-                                    <button
-                                        type="submit"
-                                        class="btn btn-outline-success w-100"
-                                        {% if request.user == member.user %}
-                                            disabled
-                                        {% endif %}
-                                    >
-                                        Enable Dependants Management
-                                    </button>
+                                        <label
+                                            for="memberStatusSelect"
+                                            class="form-label fw-bold"
+                                        >
+                                            Update member status
+                                        </label>
 
-                                {% endif %}
 
-                            </form>
+                                        <select
+                                            name="status"
+                                            id="memberStatusSelect"
+                                            class="form-select w-100"
+                                            data-current-status="{{ member.status }}"
+                                            required
+                                            {% if request.user == member.user %}
+                                                disabled
+                                            {% endif %}
+                                        >
 
-                        {% else %}
+                                            <!-- ================================= -->
+                                            <!-- PENDING -->
+                                            <!-- ================================= -->
 
-                            <div class="alert alert-secondary small mb-0">
-                                Dependants management is available only
-                                for an Active member.
+                                            <option
+                                                value="pending"
+                                                {% if member.status == "pending" %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                Pending
+                                            </option>
+
+
+                                            <!-- ================================= -->
+                                            <!-- APPROVED -->
+                                            <!-- ================================= -->
+
+                                            <option
+                                                value="approved"
+                                                {% if member.status == "approved" %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                Approved
+                                            </option>
+
+
+                                            <!-- ================================= -->
+                                            <!-- ACTIVE -->
+                                            <!-- ================================= -->
+
+                                            <option
+                                                value="active"
+                                                {% if member.status == "active" %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                Active
+                                            </option>
+
+
+                                            <!-- ================================= -->
+                                            <!-- RETIRED -->
+                                            <!-- ================================= -->
+
+                                            <option
+                                                value="retired"
+                                                {% if member.status == "retired" %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                Retired
+                                            </option>
+
+                                        </select>
+
+
+                                        <div
+                                            id="statusTransitionHelp"
+                                            class="form-text mt-2"
+                                        ></div>
+
+
+                                        <div class="d-grid mt-3">
+
+                                            <button
+                                                type="submit"
+                                                class="btn btn-primary"
+                                                id="updateMemberStatusButton"
+                                                {% if request.user == member.user %}
+                                                    disabled
+                                                {% endif %}
+                                            >
+                                                Update Member Status
+                                            </button>
+
+                                        </div>
+
+                                    </form>
+
+                                </div>
+
                             </div>
 
-                        {% endif %}
 
-                    </div>
+                            <!-- ================================================= -->
+                            <!-- DEPENDANTS MANAGEMENT -->
+                            <!-- ================================================= -->
 
+                            <div class="card bg-light mb-3">
 
-                    <!-- ============================================= -->
-                    <!-- MEMBERS PORTAL ACCESS -->
-                    <!-- ============================================= -->
+                                <div class="card-body">
 
-                    <div class="card bg-light p-3 mb-3">
-
-                        <label class="fw-bold d-block mb-2">
-                            Allow access to Members Portal
-                        </label>
+                                    <label class="fw-bold d-block mb-2">
+                                        Allow member to manage dependants
+                                    </label>
 
 
-                        <div class="mb-3">
+                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
 
-                            {% if member.is_portal_access_enabled %}
+                                        {% if member.can_edit %}
 
-                                <span class="badge bg-success">
-                                    ENABLED
-                                </span>
+                                            <span class="badge bg-success">
+                                                ENABLED
+                                            </span>
 
-                            {% else %}
 
-                                <span class="badge bg-danger">
-                                    DISABLED
-                                </span>
+                                            {% if member.can_edit_expires_at %}
 
-                            {% endif %}
+                                                <span class="small text-muted">
+                                                    Expires:
+                                                    {{ member.can_edit_expires_at|date:"d M Y H:i" }}
+                                                </span>
+
+                                            {% endif %}
+
+                                        {% else %}
+
+                                            <span class="badge bg-danger">
+                                                DISABLED
+                                            </span>
+
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    {% if member.status == "active" %}
+
+                                        <form
+                                            method="POST"
+                                            action="{% url 'members_admin:toggle_member_dependant_edit' member.id %}"
+                                            onsubmit="return confirmDependantsPermission(this);"
+                                        >
+
+                                            {% csrf_token %}
+
+
+                                            {% if member.can_edit %}
+
+                                                <input
+                                                    type="hidden"
+                                                    name="enable"
+                                                    value="0"
+                                                >
+
+                                                <button
+                                                    type="submit"
+                                                    class="btn btn-outline-danger w-100"
+                                                    {% if request.user == member.user %}
+                                                        disabled
+                                                    {% endif %}
+                                                >
+                                                    Disable Dependants Management
+                                                </button>
+
+                                            {% else %}
+
+                                                <input
+                                                    type="hidden"
+                                                    name="enable"
+                                                    value="1"
+                                                >
+
+                                                <button
+                                                    type="submit"
+                                                    class="btn btn-outline-success w-100"
+                                                    {% if request.user == member.user %}
+                                                        disabled
+                                                    {% endif %}
+                                                >
+                                                    Enable Dependants Management
+                                                </button>
+
+                                            {% endif %}
+
+                                        </form>
+
+                                    {% else %}
+
+                                        <div class="alert alert-secondary small mb-0">
+
+                                            Dependants management is available only
+                                            for an Active member.
+
+                                        </div>
+
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- ================================================= -->
+                            <!-- MEMBERS PORTAL ACCESS -->
+                            <!-- ================================================= -->
+
+                            <div class="card bg-light mb-3">
+
+                                <div class="card-body">
+
+                                    <label class="fw-bold d-block mb-2">
+                                        Allow access to Members Portal
+                                    </label>
+
+
+                                    <div class="mb-3">
+
+                                        {% if member.is_portal_access_enabled %}
+
+                                            <span class="badge bg-success">
+                                                ENABLED
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="badge bg-danger">
+                                                DISABLED
+                                            </span>
+
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <form
+                                        method="POST"
+                                        action="{% url 'members_admin:toggle_member_portal_access' member.id %}"
+                                        onsubmit="return confirmPortalAccessChange(this);"
+                                    >
+
+                                        {% csrf_token %}
+
+
+                                        {% if member.is_portal_access_enabled %}
+
+                                            <input
+                                                type="hidden"
+                                                name="enable"
+                                                value="0"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                class="btn btn-outline-danger w-100"
+                                                {% if request.user == member.user %}
+                                                    disabled
+                                                {% endif %}
+                                            >
+                                                Disable Members Portal Access
+                                            </button>
+
+                                        {% else %}
+
+                                            <input
+                                                type="hidden"
+                                                name="enable"
+                                                value="1"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                class="btn btn-outline-success w-100"
+                                                {% if request.user == member.user %}
+                                                    disabled
+                                                {% endif %}
+                                            >
+                                                Enable Members Portal Access
+                                            </button>
+
+                                        {% endif %}
+
+                                    </form>
+
+                                </div>
+
+                            </div>
 
                         </div>
-
-
-                        <form
-                            method="POST"
-                            action="{% url 'members_admin:toggle_member_portal_access' member.id %}"
-                            onsubmit="
-                                return confirmPortalAccessChange(this);
-                            "
-                            class="w-100"
-                        >
-
-                            {% csrf_token %}
-
-
-                            {% if member.is_portal_access_enabled %}
-
-                                <input
-                                    type="hidden"
-                                    name="enable"
-                                    value="0"
-                                >
-
-
-                                <button
-                                    type="submit"
-                                    class="btn btn-outline-danger w-100"
-                                    {% if request.user == member.user %}
-                                        disabled
-                                    {% endif %}
-                                >
-                                    Disable Members Portal Access
-                                </button>
-
-                            {% else %}
-
-                                <input
-                                    type="hidden"
-                                    name="enable"
-                                    value="1"
-                                >
-
-
-                                <button
-                                    type="submit"
-                                    class="btn btn-outline-success w-100"
-                                    {% if request.user == member.user %}
-                                        disabled
-                                    {% endif %}
-                                >
-                                    Enable Members Portal Access
-                                </button>
-
-                            {% endif %}
-
-                        </form>
 
                     </div>
 
@@ -858,14 +907,13 @@
                 <!-- END MEMBER ADMIN CONTROLS -->
 
             </div>
-            <!-- END MEMBER DETAILS ROW -->
+            <!-- END MEMBER DETAILS + ADMIN CONTROLS ROW -->
 
         </div>
         <!-- END MEMBER DETAILS CARD BODY -->
 
     </div>
     <!-- END MEMBER DETAILS CARD -->
-
 
     <!-- ===================================================== -->
     <!-- DEPENDANTS -->
