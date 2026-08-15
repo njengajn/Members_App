@@ -21,7 +21,7 @@
 
         <div class="card-body p-2">
 
-            <div class="table-responsive">
+            <div class="payments-table-container">
 
                 <table class="table table-hover align-middle mb-0 mobile-table mobile-table-responsive">
 
@@ -159,73 +159,88 @@
 
                             </td>
 
+                            <!-- ================================================= -->
                             <!-- ACTION -->
-                            <td data-label="Action" class="text-center">
+                            <!-- ================================================= -->
+
+                            <td
+                                data-label="Action"
+                                class="payment-action-cell text-center"
+                            >
 
                                 <!-- ============================================= -->
                                 <!-- FULLY PAID -->
                                 <!-- ============================================= -->
+
                                 {% if req.is_paid %}
 
-                                    <span class="badge bg-success">
+                                    <span class="badge bg-success payment-status-badge">
                                         Already Paid
                                     </span>
+
 
                                 <!-- ============================================= -->
                                 <!-- REQUEST NOT YET APPROVED -->
                                 <!-- ============================================= -->
+
                                 {% elif req.is_request_pending %}
 
-                                    <span class="badge bg-secondary">
+                                    <span class="badge bg-secondary payment-status-badge">
                                         Awaiting Approval
                                     </span>
+
 
                                 <!-- ============================================= -->
                                 <!-- MEMBER PAYMENT ALREADY SUBMITTED -->
                                 <!-- ============================================= -->
+
                                 {% elif req.is_payment_pending %}
 
-                                    <span class="badge bg-warning text-dark">
+                                    <span class="badge bg-warning text-dark payment-status-badge">
                                         Awaiting Confirmation
                                     </span>
+
 
                                 <!-- ============================================= -->
                                 <!-- OVERDUE -->
                                 <!-- ============================================= -->
+
                                 {% elif req.is_overdue_member %}
 
-                                    <span class="badge bg-danger">
+                                    <span class="badge bg-danger payment-status-badge">
                                         Overdue
                                     </span>
+
 
                                 <!-- ============================================= -->
                                 <!-- PAYABLE -->
                                 <!-- ============================================= -->
+
                                 {% else %}
 
-                                    <a href="{% url 'members:pay_payment_request' req.id %}"
-                                    class="btn mobile-btn-primary btn-sm pay-btn">
+                                    <div class="payment-action-wrapper">
 
-                                        Pay Now
+                                        <a
+                                            href="{% url 'members:pay_payment_request' req.id %}"
+                                            class="btn mobile-btn-primary btn-sm pay-btn"
+                                        >
+                                            Pay Now
+                                        </a>
 
-                                    </a>
 
-                                    {% if req.is_ending_soon %}
+                                        {% if req.is_ending_soon %}
 
-                                        <div class="mt-1">
-
-                                            <span class="badge bg-warning text-dark">
+                                            <span class="badge bg-warning text-dark payment-status-badge">
                                                 Closing Soon
                                             </span>
 
-                                        </div>
+                                        {% endif %}
 
-        {% endif %}
+                                    </div>
 
-    {% endif %}
+                                {% endif %}
 
-</td>
-
+                            </td>
 </tr>
 
                         {% empty %}

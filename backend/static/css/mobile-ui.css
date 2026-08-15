@@ -171,6 +171,267 @@ select:focus {
     font-size: 0.9rem;
 }
 
+
+/* ========================================================= */
+/* MOBILE TABLE CARD PRESENTATION                             */
+/* ========================================================= */
+/*
+ * On smaller devices the normal HTML table is converted
+ * into vertically stacked cards.
+ *
+ * The existing data-label attributes in the template are
+ * used to display each column heading.
+ *
+ * Desktop presentation remains unchanged.
+ */
+
+@media (max-width: 767.98px) {
+
+    /* ----------------------------------------------------- */
+    /* TABLE CONTAINER                                        */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive {
+        width: 100%;
+        min-width: 0;
+    }
+
+
+    /* ----------------------------------------------------- */
+    /* HIDE DESKTOP TABLE HEADER                              */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive thead {
+        display: none;
+    }
+
+
+    /* ----------------------------------------------------- */
+    /* TABLE / BODY                                           */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive,
+    .mobile-table-responsive tbody {
+        display: block;
+        width: 100%;
+    }
+
+
+    /* ----------------------------------------------------- */
+    /* EACH PAYMENT REQUEST BECOMES A CARD                    */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive tbody tr {
+        display: block;
+        width: 100%;
+        margin-bottom: 0.75rem;
+        padding: 0.65rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        background: #ffffff;
+    }
+
+
+    .mobile-table-responsive tbody tr:last-child {
+        margin-bottom: 0;
+    }
+
+
+    /* ----------------------------------------------------- */
+    /* TABLE CELLS                                            */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive td {
+        display: flex;
+        width: 100%;
+        min-width: 0;
+        padding: 0.5rem 0;
+        border: 0;
+        border-bottom: 1px solid #eeeeee;
+        text-align: left !important;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+
+    .mobile-table-responsive td:last-child {
+        border-bottom: 0;
+    }
+
+
+    /* ----------------------------------------------------- */
+    /* COLUMN LABEL                                           */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive td::before {
+        content: attr(data-label);
+
+        flex: 0 0 34%;
+        max-width: 34%;
+
+        font-weight: 600;
+        font-size: 0.85rem;
+
+        color: #52635a;
+
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+
+    /* ----------------------------------------------------- */
+    /* CELL CONTENT                                           */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive td > * {
+        min-width: 0;
+        max-width: 66%;
+    }
+
+    /* ----------------------------------------------------- */
+    /* PAYMENT TABLE CONTAINER                               */
+    /* ----------------------------------------------------- */
+
+    .payments-table-container {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: visible;
+    }
+
+    /* ----------------------------------------------------- */
+    /* DESCRIPTION                                            */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive
+    td[data-label="Description"] {
+
+        align-items: flex-start;
+    }
+
+
+    .mobile-table-responsive
+    td[data-label="Description"]
+    .mobile-description {
+
+        width: 100%;
+        max-width: 100%;
+
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+
+    /* ----------------------------------------------------- */
+    /* STATUS                                                 */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive
+    td[data-label="Status"] {
+
+        align-items: center;
+    }
+
+
+    .mobile-table-responsive
+    td[data-label="Status"]
+    .badge {
+
+        max-width: 100%;
+
+        white-space: normal;
+        text-align: center;
+
+        overflow-wrap: anywhere;
+    }
+
+
+    /* ----------------------------------------------------- */
+    /* ACTION                                                 */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive
+    td[data-label="Action"] {
+
+        display: block;
+
+        padding-top: 0.75rem;
+
+        text-align: left !important;
+    }
+
+
+    .mobile-table-responsive
+    td[data-label="Action"]::before {
+
+        display: block;
+
+        max-width: 100%;
+
+        margin-bottom: 0.5rem;
+    }
+
+
+    /* ----------------------------------------------------- */
+    /* PAY NOW BUTTON                                         */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive
+    td[data-label="Action"]
+    .pay-btn {
+
+        width: 100%;
+
+        display: block;
+
+        text-align: center;
+
+        white-space: normal;
+    }
+
+
+    /* ----------------------------------------------------- */
+    /* ACTION BADGES                                          */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive
+    td[data-label="Action"]
+    .badge {
+
+        display: inline-block;
+
+        max-width: 100%;
+
+        white-space: normal;
+
+        text-align: center;
+
+        overflow-wrap: anywhere;
+    }
+
+
+    /* ----------------------------------------------------- */
+    /* EMPTY TABLE MESSAGE                                    */
+    /* ----------------------------------------------------- */
+
+    .mobile-table-responsive
+    td[colspan] {
+
+        display: block;
+
+        text-align: center !important;
+    }
+
+
+    .mobile-table-responsive
+    td[colspan]::before {
+
+        display: none;
+    }
+
+}
+
 /* ========================================================= */
 /* BUTTONS                                                    */
 /* ========================================================= */
@@ -256,11 +517,6 @@ select:focus {
     font-size: 0.74rem;
     font-weight: 600;
 }
-
-/* ========================================================= */
-/* MOBILE RESPONSIVE TABLE CARDS                              */
-/* ========================================================= */
-
 
 
 /* ========================================================= */
