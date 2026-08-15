@@ -199,93 +199,7 @@ def admin_payments_list(request):
             "tab": tab,
         },
     )
-
-@admin_required
-def admin_payments_listOnHold28_05_26(request):
-    """
-    Admin Payment Requests List
-
-    ✔ Shows:
-        - Active / Overdue / Closed tabs
-        - Pending payment count per request
-        - Global pending count
-    """
-
-    tab = request.GET.get("tab", "active")
-    now = timezone.now()
-
-    # --------------------------------------------------
-    # BASE QUERY
-    # --------------------------------------------------
-    payment_requests = PaymentRequest.objects.all().order_by("-created_at")
-
-    # --------------------------------------------------
-    # TAB FILTERING
-    # --------------------------------------------------
-    if tab == "active":
-        payment_requests = payment_requests.filter(
-            status=PaymentRequest.STATUS_ACTIVE,
-            due_date__gte=now
-        )
-
-    elif tab == "overdue":
-        payment_requests = payment_requests.filter(
-            status=PaymentRequest.STATUS_ACTIVE,
-            due_date__lt=now
-        )
-
-    elif tab == "closed":
-        payment_requests = payment_requests.filter(
-            status=PaymentRequest.STATUS_CLOSED
-        )
-
-    # --------------------------------------------------
-    # ADD PENDING COUNT PER REQUEST (CRITICAL FIX)
-    # --------------------------------------------------
-    payment_requests = payment_requests.annotate(
-        pending_count=Count(
-            "payments",
-            filter=Q(payments__status=Payment.STATUS_PENDING)
-        )
-    )
-
-    # --------------------------------------------------
-    # GLOBAL COUNTS
-    # --------------------------------------------------
-    counts = {
-        "active": PaymentRequest.objects.filter(
-            status=PaymentRequest.STATUS_ACTIVE,
-            due_date__gte=now
-        ).count(),
-
-        "overdue": PaymentRequest.objects.filter(
-            status=PaymentRequest.STATUS_ACTIVE,
-            due_date__lt=now
-        ).count(),
-
-        "closed": PaymentRequest.objects.filter(
-            status=PaymentRequest.STATUS_CLOSED
-        ).count(),
-    }
-
-    # --------------------------------------------------
-    # GLOBAL PENDING COUNT (REUSED)
-    # --------------------------------------------------
-    pending_total = Payment.objects.filter(
-        status=Payment.STATUS_PENDING
-    ).count()
-
-    return render(
-        request,
-        "members/admin/payments/admin_payments_list.html",
-        {
-            "payment_requests": payment_requests,
-            "counts": counts,
-            "pending_total": pending_total,
-            "tab": tab,
-        },
-    )
-    
+  
 @admin_required
 def payment_request_detail(request, pk):
     """
@@ -373,12 +287,83 @@ def admin_view_payment_request(request, pk):
             "payments": payments,
         },
     )
+    
+# ======================================================
+# PAYMENT REQUEST MEMBER ELIGIBILITY
+# ======================================================
+def get_payment_request_members(request_type):
+    """
+    Return the members who may be targeted by a
+    payment request of the supplied type.
 
+    BUSINESS RULES
+    --------------
+
+    Membership:
+        Approved + Active
+
+    Other:
+        Approved + Active
+
+    Subscription:
+        Active only
+
+    Claim Settlement:
+        Active only
+
+    Pending:
+        Never eligible for a new payment request.
+
+    Retired:
+        Never eligible for a new payment request.
+
+    IMPORTANT
+    ---------
+    Approved is intentionally NOT treated as Active
+    throughout the application.
+
+    Approved is only included here for payment-request
+    types that an approved applicant is allowed to pay.
+    """
+
+    if request_type in [
+        "membership",
+        "other",
+    ]:
+
+        allowed_statuses = [
+            Member.STATUS_APPROVED,
+            Member.STATUS_ACTIVE,
+        ]
+
+    elif request_type in [
+        "subscription",
+        "claim",
+    ]:
+
+        allowed_statuses = [
+            Member.STATUS_ACTIVE,
+        ]
+
+    else:
+
+        # Invalid request type = no eligible members.
+        allowed_statuses = []
+
+    return Member.objects.filter(
+        status__in=allowed_statuses
+    ).order_by(
+        "first_name",
+        "surname",
+    )
 
 # ==========================================
 # CREATE PAYMENT REQUEST
 # ==========================================
 
+# ======================================================
+# CREATE PAYMENT REQUEST
+# ======================================================
 @admin_required
 def create_payment_request(request):
     """
@@ -392,37 +377,94 @@ def create_payment_request(request):
         - Single Member
         - Selected Members
 
-    PURPOSE
+    PAYMENT REQUEST TYPES
 
-        - Normal Payment Request
-        - Claim Settlement
+        Membership:
+            Approved + Active
+
+        Other:
+            Approved + Active
+
+        Subscription:
+            Active only
+
+        Claim Settlement:
+            Active only
+
+    IMPORTANT
+
+        Approved members are included ONLY where
+        the payment request type permits it.
+
+        Approved does NOT mean Active.
+
+        Pending and Retired members cannot be
+        targeted for new payment requests.
+
+    TARGET VALIDATION
+
+        The queryset is used for BOTH:
+
+            1. displaying eligible members
+            2. validating submitted member IDs
+
+        This prevents a manipulated POST request from
+        bypassing the status rules.
 
     PAYMENT REQUEST LIFECYCLE
 
         ACTIVE -> CLOSED -> ARCHIVED
 
-    Claim settlements do NOT alter
-    targeting behaviour.
-
-    Notifications may be enabled
-    or disabled per request.
+    Notifications may be enabled or disabled
+    per request.
     =====================================================
     """
+
+    # =================================================
+    # REQUEST TYPE FOR PAGE DISPLAY
+    # =================================================
+    #
+    # On GET:
+    #     This controls which members are displayed.
+    #
+    # Default:
+    #     "other" because that was the existing default
+    #     in the template.
+    #
+    # On POST:
+    #     The actual submitted request_type is validated
+    #     again below.
+    # =================================================
+
+    page_request_type = request.GET.get(
+        "request_type",
+        "other",
+    )
+
+
+    if page_request_type not in [
+        "membership",
+        "subscription",
+        "claim",
+        "other",
+    ]:
+
+        page_request_type = "other"
+
 
     # =================================================
     # PAGE DATA
     # =================================================
 
-    members = Member.objects.filter(
-        status=Member.STATUS_ACTIVE
-    ).order_by(
-        "first_name",
-        "surname",
+    members = get_payment_request_members(
+        page_request_type
     )
+
 
     approved_claims = Claim.objects.filter(
         status=Claim.STATUS_APPROVED
     )
+
 
     # =================================================
     # FORM SUBMISSION
@@ -433,6 +475,43 @@ def create_payment_request(request):
         try:
 
             # =========================================
+            # REQUEST TYPE
+            # =========================================
+
+            request_type = request.POST.get(
+                "request_type"
+            )
+
+
+            if request_type not in [
+                "membership",
+                "subscription",
+                "claim",
+                "other",
+            ]:
+
+                raise ValueError(
+                    "Invalid payment request type."
+                )
+
+
+            # =========================================
+            # ELIGIBLE MEMBERS FOR THIS REQUEST TYPE
+            # =========================================
+            #
+            # IMPORTANT:
+            # This queryset is the authoritative source
+            # for target validation.
+            # =========================================
+
+            eligible_members = (
+                get_payment_request_members(
+                    request_type
+                )
+            )
+
+
+            # =========================================
             # TARGETING
             # =========================================
 
@@ -441,15 +520,18 @@ def create_payment_request(request):
                 "all",
             )
 
+
             member_id = request.POST.get(
                 "member"
             )
+
 
             selected_members_ids = (
                 request.POST.getlist(
                     "selected_members"
                 )
             )
+
 
             # =========================================
             # TITLE
@@ -460,11 +542,13 @@ def create_payment_request(request):
                 ""
             ).strip()
 
+
             if not title:
 
                 raise ValueError(
                     "Title is required."
                 )
+
 
             # =========================================
             # DESCRIPTION
@@ -474,6 +558,7 @@ def create_payment_request(request):
                 "description",
                 ""
             ).strip()
+
 
             # =========================================
             # NOTIFICATIONS
@@ -485,6 +570,7 @@ def create_payment_request(request):
                 ) == "on"
             )
 
+
             # =========================================
             # PAYMENT METHOD
             # =========================================
@@ -493,11 +579,13 @@ def create_payment_request(request):
                 "payment_method"
             )
 
+
             if not payment_method:
 
                 raise ValueError(
                     "Payment method is required."
                 )
+
 
             if payment_method not in [
                 "manual",
@@ -509,6 +597,7 @@ def create_payment_request(request):
                     "Invalid payment method selected."
                 )
 
+
             # =========================================
             # DUE DATE
             # =========================================
@@ -519,31 +608,31 @@ def create_payment_request(request):
                 )
             )
 
+
             # =========================================
-            # OTHER FORM DATA
+            # CLAIM
             # =========================================
 
             claim_id = request.POST.get(
                 "claim"
             )
 
-            request_type = request.POST.get(
-                "request_type"
-            )
+
+            # =========================================
+            # AMOUNT
+            # =========================================
 
             amount = request.POST.get(
                 "amount"
             )
 
-            # =========================================
-            # AMOUNT VALIDATION
-            # =========================================
 
             if not amount:
 
                 raise ValueError(
                     "Amount is required."
                 )
+
 
             try:
 
@@ -555,14 +644,32 @@ def create_payment_request(request):
                     "Amount must be numeric."
                 )
 
+
             if amount <= 0:
 
                 raise ValueError(
                     "Amount must be greater than zero."
                 )
 
+
             # =========================================
             # TARGET VALIDATION
+            # =========================================
+            #
+            # SINGLE
+            # -------
+            # The selected member MUST belong to the
+            # request-type-specific eligible queryset.
+            #
+            # SELECTED
+            # --------
+            # EVERY submitted member ID MUST belong to
+            # the eligible queryset.
+            #
+            # ALL
+            # ---
+            # The eligible queryset itself becomes the
+            # target population.
             # =========================================
 
             if target_mode == "single":
@@ -573,24 +680,41 @@ def create_payment_request(request):
                         "Please select a member."
                     )
 
+
                 if selected_members_ids:
 
                     raise ValueError(
-                        "Single member mode cannot use selected members."
+                        "Single member mode cannot use "
+                        "selected members."
                     )
 
-                Member.objects.get(
-                    id=member_id,
-                    status=Member.STATUS_ACTIVE,
-                )
+
+                try:
+
+                    selected_member = (
+                        eligible_members.get(
+                            id=member_id
+                        )
+                    )
+
+                except Member.DoesNotExist:
+
+                    raise ValueError(
+                        "The selected member is not "
+                        "eligible for this type of "
+                        "payment request."
+                    )
+
 
             elif target_mode == "selected":
 
                 if member_id:
 
                     raise ValueError(
-                        "Selected members mode cannot use single member."
+                        "Selected members mode cannot "
+                        "use single member."
                     )
+
 
                 if not selected_members_ids:
 
@@ -598,9 +722,45 @@ def create_payment_request(request):
                         "Please select at least one member."
                     )
 
+
+                # -------------------------------------
+                # Remove duplicate IDs from the POST.
+                # -------------------------------------
+
+                selected_members_ids = list(
+                    dict.fromkeys(
+                        selected_members_ids
+                    )
+                )
+
+
+                # -------------------------------------
+                # Validate EVERY selected member.
+                # -------------------------------------
+
+                eligible_selected_count = (
+                    eligible_members.filter(
+                        id__in=selected_members_ids
+                    ).count()
+                )
+
+
+                if (
+                    eligible_selected_count
+                    != len(selected_members_ids)
+                ):
+
+                    raise ValueError(
+                        "One or more selected members "
+                        "are not eligible for this type "
+                        "of payment request."
+                    )
+
+
             elif target_mode == "all":
 
                 pass
+
 
             else:
 
@@ -608,18 +768,43 @@ def create_payment_request(request):
                     "Invalid target mode."
                 )
 
+
             # =========================================
             # CLAIM SETTLEMENT
             # =========================================
 
             claim = None
 
+
             if claim_id:
+
+                # A claim payment request should only
+                # be used with a Claim Settlement request.
+                if request_type != "claim":
+
+                    raise ValueError(
+                        "A claim can only be used with "
+                        "a Claim Settlement payment request."
+                    )
+
 
                 claim = get_object_or_404(
                     Claim,
                     id=claim_id
                 )
+
+
+                # -------------------------------------
+                # Claim must be approved.
+                # -------------------------------------
+
+                if claim.status != Claim.STATUS_APPROVED:
+
+                    raise ValueError(
+                        "Only approved claims can have "
+                        "a Claim Settlement payment request."
+                    )
+
 
                 existing_request = (
                     PaymentRequest.objects.filter(
@@ -631,29 +816,54 @@ def create_payment_request(request):
                     ).exists()
                 )
 
+
                 if existing_request:
 
                     raise ValueError(
-                        "A payment request already exists for this claim."
+                        "A payment request already exists "
+                        "for this claim."
                     )
+
+
+                # -------------------------------------
+                # The claim member must be Active.
+                #
+                # Claim payment requests do not allow
+                # Approved-only members.
+                # -------------------------------------
+
+                if (
+                    claim.member is None
+                    or
+                    claim.member.status
+                    != Member.STATUS_ACTIVE
+                ):
+
+                    raise ValueError(
+                        "The member associated with this "
+                        "claim must be Active."
+                    )
+
 
             # =========================================
             # TARGET CONFIGURATION
             # =========================================
 
             member = None
+
             viewable_by_all = False
+
 
             if target_mode == "all":
 
                 viewable_by_all = True
 
+
             elif target_mode == "single":
 
-                member = get_object_or_404(
-                    Member,
-                    id=member_id
-                )
+                # Use the already validated object.
+                member = selected_member
+
 
             # =========================================
             # CREATE PAYMENT REQUEST
@@ -661,19 +871,32 @@ def create_payment_request(request):
 
             payment_request = (
                 PaymentRequest.objects.create(
+
                     title=title,
+
                     description=description,
+
                     request_type=request_type,
+
                     claim=claim,
+
                     member=member,
+
                     amount=amount,
+
                     due_date=due_date,
+
                     payment_method=payment_method,
+
                     send_notifications=send_notifications,
+
                     status=PaymentRequest.STATUS_ACTIVE,
+
                     viewable_by_all=viewable_by_all,
+
                 )
             )
+
 
             # =========================================
             # SELECTED MEMBERS
@@ -685,29 +908,42 @@ def create_payment_request(request):
                     selected_members_ids
                 )
 
+
             # =========================================
             # DETERMINE RECIPIENTS
+            # =========================================
+            #
+            # Use the SAME eligible queryset that was
+            # used to validate the request.
+            #
+            # This prevents notifications being sent
+            # to members who should not receive this
+            # type of request.
             # =========================================
 
             target_members = []
 
+
             if target_mode == "all":
 
-                target_members = (
-                    Member.objects.filter(
-                        status=Member.STATUS_ACTIVE
-                    )
-                )
+                target_members = eligible_members
+
 
             elif target_mode == "single":
 
-                target_members = [member]
+                target_members = [
+                    member
+                ]
+
 
             elif target_mode == "selected":
 
                 target_members = (
-                    payment_request.selected_members.all()
+                    payment_request
+                    .selected_members
+                    .all()
                 )
+
 
             # =========================================
             # SEND NOTIFICATIONS
@@ -722,6 +958,7 @@ def create_payment_request(request):
                         payment_request
                     )
 
+
             # =========================================
             # SUCCESS
             # =========================================
@@ -731,9 +968,11 @@ def create_payment_request(request):
                 "Payment request created successfully."
             )
 
+
             return redirect(
                 "members_admin:admin_payments_list"
             )
+
 
         except Member.DoesNotExist:
 
@@ -742,12 +981,14 @@ def create_payment_request(request):
                 "Selected member does not exist."
             )
 
+
         except Exception as e:
 
             messages.error(
                 request,
                 str(e)
             )
+
 
     # =================================================
     # INITIAL PAGE LOAD
@@ -758,8 +999,15 @@ def create_payment_request(request):
         "members/admin/payments/admin_create_payment_request.html",
         {
             "members": members,
-            "approved_claims": approved_claims,
-            "today": timezone.now(),
+
+            "approved_claims":
+                approved_claims,
+
+            "today":
+                timezone.now(),
+
+            "selected_request_type":
+                page_request_type,
         },
     )
 

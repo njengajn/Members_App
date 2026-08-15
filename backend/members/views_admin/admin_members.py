@@ -134,10 +134,122 @@ def admin_members_list(request):
         {"members": members},
     )
 
+# ======================================================
+# MEMBER STATUS TRANSITION GUARD
+# ======================================================
+def is_allowed_member_status_transition(
+    old_status,
+    new_status,
+):
+    """
+    Determine whether a requested member status transition
+    is allowed by the membership lifecycle.
 
+    ALLOWED LIFECYCLE
+    -----------------
+        PENDING  -> APPROVED
+        APPROVED -> ACTIVE
+        ACTIVE   -> RETIRED
+        RETIRED  -> ACTIVE
+
+    Same-status updates are also allowed. This permits an
+    administrator to submit the current status without
+    causing an unnecessary error.
+
+    ALL OTHER TRANSITIONS ARE BLOCKED.
+
+    IMPORTANT
+    ---------
+    This is deliberately enforced in the backend rather
+    than relying on the HTML select options. A user could
+    otherwise submit a manually constructed POST request.
+    """
+
+    # ------------------------------------------------------
+    # SAME STATUS
+    # ------------------------------------------------------
+    #
+    # Selecting the status the member already has is not a
+    # lifecycle transition and is therefore harmless.
+    # ------------------------------------------------------
+
+    if old_status == new_status:
+        return True
+
+
+    # ------------------------------------------------------
+    # AUTHORISED STATUS TRANSITIONS
+    # ------------------------------------------------------
+
+    allowed_transitions = {
+
+        Member.STATUS_PENDING: {
+            Member.STATUS_APPROVED,
+        },
+
+        Member.STATUS_APPROVED: {
+            Member.STATUS_ACTIVE,
+        },
+
+        Member.STATUS_ACTIVE: {
+            Member.STATUS_RETIRED,
+        },
+
+        Member.STATUS_RETIRED: {
+            Member.STATUS_ACTIVE,
+        },
+
+    }
+
+
+    return (
+        new_status
+        in allowed_transitions.get(
+            old_status,
+            set(),
+        )
+    )
+    
 # ======================================================
-# UPDATE MEMBER STATUS (CRITICAL FIX)
+# MEMBER STATUS TRANSITION ERROR MESSAGE
 # ======================================================
+def get_member_status_transition_error(
+    old_status,
+    new_status,
+):
+    """
+    Return a clear administrator-facing explanation when
+    a requested member status transition is not allowed.
+    """
+
+    status_names = {
+        Member.STATUS_PENDING: "Pending",
+        Member.STATUS_APPROVED: "Approved",
+        Member.STATUS_ACTIVE: "Active",
+        Member.STATUS_RETIRED: "Retired",
+    }
+
+
+    old_name = status_names.get(
+        old_status,
+        old_status,
+    )
+
+
+    new_name = status_names.get(
+        new_status,
+        new_status,
+    )
+
+
+    return (
+        f"Status change not allowed: "
+        f"{old_name} members cannot be changed to "
+        f"{new_name}. "
+        f"The allowed membership flow is "
+        f"Pending → Approved → Active → Retired, "
+        f"with Retired → Active permitted for reactivation."
+    )
 
 # ======================================================
 # UPDATE MEMBER STATUS
@@ -150,7 +262,8 @@ def update_member_status(request, member_id):
 
     Membership lifecycle
     --------------------
-    PENDING  -> ACTIVE
+    PENDING  -> APPROVED
+    APPROVED --> ACTIVE
     ACTIVE   -> RETIRED
     RETIRED  -> ACTIVE
 
@@ -188,6 +301,7 @@ def update_member_status(request, member_id):
 
     allowed_statuses = {
         Member.STATUS_PENDING,
+        Member.STATUS_APPROVED,
         Member.STATUS_ACTIVE,
         Member.STATUS_RETIRED,
     }
@@ -203,6 +317,52 @@ def update_member_status(request, member_id):
         )
 
     old_status = member.status
+    
+    # --------------------------------------------------
+    # MEMBERSHIP LIFECYCLE GUARD
+    # --------------------------------------------------
+    #
+    # Prevent administrators from moving a member
+    # backwards through the membership lifecycle.
+    #
+    # Allowed:
+    #
+    #   PENDING  -> APPROVED
+    #   APPROVED -> ACTIVE
+    #   ACTIVE   -> RETIRED
+    #   RETIRED  -> ACTIVE
+    #
+    # Not allowed:
+    #
+    #   ACTIVE   -> PENDING
+    #   APPROVED -> PENDING
+    #   ACTIVE   -> APPROVED
+    #   APPROVED -> RETIRED
+    #   RETIRED  -> APPROVED
+    #   RETIRED  -> PENDING
+    #
+    # The guard is performed BEFORE any member fields are
+    # changed, so a rejected operation cannot partially
+    # modify the member.
+    # --------------------------------------------------
+
+    if not is_allowed_member_status_transition(
+        old_status,
+        new_status,
+    ):
+
+        messages.warning(
+            request,
+            get_member_status_transition_error(
+                old_status,
+                new_status,
+            ),
+        )
+
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
 
     # --------------------------------------------------
     # PENDING -> ACTIVE
@@ -350,31 +510,60 @@ def admin_member_detail(request, member_id):
 @staff_member_required
 def approve_member(request, pk):
     """
-    Approves a member application.
+    Approve a member application.
 
     Business rules
-    ----------------
-    • applied_at = when the application was submitted.
-    • joined_at  = when membership becomes Active.
-    • UID is generated automatically by the Member model
-      when status changes to Active.
+    --------------
+    • applied_at remains the original application date.
+    • Approval does NOT activate membership.
+    • Approval does NOT set joined_at.
+    • Approval does NOT allocate a UID.
+    • Approval allows the member to pay a targeted
+      Membership payment request.
     """
 
     member = get_object_or_404(Member, pk=pk)
 
-    if member.status == Member.STATUS_ACTIVE:
-        messages.warning(request, "Member is already active.")
+    if request.method != "POST":
         return redirect("admin_members")
 
-    # Record activation date only once.
-    if member.joined_at is None:
-        member.joined_at = timezone.now()
+    if member.status == Member.STATUS_APPROVED:
+        messages.warning(
+            request,
+            "Member application is already approved."
+        )
+        return redirect("admin_members")
 
-    member.status = Member.STATUS_ACTIVE
-    member.can_edit = False
+    if member.status == Member.STATUS_ACTIVE:
+        messages.warning(
+            request,
+            "Member is already active."
+        )
+        return redirect("admin_members")
+
+    if member.status == Member.STATUS_RETIRED:
+        messages.error(
+            request,
+            "A retired member cannot be approved through the application workflow."
+        )
+        return redirect("admin_members")
+
+    # -----------------------------------------
+    # APPROVE ONLY
+    # -----------------------------------------
+
+    member.status = Member.STATUS_APPROVED
+
+    # IMPORTANT:
+    # Do NOT set joined_at here.
+    # Do NOT allocate UID here.
+
     member.save()
 
-    messages.success(request, "Member approved successfully.")
+    messages.success(
+        request,
+        "Member application approved. The member can now pay the membership fee."
+    )
 
     return redirect("admin_members")
 
@@ -560,6 +749,7 @@ def admin_members_dashboard(request):
 from django.utils import timezone
 from datetime import timedelta
 
+
 @staff_member_required
 def admin_update_member_permissions(request, member_id):
     """
@@ -567,7 +757,8 @@ def admin_update_member_permissions(request, member_id):
 
     Membership lifecycle
     --------------------
-    PENDING -> ACTIVE
+    PENDING -> APPROVED
+    APPROVED -> ACTIVE
     ACTIVE  -> RETIRED
     RETIRED -> ACTIVE
 
@@ -617,6 +808,7 @@ def admin_update_member_permissions(request, member_id):
 
     allowed_statuses = {
         Member.STATUS_PENDING,
+        Member.STATUS_APPROVED,
         Member.STATUS_ACTIVE,
         Member.STATUS_RETIRED,
     }
@@ -632,6 +824,44 @@ def admin_update_member_permissions(request, member_id):
         )
 
     old_status = member.status
+    
+    # ------------------------------------------------------
+    # MEMBERSHIP LIFECYCLE GUARD
+    # ------------------------------------------------------
+    #
+    # The status update must follow the same lifecycle
+    # regardless of which admin endpoint receives the POST.
+    #
+    # Allowed:
+    #
+    #   PENDING  -> APPROVED
+    #   APPROVED -> ACTIVE
+    #   ACTIVE   -> RETIRED
+    #   RETIRED  -> ACTIVE
+    #
+    # Same-status updates are allowed.
+    #
+    # All other transitions are rejected before any member
+    # fields are modified.
+    # ------------------------------------------------------
+
+    if not is_allowed_member_status_transition(
+        old_status,
+        new_status,
+        ):
+
+        messages.warning(
+            request,
+            get_member_status_transition_error(
+                old_status,
+                new_status,
+            ),
+        )
+
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+            )
 
     # ------------------------------------------------------
     # STATUS CHANGE

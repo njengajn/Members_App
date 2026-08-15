@@ -52,11 +52,13 @@ class Member(models.Model):
     # STATUS
     # -----------------------------
     STATUS_PENDING = "pending"
+    STATUS_APPROVED = "approved"
     STATUS_ACTIVE = "active"
     STATUS_RETIRED = "retired"
 
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending"),
+        (STATUS_APPROVED, "Approved"),
         (STATUS_ACTIVE, "Active"),
         (STATUS_RETIRED, "Retired"),
     ]

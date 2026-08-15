@@ -11,9 +11,11 @@
     Create Payment Request
   </h3>
 
+
   <form method="POST">
 
     {% csrf_token %}
+
 
     <!-- ===================================================== -->
     <!-- REQUEST TYPE -->
@@ -21,11 +23,13 @@
 
     <div class="card shadow-sm mb-4 p-3">
 
-      <label class="form-label fw-bold">
-
+      <label
+        for="request_type"
+        class="form-label fw-bold"
+      >
         Request Type
-
       </label>
+
 
       <select
         name="request_type"
@@ -33,31 +37,69 @@
         class="form-select w-100 w-md-50"
       >
 
-        <option value="membership">
-
+        <option
+          value="membership"
+          {% if selected_request_type == "membership" %}
+            selected
+          {% endif %}
+        >
           Membership
-
         </option>
 
-        <option value="subscription">
 
+        <option
+          value="subscription"
+          {% if selected_request_type == "subscription" %}
+            selected
+          {% endif %}
+        >
           Subscription
-
         </option>
 
-        <option value="claim">
 
+        <option
+          value="claim"
+          {% if selected_request_type == "claim" %}
+            selected
+          {% endif %}
+        >
           Claim Settlement
-
         </option>
 
-        <option value="other" selected>
 
+        <option
+          value="other"
+          {% if selected_request_type == "other" %}
+            selected
+          {% endif %}
+        >
           Other
-
         </option>
 
       </select>
+
+
+      <small class="text-muted mt-2">
+
+        {% if selected_request_type == "membership" %}
+
+          Approved and Active members can be selected.
+
+        {% elif selected_request_type == "other" %}
+
+          Approved and Active members can be selected.
+
+        {% elif selected_request_type == "subscription" %}
+
+          Only Active members can be selected.
+
+        {% elif selected_request_type == "claim" %}
+
+          Only Active members can be selected.
+
+        {% endif %}
+
+      </small>
 
     </div>
 
@@ -69,14 +111,23 @@
     <div
       class="card shadow-sm mb-4 p-3"
       id="claim_block"
-      style="display:none;"
+      style="
+        display:
+        {% if selected_request_type == 'claim' %}
+          block
+        {% else %}
+          none
+        {% endif %};
+      "
     >
 
-      <label class="form-label fw-bold">
-
+      <label
+        for="claim_select"
+        class="form-label fw-bold"
+      >
         Select Approved Claim
-
       </label>
+
 
       <select
         id="claim_select"
@@ -85,26 +136,25 @@
       >
 
         <option value="">
-
           -- Select Claim --
-
         </option>
+
 
         {% for claim in approved_claims %}
 
-        <option
-          value="{{ claim.id }}"
-          data-member="{{ claim.member.id }}"
-          data-member-name="{{ claim.member.first_name }} {{ claim.member.surname }}"
-          data-amount="{{ claim.amount }}"
-        >
+          <option
+            value="{{ claim.id }}"
+            data-member="{{ claim.member.id }}"
+            data-member-name="{{ claim.member.first_name }} {{ claim.member.surname }}"
+            data-amount="{{ claim.amount }}"
+          >
 
-          Claim #{{ claim.id }}
-          —
-          {{ claim.member.first_name }}
-          {{ claim.member.surname }}
+            Claim #{{ claim.id }}
+            —
+            {{ claim.member.first_name }}
+            {{ claim.member.surname }}
 
-        </option>
+          </option>
 
         {% endfor %}
 
@@ -119,11 +169,13 @@
 
     <div class="card shadow-sm mb-4 p-3">
 
-      <label class="form-label fw-bold">
-
+      <label
+        for="target_mode"
+        class="form-label fw-bold"
+      >
         Who Should Pay?
-
       </label>
+
 
       <select
         id="target_mode"
@@ -132,35 +184,42 @@
       >
 
         <option value="all">
-
           All Members
-
         </option>
 
         <option value="single">
-
           Single Member
-
         </option>
 
         <option value="selected">
-
           Selected Members
-
         </option>
 
       </select>
 
+
+      <!-- ================================================= -->
       <!-- SINGLE MEMBER -->
+      <!-- ================================================= -->
 
       <div id="single_block">
+
+        <label
+          for="member_search"
+          class="form-label visually-hidden"
+        >
+          Search member
+        </label>
+
 
         <input
           type="text"
           id="member_search"
           class="form-control mb-2"
           placeholder="Search member..."
+          autocomplete="off"
         >
+
 
         <select
           name="member"
@@ -169,15 +228,34 @@
           size="5"
         >
 
+          <option value="" selected disabled>
+            -- Select Member --
+          </option>
+
+
           {% for m in members %}
 
-          <option value="{{ m.id }}">
+            <option
+              value="{{ m.id }}"
+              data-status="{{ m.status }}"
+            >
 
-            {{ m.first_name }}
-            {{ m.surname }}
-            ({{ m.member_uid }})
+              {{ m.first_name }}
+              {{ m.surname }}
 
-          </option>
+              {% if m.member_uid %}
+
+                ({{ m.member_uid }})
+
+              {% else %}
+
+                (No UID)
+
+              {% endif %}
+
+              — {{ m.status|title }}
+
+            </option>
 
           {% endfor %}
 
@@ -185,19 +263,32 @@
 
       </div>
 
+
+      <!-- ================================================= -->
       <!-- SELECTED MEMBERS -->
+      <!-- ================================================= -->
 
       <div
         id="multi_block"
         style="display:none;"
       >
 
+        <label
+          for="multi_search"
+          class="form-label visually-hidden"
+        >
+          Search members
+        </label>
+
+
         <input
           type="text"
           id="multi_search"
           class="form-control mb-2"
           placeholder="Search members..."
+          autocomplete="off"
         >
+
 
         <div class="mb-2">
 
@@ -206,48 +297,65 @@
             class="btn btn-sm btn-outline-primary"
             onclick="selectAllMembers()"
           >
-
             Select All
-
           </button>
+
 
           <button
             type="button"
             class="btn btn-sm btn-outline-secondary"
             onclick="clearAllMembers()"
           >
-
             Clear
-
           </button>
 
         </div>
 
+
         <div
           class="border rounded p-2"
-          style="max-height:200px;overflow:auto;"
+          style="
+            max-height:200px;
+            overflow:auto;
+          "
         >
 
           {% for m in members %}
 
-          <div class="form-check member-item">
+            <div class="form-check member-item">
 
-            <input
-              type="checkbox"
-              name="selected_members"
-              value="{{ m.id }}"
-              class="form-check-input member-checkbox"
-            >
+              <input
+                type="checkbox"
+                name="selected_members"
+                value="{{ m.id }}"
+                class="form-check-input member-checkbox"
+                id="member_{{ m.id }}"
+              >
 
-            <label class="form-check-label">
 
-              {{ m.first_name }}
-              {{ m.surname }}
-              ({{ m.member_uid }})
+              <label
+                class="form-check-label"
+                for="member_{{ m.id }}"
+              >
 
-            </label>
+                {{ m.first_name }}
+                {{ m.surname }}
 
-          </div>
+                {% if m.member_uid %}
+
+                  ({{ m.member_uid }})
+
+                {% else %}
+
+                  (No UID)
+
+                {% endif %}
+
+                — {{ m.status|title }}
+
+              </label>
+
+            </div>
 
           {% endfor %}
 
@@ -264,40 +372,38 @@
 
     <div class="card shadow-sm mb-4 p-3">
 
-      <label class="form-label fw-bold">
-
+      <label
+        for="payment_method"
+        class="form-label fw-bold"
+      >
         Payment Method
-
       </label>
+
 
       <select
         name="payment_method"
+        id="payment_method"
         class="form-select"
         required
       >
 
         <option value="" disabled selected>
-
           -- Select Payment Method --
-
         </option>
+
 
         <option value="manual">
-
           Manual (Bank Transfer)
-
         </option>
+
 
         <option value="card">
-
           Card Payment (Stripe)
-
         </option>
 
+
         <option value="both">
-
           Both (User Chooses)
-
         </option>
 
       </select>
@@ -312,10 +418,9 @@
     <div class="card shadow-sm mb-4 p-3">
 
       <label class="form-label fw-bold">
-
         Notifications
-
       </label>
+
 
       <div class="form-check">
 
@@ -327,16 +432,16 @@
           checked
         >
 
+
         <label
           class="form-check-label"
           for="send_notifications"
         >
-
           Notify members automatically
-
         </label>
 
       </div>
+
 
       <small class="text-muted">
 
@@ -360,15 +465,18 @@
 
         <div class="col-12">
 
-          <label class="form-label fw-bold">
-
+          <label
+            for="title"
+            class="form-label fw-bold"
+          >
             Title
-
           </label>
+
 
           <input
             type="text"
             name="title"
+            id="title"
             class="form-control"
             maxlength="150"
             required
@@ -376,34 +484,45 @@
 
         </div>
 
+
         <!-- DESCRIPTION -->
 
         <div class="col-12">
 
-          <label class="form-label fw-bold">
-
+          <label
+            for="description"
+            class="form-label fw-bold"
+          >
             Description
-
           </label>
+
 
           <textarea
             name="description"
             id="description"
             rows="4"
-            class="form-control bg-white border-secondary shadow-sm"
+            class="
+              form-control
+              bg-white
+              border-secondary
+              shadow-sm
+            "
           ></textarea>
 
         </div>
 
+
         <!-- AMOUNT -->
 
-        <div class="col-md-4">
+        <div class="col-12 col-md-4">
 
-          <label class="form-label fw-bold">
-
+          <label
+            for="amount"
+            class="form-label fw-bold"
+          >
             Amount (£)
-
           </label>
+
 
           <input
             type="number"
@@ -417,19 +536,23 @@
 
         </div>
 
+
         <!-- DUE DATE -->
 
-        <div class="col-md-4">
+        <div class="col-12 col-md-4">
 
-          <label class="form-label fw-bold">
-
+          <label
+            for="due_date"
+            class="form-label fw-bold"
+          >
             Due Date
-
           </label>
+
 
           <input
             type="date"
             name="due_date"
+            id="due_date"
             class="form-control"
             min="{{ today|date:'Y-m-d' }}"
             required
@@ -442,17 +565,17 @@
     </div>
 
 
+    <!-- ===================================================== -->
     <!-- ACTIONS -->
+    <!-- ===================================================== -->
 
-    <div class="text-end">
+    <div class="d-flex justify-content-end">
 
       <button
         type="submit"
         class="btn btn-success px-4"
       >
-
         Create Request
-
       </button>
 
     </div>
@@ -468,57 +591,120 @@
 
 <script>
 
+/* =========================================================
+   REQUEST TYPE
+   ---------------------------------------------------------
+   The member queryset is request-type dependent.
+
+   Membership / Other:
+       Approved + Active
+
+   Subscription / Claim:
+       Active only
+
+   Reloading the page when request type changes ensures
+   the displayed member list always matches the backend
+   eligibility rules.
+========================================================= */
+
 const requestType =
-    document.getElementById("request_type");
+    document.getElementById(
+        "request_type"
+    );
 
 const claimBlock =
-    document.getElementById("claim_block");
+    document.getElementById(
+        "claim_block"
+    );
+
 
 function toggleClaim() {
 
     claimBlock.style.display =
         requestType.value === "claim"
-        ? "block"
-        : "none";
+            ? "block"
+            : "none";
 }
+
 
 requestType.addEventListener(
     "change",
-    toggleClaim
+    function () {
+
+        /*
+         * Preserve the selected request type in the URL.
+         * The view uses it to build the correct queryset.
+         */
+
+        const url =
+            new URL(
+                window.location.href
+            );
+
+
+        url.searchParams.set(
+            "request_type",
+            requestType.value
+        );
+
+
+        window.location.href =
+            url.toString();
+
+    }
 );
+
 
 toggleClaim();
 
 
+/* =========================================================
+   TARGET MODE
+========================================================= */
+
 const mode =
-    document.getElementById("target_mode");
+    document.getElementById(
+        "target_mode"
+    );
 
 const single =
-    document.getElementById("single_block");
+    document.getElementById(
+        "single_block"
+    );
 
 const multi =
-    document.getElementById("multi_block");
+    document.getElementById(
+        "multi_block"
+    );
+
 
 function toggleMode() {
 
     single.style.display =
         mode.value === "single"
-        ? "block"
-        : "none";
+            ? "block"
+            : "none";
+
 
     multi.style.display =
         mode.value === "selected"
-        ? "block"
-        : "none";
+            ? "block"
+            : "none";
 }
+
 
 mode.addEventListener(
     "change",
     toggleMode
 );
 
+
 toggleMode();
 
+
+/* =========================================================
+   SINGLE MEMBER SEARCH
+========================================================= */
 
 document.getElementById(
     "member_search"
@@ -526,22 +712,46 @@ document.getElementById(
     "keyup",
     function () {
 
-        let val =
+        const value =
             this.value.toLowerCase();
+
 
         document.querySelectorAll(
             "#member_select option"
-        ).forEach((opt) => {
+        ).forEach(
+            function (option) {
 
-            opt.style.display =
-                opt.text.toLowerCase()
-                    .includes(val)
-                ? ""
-                : "none";
-        });
+                /*
+                 * Always retain the placeholder.
+                 */
+
+                if (!option.value) {
+
+                    option.style.display =
+                        "";
+
+                    return;
+
+                }
+
+
+                option.style.display =
+                    option.text
+                        .toLowerCase()
+                        .includes(value)
+                        ? ""
+                        : "none";
+
+            }
+        );
+
     }
 );
 
+
+/* =========================================================
+   MULTI MEMBER SEARCH
+========================================================= */
 
 document.getElementById(
     "multi_search"
@@ -549,23 +759,32 @@ document.getElementById(
     "keyup",
     function () {
 
-        let val =
+        const value =
             this.value.toLowerCase();
+
 
         document.querySelectorAll(
             ".member-item"
-        ).forEach((el) => {
+        ).forEach(
+            function (element) {
 
-            el.style.display =
-                el.innerText
-                    .toLowerCase()
-                    .includes(val)
-                ? ""
-                : "none";
-        });
+                element.style.display =
+                    element.innerText
+                        .toLowerCase()
+                        .includes(value)
+                        ? ""
+                        : "none";
+
+            }
+        );
+
     }
 );
 
+
+/* =========================================================
+   SELECT ALL
+========================================================= */
 
 function selectAllMembers() {
 
@@ -574,10 +793,18 @@ function selectAllMembers() {
             ".member-checkbox"
         )
         .forEach(
-            cb => cb.checked = true
+            function (checkbox) {
+
+                checkbox.checked = true;
+
+            }
         );
 }
 
+
+/* =========================================================
+   CLEAR ALL
+========================================================= */
 
 function clearAllMembers() {
 
@@ -586,15 +813,20 @@ function clearAllMembers() {
             ".member-checkbox"
         )
         .forEach(
-            cb => cb.checked = false
+            function (checkbox) {
+
+                checkbox.checked = false;
+
+            }
         );
 }
 
 
-/* =====================================================
+/* =========================================================
    CLAIM AUTO-FILL
-   Does NOT override targeting
-===================================================== */
+   ---------------------------------------------------------
+   Does NOT change payment targeting.
+========================================================= */
 
 document.getElementById(
     "claim_select"
@@ -602,30 +834,33 @@ document.getElementById(
     "change",
     function () {
 
-        let opt =
+        const option =
             this.options[
                 this.selectedIndex
             ];
 
-        if (opt.value) {
 
-            document
-                .getElementById(
-                    "amount"
-                ).value =
-                opt.dataset.amount;
+        if (option.value) {
 
-            document
-                .getElementById(
-                    "description"
-                ).value =
-                "Claim settlement for "
-                + opt.dataset.memberName;
+            document.getElementById(
+                "amount"
+            ).value =
+                option.dataset.amount;
+
+
+            document.getElementById(
+                "description"
+            ).value =
+                "Claim settlement for " +
+                option.dataset.memberName;
+
         }
+
     }
 );
 
 </script>
+
 
 {% include "members/footer.html" %}
 
