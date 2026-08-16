@@ -55,8 +55,11 @@
     <ul class="list-group">
       {% for doc in claim.documents.all %}
       <li class="list-group-item">
-        <a href="{{ doc.file.url }}" target="_blank">
-          View Document
+        <a
+            href="{% url 'members_admin:admin_document_file' doc.id %}"
+            target="_blank"
+        >
+            View Document
         </a>
       </li>
       {% endfor %}

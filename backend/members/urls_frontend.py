@@ -1,15 +1,11 @@
 from django.http import HttpResponse
 from django.urls import path
-
 # HOME
 from backend.members.views_frontend import payments as payment_views
 from backend.members.views_frontend.dashboard import member_dashboard
 from backend.members.views_frontend.documents import document_requests
 from backend.members.views_frontend.home import home
-from backend.members.views_frontend.privacy_policy import (
-    privacy_policy
-)
-
+from backend.members.views_frontend.privacy_policy import privacy_policy
 # AUTH
 from backend.members.views_frontend.auth import login_view, logout_view, password_reset_request, password_reset_verify
 
@@ -19,11 +15,10 @@ from backend.members.views_frontend.auth import login_view, logout_view, passwor
 # CLAIMS
 from backend.members.views_frontend.claims import (
     member_claims_list,
-    members_claims_list,
     member_create_claim,
     members_claim_detail,
     create_claim_entry,
-)
+    )
 
 # DEPENDANTS 
 from backend.members.views_frontend.dependants import (
@@ -61,7 +56,12 @@ from backend.members.views_admin.payments import payment_webhook
 from backend.members.views_frontend.api import postcode_lookup
 from backend.members.views_frontend.address_api import address_autocomplete
 from backend.members.views_frontend.ajax import register_ajax
-from backend.members.views_frontend.documents import member_requests, upload_document,resubmit_document
+from backend.members.views_frontend.documents import(
+    member_requests,
+    upload_document,
+    resubmit_document,
+    view_document_file,
+)
 
 
 app_name = "members"
@@ -88,7 +88,6 @@ urlpatterns = [
     # 🔥 MEMBER ONLY (FINAL DESTINATION)
     path("claims/create/member/", member_create_claim, name="member_create_claim"),
 
-    #path("claims/", members_claims_list, name="member_claims_list"),
     path("claims/create/", member_create_claim, name="create_claim"),
     path("claims/<int:pk>/", members_claim_detail, name="member_claims"),
     
@@ -151,6 +150,11 @@ urlpatterns = [
     path("documents/upload/", upload_document, name="upload_document"),
     path("documents/<int:document_id>/resubmit/", resubmit_document, name="resubmit_document",),
     path("privacy-policy/",  privacy_policy, name="privacy_policy",),
+    # =========================================================
+    # SECURE MEMBER DOCUMENT VIEW
+    # =========================================================
+
+    path("documents/<int:file_id>/view/", view_document_file, name="view_document_file",),
     
 ]
 

@@ -7,6 +7,8 @@ import os, tempfile, zipfile
 from backend.members.models import (Member, MemberDocument, DocumentRequest,)
 from backend.members.services.document_files import (prepare_document_file,)
 from backend.members.services.document_files import prepare_document_file
+import mimetypes
+
 
 # =========================================================
 # DOCUMENT UPLOAD
@@ -194,6 +196,135 @@ def documents_list(request):
         }
     )
 
+
+# =========================================================
+# SECURE MEMBER DOCUMENT VIEW
+# =========================================================
+
+@login_required
+def view_document_file(request, file_id):
+    """
+    Securely display a MemberDocument belonging to the
+    currently authenticated member.
+
+    SECURITY RULES
+    --------------
+    1. User must be authenticated.
+    2. The document must exist.
+    3. The document must belong to request.user.member.
+    4. Archived documents are not available to members.
+    5. The raw /media/member_documents/ URL is never used
+       for authorization.
+    6. The file is opened through Django's storage API.
+
+    This endpoint is intended for:
+        - image previews
+        - PDF viewing
+        - browser-viewable document access
+
+    It is NOT the existing download_document() endpoint.
+    """
+
+    # =====================================================
+    # FIND THE LOGGED-IN MEMBER
+    # =====================================================
+
+    member = get_object_or_404(
+        Member,
+        user=request.user,
+    )
+
+    # =====================================================
+    # FIND DOCUMENT BELONGING TO THIS MEMBER
+    # =====================================================
+    #
+    # Do NOT retrieve MemberDocument using only file_id.
+    #
+    # The member restriction is part of the database query.
+    # This prevents a member from requesting another member's
+    # document by changing the document ID in the URL.
+    #
+
+    document = get_object_or_404(
+        MemberDocument,
+        id=file_id,
+        member=member,
+    )
+
+    # =====================================================
+    # CENTRAL DOCUMENT SECURITY CHECK
+    # =====================================================
+    #
+    # MemberDocument.can_be_viewed_by() already defines the
+    # application's document visibility rules:
+    #
+    # - authenticated users only
+    # - staff/admin users allowed
+    # - archived documents hidden from members
+    # - normal members may view their own documents only
+    #
+    # The query above already restricts this endpoint to the
+    # owning member. This additional check keeps the model's
+    # central security rule authoritative.
+    #
+
+    if not document.can_be_viewed_by(request.user):
+        raise Http404("Document not found.")
+
+    # =====================================================
+    # VERIFY FILE EXISTS
+    # =====================================================
+
+    if not document.file:
+        raise Http404("File not found.")
+
+    # =====================================================
+    # OPEN THROUGH DJANGO STORAGE
+    # =====================================================
+
+    try:
+        file_handle = document.file.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404("Document file could not be opened.")
+
+    # =====================================================
+    # DETERMINE MIME TYPE
+    # =====================================================
+    #
+    # Browsers need the actual MIME type:
+    #
+    # JPG  -> image/jpeg
+    # PNG  -> image/png
+    # WebP -> image/webp
+    # PDF  -> application/pdf
+    #
+    # Do not return image/*.
+    #
+
+    content_type, _ = mimetypes.guess_type(
+        document.file.name
+    )
+
+    if not content_type:
+        content_type = "application/octet-stream"
+
+    # =====================================================
+    # RETURN FILE
+    # =====================================================
+    #
+    # as_attachment=False allows supported files such as
+    # JPG, PNG and PDF to open in the browser.
+    #
+
+    return FileResponse(
+        file_handle,
+        as_attachment=False,
+        filename=(
+            document.original_filename
+            or document.file.name.rsplit("/", 1)[-1]
+        ),
+        content_type=content_type,
+    )
 
 # =========================================================
 # DOWNLOAD SINGLE DOCUMENT
@@ -516,4 +647,116 @@ def resubmit_document(request, document_id,):
         {
             "document": document,
         },
+    )
+
+# =========================================================
+# SECURE MEMBER DOCUMENT MEDIA
+# =========================================================
+
+@login_required
+def serve_member_document_media(request, path):
+    """
+    Securely serve a MemberDocument from the existing
+    /media/member_documents/ URL structure.
+
+    This view exists specifically to prevent the generic
+    public MEDIA_ROOT handler from exposing private
+    MemberDocument files.
+
+    SECURITY:
+        - User must be authenticated.
+        - Requested path must belong to a MemberDocument.
+        - Normal members may access only their own document.
+        - Archived documents are not available to members.
+        - Staff/admin users may access documents.
+        - Unknown document paths return 404.
+    """
+
+    # =====================================================
+    # NORMALISE PATH
+    # =====================================================
+
+    requested_path = str(path).replace(
+        "\\",
+        "/",
+    ).lstrip("/")
+
+    # =====================================================
+    # FIND THE DOCUMENT
+    # =====================================================
+    #
+    # The stored FileField value includes:
+    #
+    #     member_documents/YYYY/MM/filename
+    #
+    # We deliberately query MemberDocument rather than
+    # constructing an arbitrary filesystem path.
+    #
+
+    stored_name = (
+        f"member_documents/{requested_path}"
+    )
+
+    document = get_object_or_404(
+        MemberDocument,
+        file=stored_name,
+    )
+
+    # =====================================================
+    # CENTRAL AUTHORISATION
+    # =====================================================
+    #
+    # MemberDocument already contains the application's
+    # can_be_viewed_by() security helper.
+    #
+    # This prevents:
+    #
+    #   logged-out user
+    #   another member
+    #
+    # from accessing this document.
+    #
+
+    if not document.can_be_viewed_by(request.user):
+        raise Http404("Document not found.")
+
+    # =====================================================
+    # VERIFY FILE EXISTS
+    # =====================================================
+
+    if not document.file:
+        raise Http404("Document file not found.")
+
+    # =====================================================
+    # OPEN THROUGH DJANGO STORAGE
+    # =====================================================
+
+    try:
+        file_handle = document.file.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404("Document file could not be opened.")
+
+    # =====================================================
+    # MIME TYPE
+    # =====================================================
+
+    content_type, _ = mimetypes.guess_type(
+        document.file.name
+    )
+
+    if not content_type:
+        content_type = "application/octet-stream"
+
+    # =====================================================
+    # RETURN FILE
+    # =====================================================
+
+    return FileResponse(
+        file_handle,
+        as_attachment=False,
+        filename=(
+            document.original_filename
+            or document.file.name.rsplit("/", 1)[-1]
+        ),
+        content_type=content_type,
     )

@@ -10,6 +10,7 @@ from django.http import FileResponse, Http404
 from django.views.decorators.http import require_GET
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 import os
+import mimetypes
 
 @admin_required
 def admin_documents_list(request, member_id):
@@ -59,6 +60,80 @@ def admin_documents_list(request, member_id):
         context,
     )
     
+# =========================================================
+# SECURE ADMIN MEMBER DOCUMENT VIEW
+# =========================================================
+
+@admin_required
+def admin_document_file(request, document_id):
+    """
+    Securely serve a MemberDocument to an authorised admin.
+
+    SECURITY RULES
+    --------------
+    1. The user must pass the existing admin_required
+       decorator.
+    2. The document must exist.
+    3. The file is opened through Django's storage API.
+    4. The raw /media/member_documents/ URL is never used
+       by the admin document interface.
+
+    Intended for:
+        - JPG/PNG/WebP image previews
+        - PDF/document viewing
+        - authorised admin file access
+    """
+
+    # =====================================================
+    # FIND DOCUMENT
+    # =====================================================
+
+    document = get_object_or_404(
+        MemberDocument,
+        id=document_id,
+    )
+
+    # =====================================================
+    # VERIFY FILE EXISTS
+    # =====================================================
+
+    if not document.file:
+        raise Http404("Document file not found.")
+
+    # =====================================================
+    # OPEN THROUGH DJANGO STORAGE
+    # =====================================================
+
+    try:
+        file_handle = document.file.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404("Document file could not be opened.")
+
+    # =====================================================
+    # DETERMINE MIME TYPE
+    # =====================================================
+
+    content_type, _ = mimetypes.guess_type(
+        document.file.name
+    )
+
+    if not content_type:
+        content_type = "application/octet-stream"
+
+    # =====================================================
+    # RETURN FILE
+    # =====================================================
+
+    return FileResponse(
+        file_handle,
+        as_attachment=False,
+        filename=(
+            document.original_filename
+            or document.file.name.rsplit("/", 1)[-1]
+        ),
+        content_type=content_type,
+    )
+
 # =========================================================
 # SECURE ADMIN PDF PREVIEW
 # =========================================================

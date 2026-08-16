@@ -9,9 +9,9 @@
             <h3>{{ doc.title }}</h3>
 
             {% if doc.is_image %}
-                <img src="{{ doc.file.url }}" width="150">
+                src="{% url 'members:view_document_file' document.id %}" width="150">
             {% elif doc.is_pdf %}
-                <a href="{{ doc.file.url }}">View PDF</a>
+                <href="{% url 'members:view_document_file' document.id %}">View PDF</a>
             {% else %}
                 <a href="{{ doc.file.url }}">Download</a>
             {% endif %}

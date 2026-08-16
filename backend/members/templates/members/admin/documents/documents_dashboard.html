@@ -59,7 +59,10 @@
             </td>
 
             <td data-label="Open">
-                <a href="{{ doc.file.url }}" target="_blank">
+                <a
+                    href="{% url 'members_admin:admin_document_file' doc.id %}"
+                    target="_blank"
+                >
                     Open
                 </a>
             </td>

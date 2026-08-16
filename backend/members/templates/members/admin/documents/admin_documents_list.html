@@ -265,10 +265,15 @@
 
             {% if doc.file_type == "image" %}
 
-                <img src="{{ doc.file.url }}"
-                     class="preview-thumb"
-                     alt="{{ doc.original_filename|default:doc.title }}"
-                     onclick="openPreview('{{ doc.file.url }}', 'image')">
+                <img
+                    src="{% url 'members_admin:admin_document_file' doc.id %}"
+                    class="preview-thumb"
+                    alt="{{ doc.title }}"
+                    onclick="openPreview(
+                        '{% url 'members_admin:admin_document_file' doc.id %}',
+                        'image'
+                    )"
+                >
 
             {% elif doc.file_type == "pdf" %}
 
@@ -301,7 +306,7 @@
 
             {% else %}
 
-                <a href="{% url 'members_admin:admin_document_preview' doc.id %}"
+                <a href="{% url url 'members_admin:admin_document_file' doc.id %}"
                    target="_blank"
                    class="btn btn-sm btn-secondary">
 

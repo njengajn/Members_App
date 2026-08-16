@@ -384,9 +384,11 @@
 
                     <!-- TITLE -->
                     <td data-label="Title">
-                        <a href="{{ document.file.url }}"
-                        target="_blank"
-                        class="document-link">
+                        <a
+                            href="{% url 'members:view_document_file' document.id %}"
+                            target="_blank"
+                        >
+                            View File
 
                             {{ document.title }}
 
@@ -465,16 +467,19 @@
                     <td data-label="Preview">
                         {% if document.file_type == "image" %}
 
-                            <img src="{{ document.file.url }}"
-                                 class="preview-image">
+                            <img
+                                src="{% url 'members:view_document_file' document.id %}"
+                                class="preview-image"
+                                alt="{{ document.title }}"
+                            >
 
                         {% else %}
 
-                            <a href="{{ document.file.url }}"
-                               target="_blank">
-
+                            <a
+                                href="{% url 'members:view_document_file' document.id %}"
+                                target="_blank"
+                            >
                                 View File
-
                             </a>
 
                         {% endif %}

@@ -120,7 +120,9 @@ from backend.members.views_admin.admin_treasurer_dashboard import (
 from backend.members.views_admin.admin_documents import(
     document_dashboard,
     admin_document_review,
+    admin_document_preview,
     request_document,
+    admin_document_file
     )
 
 from backend.members.views_admin.admin_members import (
@@ -291,6 +293,7 @@ urlpatterns = [
     path("admin/documents/", document_dashboard, name="admin_documents"),
     path("admin/documents/<int:pk>/approve/", approve_document, name="approve_document"),
     path("admin/documents/<int:document_id>/reject/", reject_document_form, name="reject_document_form",),
+    path("documents/<int:document_id>/preview/", admin_document_preview, name="admin_document_preview",),
     
     #======================
     # MEMBER EDIT AND UPDATE
@@ -432,6 +435,11 @@ urlpatterns = [
 
     path("documents/<int:document_id>/preview/", admin_document_preview,
         name="admin_document_preview",),
+    # =========================================================
+    # SECURE ADMIN DOCUMENT FILE
+    # =========================================================
+
+    path("documents/<int:document_id>/file/", admin_document_file, name="admin_document_file",),
 
     # =====================================================
     # PAYMENT REQUEST ARCHIVE

@@ -61,7 +61,7 @@
             <small class="d-block">Status: {{ doc.get_status_display }}</small>
           </div>
           <a
-            href="{{ doc.file.url }}"
+            href="{% url 'members_admin:admin_document_file' doc.id %}"
             target="_blank"
             class="btn btn-sm btn-outline-primary"
           >
