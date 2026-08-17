@@ -128,20 +128,22 @@ def compress_uploaded_image(
     minimum_size=300 * 1024,
 ):
     """
-    Compress an uploaded image when worthwhile.
+    Compress or convert an uploaded image when worthwhile.
 
-    Step 4 scope:
+    Step 4 / Step 5 scope:
     - JPEG/JPG: recompress at the requested quality.
-    - PNG: optimise without changing format.
+    - PNG:
+        - For qualifying PNG files, attempt conversion to JPEG.
+        - Transparent PNGs are composited onto a white background.
+        - Keep PNG if JPEG conversion does not produce a smaller file.
     - WebP: recompress at the requested quality.
     - Other file types: leave unchanged.
     - Do not resize images.
-    - Do not convert PNG to another format.
-    - Keep the original uploaded file if compression does
+    - Keep the original uploaded file if processing does
       not produce a smaller file.
 
     Returns the original uploaded file or a replacement
-    ContentFile with the same filename.
+    ContentFile with the appropriate stored filename.
     """
 
     if not uploaded_file:
@@ -149,8 +151,8 @@ def compress_uploaded_image(
 
     original_size = getattr(uploaded_file, "size", 0) or 0
 
-    # Avoid processing small images where compression is
-    # unlikely to provide a meaningful benefit.
+    # Avoid processing small images where compression or
+    # conversion is unlikely to provide a meaningful benefit.
     if original_size < minimum_size:
         return uploaded_file
 
@@ -179,6 +181,9 @@ def compress_uploaded_image(
         uploaded_file.seek(0)
         image = Image.open(uploaded_file)
 
+        # Load image data before further processing.
+        image.load()
+
     except Exception:
         # If Pillow cannot process the image, leave the
         # original upload untouched.
@@ -192,8 +197,6 @@ def compress_uploaded_image(
     output = BytesIO()
 
     try:
-        save_kwargs = {}
-
         # -------------------------------------------------
         # JPEG
         # -------------------------------------------------
@@ -211,16 +214,46 @@ def compress_uploaded_image(
                 "progressive": True,
             }
 
+            output_extension = extension
+
         # -------------------------------------------------
-        # PNG
+        # PNG → JPEG
         # -------------------------------------------------
 
         elif extension == ".png":
 
+            # JPEG cannot store transparency.
+            #
+            # If the PNG contains an alpha channel, composite
+            # it onto a white RGB background before conversion.
+            if "A" in image.getbands():
+
+                rgba_image = image.convert("RGBA")
+
+                background = Image.new(
+                    "RGB",
+                    rgba_image.size,
+                    "white",
+                )
+
+                background.paste(
+                    rgba_image,
+                    mask=rgba_image.getchannel("A"),
+                )
+
+                image = background
+
+            else:
+                image = image.convert("RGB")
+
             save_kwargs = {
-                "format": "PNG",
+                "format": "JPEG",
+                "quality": quality,
                 "optimize": True,
+                "progressive": True,
             }
+
+            output_extension = ".jpg"
 
         # -------------------------------------------------
         # WEBP
@@ -234,21 +267,11 @@ def compress_uploaded_image(
                 "method": 6,
             }
 
+            output_extension = extension
+
         image.save(output, **save_kwargs)
 
     except Exception:
-        return uploaded_file
-
-    compressed_data = output.getvalue()
-
-    # -----------------------------------------------------
-    # Only use the compressed version if it is smaller.
-    # -----------------------------------------------------
-
-    if not compressed_data:
-        return uploaded_file
-
-    if len(compressed_data) >= original_size:
         try:
             uploaded_file.seek(0)
         except Exception:
@@ -256,9 +279,45 @@ def compress_uploaded_image(
 
         return uploaded_file
 
+    processed_data = output.getvalue()
+
+    # -----------------------------------------------------
+    # Only use the processed version if it is smaller.
+    # -----------------------------------------------------
+
+    if not processed_data:
+        try:
+            uploaded_file.seek(0)
+        except Exception:
+            pass
+
+        return uploaded_file
+
+    if len(processed_data) >= original_size:
+        try:
+            uploaded_file.seek(0)
+        except Exception:
+            pass
+
+        return uploaded_file
+
+    # -----------------------------------------------------
+    # Update the stored filename extension when conversion
+    # changes the image format.
+    # -----------------------------------------------------
+
+    processed_name = uploaded_file.name
+
+    if extension == ".png":
+        processed_name = str(
+            Path(uploaded_file.name).with_suffix(
+                output_extension
+            )
+        )
+
     compressed_file = ContentFile(
-        compressed_data,
-        name=uploaded_file.name,
+        processed_data,
+        name=processed_name,
     )
 
     return compressed_file
