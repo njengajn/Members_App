@@ -126,21 +126,37 @@ def compress_uploaded_image(
     uploaded_file,
     quality=85,
     minimum_size=300 * 1024,
+    max_dimension=2000,
 ):
     """
-    Compress or convert an uploaded image when worthwhile.
+    Compress, convert, and resize an uploaded image when worthwhile.
 
-    Step 4 / Step 5 scope:
+    Step 4 / Step 5 / Step 6 scope:
     - JPEG/JPG: recompress at the requested quality.
     - PNG:
         - For qualifying PNG files, attempt conversion to JPEG.
         - Transparent PNGs are composited onto a white background.
-        - Keep PNG if JPEG conversion does not produce a smaller file.
+        - When no resizing is required, preserve the existing
+          Step 5 rule: use JPEG only when it is smaller than the
+          original uploaded PNG.
+        - When resizing is required, compare JPEG against the
+          resized PNG and use whichever is smaller.
     - WebP: recompress at the requested quality.
+    - Images larger than max_dimension are resized while preserving
+      aspect ratio.
+    - Images are never enlarged.
     - Other file types: leave unchanged.
-    - Do not resize images.
-    - Keep the original uploaded file if processing does
-      not produce a smaller file.
+    - Keep the original uploaded file when processing is unnecessary
+      and the processed version does not provide a benefit.
+
+    Important:
+    - Resizing is mandatory when an image exceeds max_dimension.
+    - PNG-to-JPEG conversion remains subject to the existing
+      Step 5 size-saving rule.
+    - If a PNG requires resizing but JPEG conversion is not
+      beneficial compared with the resized PNG, the resized PNG
+      is retained.
+    - No image is ever upscaled.
 
     Returns the original uploaded file or a replacement
     ContentFile with the appropriate stored filename.
@@ -150,11 +166,6 @@ def compress_uploaded_image(
         return uploaded_file
 
     original_size = getattr(uploaded_file, "size", 0) or 0
-
-    # Avoid processing small images where compression or
-    # conversion is unlikely to provide a meaningful benefit.
-    if original_size < minimum_size:
-        return uploaded_file
 
     extension = Path(
         getattr(uploaded_file, "name", "")
@@ -169,6 +180,10 @@ def compress_uploaded_image(
 
     if extension not in supported_extensions:
         return uploaded_file
+
+    # -----------------------------------------------------
+    # OPEN AND VERIFY IMAGE
+    # -----------------------------------------------------
 
     try:
         uploaded_file.seek(0)
@@ -194,11 +209,62 @@ def compress_uploaded_image(
 
         return uploaded_file
 
+    original_dimensions = image.size
+
+    # -----------------------------------------------------
+    # DETERMINE WHETHER RESIZING IS REQUIRED
+    # -----------------------------------------------------
+
+    needs_resize = (
+        image.width > max_dimension
+        or image.height > max_dimension
+    )
+
+    # -----------------------------------------------------
+    # SMALL IMAGE WITHIN DIMENSION LIMIT
+    #
+    # No compression/conversion is necessary for files below
+    # the existing Step 4/5 threshold when they also do not
+    # require resizing.
+    # -----------------------------------------------------
+
+    if original_size < minimum_size and not needs_resize:
+        try:
+            uploaded_file.seek(0)
+        except Exception:
+            pass
+
+        return uploaded_file
+
+    # -----------------------------------------------------
+    # CREATE RESIZED WORKING IMAGE
+    #
+    # thumbnail() preserves aspect ratio and never enlarges
+    # an image.
+    # -----------------------------------------------------
+
+    if needs_resize:
+        image.thumbnail(
+            (max_dimension, max_dimension),
+            Image.Resampling.LANCZOS,
+        )
+
+    resized_dimensions = image.size
+
+    dimensions_changed = (
+        resized_dimensions != original_dimensions
+    )
+
+    # -----------------------------------------------------
+    # PREPARE OUTPUT
+    # -----------------------------------------------------
+
     output = BytesIO()
 
     try:
+
         # -------------------------------------------------
-        # JPEG
+        # JPEG / JPG
         # -------------------------------------------------
 
         if extension in {".jpg", ".jpeg"}:
@@ -216,16 +282,25 @@ def compress_uploaded_image(
 
             output_extension = extension
 
+            image.save(
+                output,
+                **save_kwargs,
+            )
+
         # -------------------------------------------------
-        # PNG → JPEG
+        # PNG
         # -------------------------------------------------
 
         elif extension == ".png":
 
-            # JPEG cannot store transparency.
+            # -------------------------------------------------
+            # PNG → JPEG
             #
-            # If the PNG contains an alpha channel, composite
-            # it onto a white RGB background before conversion.
+            # JPEG cannot store transparency.
+            # Transparent PNGs are therefore composited onto
+            # a white RGB background before JPEG conversion.
+            # -------------------------------------------------
+
             if "A" in image.getbands():
 
                 rgba_image = image.convert("RGBA")
@@ -241,19 +316,81 @@ def compress_uploaded_image(
                     mask=rgba_image.getchannel("A"),
                 )
 
-                image = background
+                jpeg_image = background
 
             else:
-                image = image.convert("RGB")
+                jpeg_image = image.convert("RGB")
 
-            save_kwargs = {
-                "format": "JPEG",
-                "quality": quality,
-                "optimize": True,
-                "progressive": True,
-            }
+            jpeg_output = BytesIO()
 
-            output_extension = ".jpg"
+            jpeg_image.save(
+                jpeg_output,
+                format="JPEG",
+                quality=quality,
+                optimize=True,
+                progressive=True,
+            )
+
+            jpeg_data = jpeg_output.getvalue()
+
+            # -------------------------------------------------
+            # Create the PNG representation of the image being
+            # processed. If resizing occurred, this represents
+            # the resized PNG fallback.
+            # -------------------------------------------------
+
+            png_output = BytesIO()
+
+            if image.mode not in {
+                "1",
+                "L",
+                "P",
+                "RGB",
+                "RGBA",
+                "LA",
+            }:
+                png_image = image.convert("RGBA")
+            else:
+                png_image = image
+
+            png_image.save(
+                png_output,
+                format="PNG",
+                optimize=True,
+            )
+
+            png_data = png_output.getvalue()
+
+            # -------------------------------------------------
+            # Preserve Step 5 behaviour when no resizing was
+            # required:
+            #
+            # JPEG must be smaller than the ORIGINAL uploaded
+            # PNG, not merely smaller than a newly generated
+            # optimized PNG.
+            #
+            # When resizing was required, compare JPEG against
+            # the RESIZED PNG because that is the PNG fallback
+            # that would actually be stored.
+            # -------------------------------------------------
+
+            if needs_resize:
+
+                use_jpeg = len(jpeg_data) < len(png_data)
+
+            else:
+
+                use_jpeg = len(jpeg_data) < original_size
+
+            if use_jpeg:
+
+                output = BytesIO(jpeg_data)
+                output_extension = ".jpg"
+
+            else:
+
+                output = BytesIO(png_data)
+                output_extension = ".png"
 
         # -------------------------------------------------
         # WEBP
@@ -269,7 +406,10 @@ def compress_uploaded_image(
 
             output_extension = extension
 
-        image.save(output, **save_kwargs)
+            image.save(
+                output,
+                **save_kwargs,
+            )
 
     except Exception:
         try:
@@ -282,7 +422,7 @@ def compress_uploaded_image(
     processed_data = output.getvalue()
 
     # -----------------------------------------------------
-    # Only use the processed version if it is smaller.
+    # INVALID OUTPUT
     # -----------------------------------------------------
 
     if not processed_data:
@@ -293,22 +433,35 @@ def compress_uploaded_image(
 
         return uploaded_file
 
-    if len(processed_data) >= original_size:
-        try:
-            uploaded_file.seek(0)
-        except Exception:
-            pass
+    # -----------------------------------------------------
+    # DECIDE WHETHER TO USE PROCESSED FILE
+    #
+    # Resizing is mandatory when dimensions exceeded the
+    # maximum, so the resized result must be used.
+    #
+    # If no resizing occurred, retain the existing Step 4/5
+    # rule: only use the processed file when it is smaller.
+    # -----------------------------------------------------
 
-        return uploaded_file
+    if not dimensions_changed:
+
+        if len(processed_data) >= original_size:
+
+            try:
+                uploaded_file.seek(0)
+            except Exception:
+                pass
+
+            return uploaded_file
 
     # -----------------------------------------------------
-    # Update the stored filename extension when conversion
-    # changes the image format.
+    # UPDATE STORED FILENAME WHEN FORMAT CHANGES
     # -----------------------------------------------------
 
     processed_name = uploaded_file.name
 
     if extension == ".png":
+
         processed_name = str(
             Path(uploaded_file.name).with_suffix(
                 output_extension
