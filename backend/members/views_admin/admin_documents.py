@@ -5,7 +5,10 @@ from backend.members.decorators import admin_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from backend.members.views_frontend import documents
-from backend.members.services.document_files import prepare_document_file
+from backend.members.services.document_files import (
+    DocumentUploadValidationError,
+    prepare_document_file,
+)
 from django.http import FileResponse, Http404
 from django.views.decorators.http import require_GET
 from django.views.decorators.clickjacking import xframe_options_sameorigin
@@ -368,7 +371,14 @@ def upload_requested_document_admin(request, request_id):
     """
     Allows admin to upload a document on behalf
     of a member when received externally
-    (email, WhatsApp, physical copy etc.)
+    (email, WhatsApp, physical copy etc.).
+
+    Step 7:
+    - prepare_document_file() performs the central upload
+      validation before image processing or saving.
+    - DocumentUploadValidationError is handled here so an
+      invalid upload produces a safe user-facing message
+      instead of a server error.
     """
 
     document_request = get_object_or_404(
@@ -395,15 +405,58 @@ def upload_requested_document_admin(request, request_id):
             )
 
         # ================================================
-        # CREATE DOCUMENT
+        # ORIGINAL BROWSER FILENAME
         # ================================================
+        #
+        # Keep the original filename before
+        # prepare_document_file() generates the secure
+        # stored filename.
+        # ================================================
+
         original_filename = uploaded_file.name
 
-        uploaded_file = prepare_document_file(
-            uploaded_file=uploaded_file,
-            member=member,
-            document_title=document_request.title,
-        )
+        # ================================================
+        # STEP 7 - CENTRAL VALIDATION + PROCESSING
+        # ================================================
+        #
+        # Validation is centralised in document_files.py.
+        # Do not duplicate validation rules in this view.
+        #
+        # Validation happens before the document is created.
+        # ================================================
+
+        try:
+
+            uploaded_file = prepare_document_file(
+                uploaded_file=uploaded_file,
+                member=member,
+                document_title=document_request.title,
+            )
+
+        except DocumentUploadValidationError as exc:
+
+            # ============================================
+            # SAFE VALIDATION ERROR
+            # ============================================
+            #
+            # The invalid upload must not result in a 500.
+            # Nothing has been saved at this point.
+            # ============================================
+
+            messages.error(
+                request,
+                str(exc)
+            )
+
+            return redirect(
+                "members_admin:admin_documents_list",
+                member_id=member.id,
+            )
+
+        # ================================================
+        # CREATE DOCUMENT
+        # ================================================
+
         MemberDocument.objects.create(
             member=member,
             title=document_request.title,
@@ -418,9 +471,11 @@ def upload_requested_document_admin(request, request_id):
             reviewed_at=timezone.now(),
             reviewed_by=request.user,
         )
+
         # ================================================
         # MARK REQUEST COMPLETED
         # ================================================
+
         document_request.status = (
             DocumentRequest.STATUS_COMPLETED
         )

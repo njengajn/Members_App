@@ -5,8 +5,10 @@ from django.db.models import Q
 from django.contrib import messages
 import os, tempfile, zipfile
 from backend.members.models import (Member, MemberDocument, DocumentRequest,)
-from backend.members.services.document_files import (prepare_document_file,)
-from backend.members.services.document_files import prepare_document_file
+from backend.members.services.document_files import (
+    DocumentUploadValidationError,
+    prepare_document_file,
+)
 import mimetypes
 
 
@@ -61,14 +63,46 @@ def upload_document(request):
             return redirect("members:member_requests")
         original_filename = uploaded_file.name
 
-        uploaded_file = prepare_document_file(
-            uploaded_file=uploaded_file,
-            member=member,
-            document_title=request.POST.get(
-                "title",
-                uploaded_file.name,
-            ),
-        )
+        # =================================================
+        # STEP 7 - CENTRAL VALIDATION + PROCESSING
+        # =================================================
+        #
+        # prepare_document_file() validates the upload before
+        # image processing and before the document is saved.
+        # =================================================
+
+        try:
+
+            uploaded_file = prepare_document_file(
+                uploaded_file=uploaded_file,
+                member=member,
+                document_title=request.POST.get(
+                    "title",
+                    uploaded_file.name,
+                ),
+            )
+
+        except DocumentUploadValidationError as exc:
+
+            # Invalid uploads must not become server errors.
+            # AJAX requests receive a safe JSON error; normal
+            # requests receive the existing Django message.
+
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+
+                return JsonResponse(
+                    {
+                        "error": str(exc)
+                    },
+                    status=400
+                )
+
+            messages.error(
+                request,
+                str(exc)
+            )
+
+            return redirect("members:member_requests")
 
         # =================================================
         # CREATE DOCUMENT
@@ -479,11 +513,32 @@ def upload_requested_document(request, request_id):
         # =================================================
         original_filename = uploaded_file.name
 
-        uploaded_file = prepare_document_file(
-            uploaded_file=uploaded_file,
-            member=member,
-            document_title=doc_request.title,
-        )
+        # =================================================
+        # STEP 7 - CENTRAL VALIDATION + PROCESSING
+        # =================================================
+
+        try:
+
+            uploaded_file = prepare_document_file(
+                uploaded_file=uploaded_file,
+                member=member,
+                document_title=doc_request.title,
+            )
+
+        except DocumentUploadValidationError as exc:
+
+            # Validation failure occurs before MemberDocument
+            # creation and before the request is completed.
+
+            messages.error(
+                request,
+                str(exc)
+            )
+
+            return redirect(
+                "members:upload_requested_document",
+                request_id=request_id
+            )
 
         MemberDocument.objects.create(
             member=member,
@@ -606,11 +661,32 @@ def resubmit_document(request, document_id,):
 
             original_filename = uploaded_file.name
 
-            uploaded_file = prepare_document_file(
-                uploaded_file=uploaded_file,
-                member=member,
-                document_title=document.title,
-            )
+            # =================================================
+            # STEP 7 - CENTRAL VALIDATION + PROCESSING
+            # =================================================
+
+            try:
+
+                uploaded_file = prepare_document_file(
+                    uploaded_file=uploaded_file,
+                    member=member,
+                    document_title=document.title,
+                )
+
+            except DocumentUploadValidationError as exc:
+
+                # Validation failure must leave the rejected
+                # document unchanged.
+
+                messages.error(
+                    request,
+                    str(exc)
+                )
+
+                return redirect(
+                    "members:resubmit_document",
+                    document_id=document.id,
+                )
 
             document.file = uploaded_file
 

@@ -7,6 +7,244 @@ from django.core.files.base import ContentFile
 from PIL import Image
 
 
+# =========================================================
+# STEP 7 - DOCUMENT UPLOAD VALIDATION
+# =========================================================
+#
+# Maximum size of the ORIGINAL uploaded file.
+#
+# This limit is deliberately checked before image
+# compression, PNG conversion, resizing, or saving.
+# =========================================================
+
+MAX_DOCUMENT_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+# =========================================================
+# STEP 7 - PERMITTED DOCUMENT TYPES
+# =========================================================
+#
+# The Members App currently intends to accept:
+#
+#   - JPEG / JPG images
+#   - PNG images
+#   - WebP images
+#   - PDF documents
+#
+# Other formats that the MemberDocument model can classify
+# are NOT automatically permitted for uploading.
+# =========================================================
+
+ALLOWED_DOCUMENT_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".pdf",
+}
+
+
+# =========================================================
+# STEP 7 - EXPECTED IMAGE FORMATS
+# =========================================================
+#
+# Used to verify that the actual image content matches
+# the filename extension.
+# =========================================================
+
+EXPECTED_IMAGE_FORMATS = {
+    ".jpg": "JPEG",
+    ".jpeg": "JPEG",
+    ".png": "PNG",
+    ".webp": "WEBP",
+}
+
+
+class DocumentUploadValidationError(ValueError):
+    """
+    Raised when an uploaded document fails the central
+    Members App upload validation rules.
+
+    The messages raised by this exception are deliberately
+    safe for display to members/admins.
+    """
+
+def validate_document_upload(uploaded_file):
+    """
+    Centrally validate an uploaded MemberDocument.
+
+    Validation performed here:
+        1. File must exist.
+        2. Original file must not exceed 10 MB.
+        3. Extension must be permitted.
+        4. Browser-provided content_type is not trusted.
+        5. Images must be valid images according to Pillow.
+        6. Image content must match the filename extension.
+        7. PDFs must contain the PDF file signature.
+
+    Validation happens before image processing or saving.
+
+    Returns:
+        The original uploaded file, unchanged.
+
+    Raises:
+        DocumentUploadValidationError:
+            If the upload fails validation.
+    """
+
+    # -----------------------------------------------------
+    # FILE PRESENCE
+    # -----------------------------------------------------
+
+    if not uploaded_file:
+        raise DocumentUploadValidationError(
+            "Please select a document to upload."
+        )
+
+    # -----------------------------------------------------
+    # ORIGINAL FILE SIZE
+    # -----------------------------------------------------
+    #
+    # Check the incoming file before Pillow processes it.
+    # A large image must not be accepted simply because it
+    # could later be compressed to a smaller file.
+    # -----------------------------------------------------
+
+    file_size = getattr(
+        uploaded_file,
+        "size",
+        None,
+    )
+
+    if file_size is None:
+        raise DocumentUploadValidationError(
+            "The uploaded file could not be verified."
+        )
+
+    if file_size <= 0:
+        raise DocumentUploadValidationError(
+            "The uploaded file is empty."
+        )
+
+    if file_size > MAX_DOCUMENT_UPLOAD_SIZE:
+        raise DocumentUploadValidationError(
+            "File too large. "
+            "The maximum allowed size is 10 MB."
+        )
+
+    # -----------------------------------------------------
+    # FILE EXTENSION
+    # -----------------------------------------------------
+
+    original_name = (
+        getattr(
+            uploaded_file,
+            "name",
+            "",
+        )
+        or ""
+    )
+
+    extension = Path(
+        original_name
+    ).suffix.lower()
+
+    if extension not in ALLOWED_DOCUMENT_EXTENSIONS:
+        raise DocumentUploadValidationError(
+            "Unsupported file type. "
+            "Please upload a PDF, JPEG, PNG, or WebP file."
+        )
+
+    # -----------------------------------------------------
+    # READ FILE HEADER
+    # -----------------------------------------------------
+    #
+    # Do not use uploaded_file.content_type as the security
+    # decision. That value originates from the client.
+    # -----------------------------------------------------
+
+    try:
+        uploaded_file.seek(0)
+        header = uploaded_file.read(16)
+        uploaded_file.seek(0)
+
+    except (AttributeError, OSError):
+        raise DocumentUploadValidationError(
+            "The uploaded file could not be verified."
+        )
+
+    # -----------------------------------------------------
+    # PDF VALIDATION
+    # -----------------------------------------------------
+
+    if extension == ".pdf":
+
+        # A PDF file begins with the "%PDF-" signature.
+        if not header.startswith(b"%PDF-"):
+            raise DocumentUploadValidationError(
+                "The uploaded file is not a valid PDF."
+            )
+
+        uploaded_file.seek(0)
+
+        return uploaded_file
+
+    # -----------------------------------------------------
+    # IMAGE VALIDATION
+    # -----------------------------------------------------
+
+    expected_format = EXPECTED_IMAGE_FORMATS.get(
+        extension
+    )
+
+    if not expected_format:
+        raise DocumentUploadValidationError(
+            "Unsupported file type. "
+            "Please upload a PDF, JPEG, PNG, or WebP file."
+        )
+
+    try:
+        uploaded_file.seek(0)
+
+        image = Image.open(
+            uploaded_file
+        )
+
+        # Verify the actual image contents rather than
+        # trusting the filename extension.
+        image.verify()
+
+        detected_format = image.format
+
+        uploaded_file.seek(0)
+
+    except Exception:
+        try:
+            uploaded_file.seek(0)
+        except Exception:
+            pass
+
+        raise DocumentUploadValidationError(
+            "The uploaded image could not be verified "
+            "as a valid image."
+        )
+
+    # -----------------------------------------------------
+    # EXTENSION / ACTUAL CONTENT MATCH
+    # -----------------------------------------------------
+
+    if detected_format != expected_format:
+        raise DocumentUploadValidationError(
+            "The file extension does not match the actual "
+            "file type."
+        )
+
+    # Leave the upload positioned at the beginning for the
+    # existing image-processing function.
+    uploaded_file.seek(0)
+
+    return uploaded_file
+
 def sanitize_filename_part(value, fallback="document"):
     """
     Convert a filename/title into a safe filename component.
@@ -40,33 +278,61 @@ def prepare_document_file(
     document_title="document",
 ):
     """
-    Prepare an uploaded document with a meaningful,
-    collision-resistant stored filename.
+    Validate and prepare an uploaded document.
 
-    The original browser filename is preserved separately
-    by the caller.
+    Step 7 validation happens first.
 
-    Example:
+    Existing Steps 4-6 image processing then handles:
+        - JPEG/JPG compression
+        - PNG conversion when beneficial
+        - transparent PNG compositing
+        - WebP compression
+        - maximum 2000px image resizing
 
-        passport_scan.jpg
+    PDFs are validated but otherwise passed through unchanged.
 
-    becomes:
-
-        KRO-1001-passport-2026-08-09-a83f2c.jpg
+    The original browser filename is kept separately from
+    the generated stored filename.
     """
 
-    original_name = uploaded_file.name or "document"
+    # =====================================================
+    # STEP 7 - VALIDATE BEFORE PROCESSING
+    # =====================================================
+    #
+    # This must happen before:
+    #   - Pillow processing
+    #   - compression
+    #   - conversion
+    #   - resizing
+    #   - saving
+    # =====================================================
 
-    extension = Path(original_name).suffix.lower()
+    validate_document_upload(
+        uploaded_file
+    )
 
-    if not extension:
-        extension = ""
+    # =====================================================
+    # ORIGINAL BROWSER FILENAME
+    # =====================================================
 
-    # --------------------------------------------------
+    original_name = (
+        uploaded_file.name
+        or "document"
+    )
+
+    extension = Path(
+        original_name
+    ).suffix.lower()
+
+    # =====================================================
     # MEMBER IDENTIFIER
-    # --------------------------------------------------
+    # =====================================================
 
-    member_uid = getattr(member, "member_uid", None)
+    member_uid = getattr(
+        member,
+        "member_uid",
+        None,
+    )
 
     if member_uid:
         member_identifier = sanitize_filename_part(
@@ -74,32 +340,34 @@ def prepare_document_file(
             fallback=f"member-{member.pk}",
         )
     else:
-        member_identifier = f"member-{member.pk}"
+        member_identifier = (
+            f"member-{member.pk}"
+        )
 
-    # --------------------------------------------------
+    # =====================================================
     # DOCUMENT NAME
-    # --------------------------------------------------
+    # =====================================================
 
     document_name = sanitize_filename_part(
         document_title,
         fallback="document",
     )
 
-    # --------------------------------------------------
+    # =====================================================
     # DATE
-    # --------------------------------------------------
+    # =====================================================
 
     upload_date = date.today().isoformat()
 
-    # --------------------------------------------------
+    # =====================================================
     # COLLISION-RESISTANT IDENTIFIER
-    # --------------------------------------------------
+    # =====================================================
 
     unique_suffix = uuid4().hex[:6]
 
-    # --------------------------------------------------
-    # FINAL STORED NAME
-    # --------------------------------------------------
+    # =====================================================
+    # GENERATED STORED FILENAME
+    # =====================================================
 
     stored_filename = (
         f"{member_identifier}-"
@@ -109,16 +377,32 @@ def prepare_document_file(
         f"{extension}"
     )
 
-    # Keep the generated name safely below common
-    # filesystem/storage limits.
     uploaded_file.name = stored_filename
+
+    # =====================================================
+    # EXISTING STEPS 4-6 PROCESSING
+    # =====================================================
+    #
+    # Do not change compress_uploaded_image().
+    #
+    # It already contains the tested compression,
+    # conversion and resizing behaviour.
+    #
+    # PDF is not an image extension and therefore passes
+    # through unchanged.
+    # =====================================================
 
     prepared_file = compress_uploaded_image(
         uploaded_file
     )
 
-    # Preserve the browser-uploaded filename for the caller.
-    prepared_file._original_filename = original_name
+    # =====================================================
+    # PRESERVE ORIGINAL BROWSER FILENAME
+    # =====================================================
+
+    prepared_file._original_filename = (
+        original_name
+    )
 
     return prepared_file
 
