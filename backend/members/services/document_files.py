@@ -5,7 +5,9 @@ from uuid import uuid4
 from io import BytesIO
 from django.core.files.base import ContentFile
 from PIL import Image
+import logging
 
+logger = logging.getLogger(__name__)
 
 # =========================================================
 # STEP 7 - DOCUMENT UPLOAD VALIDATION
@@ -554,7 +556,32 @@ def compress_uploaded_image(
         if extension in {".jpg", ".jpeg"}:
 
             # JPEG cannot store transparency.
-            if image.mode not in {"RGB", "L"}:
+            # -------------------------------------------------
+            # NORMALISE MODE FOR JPEG
+            # -------------------------------------------------
+
+            if "A" in image.getbands():
+
+                rgba_image = image.convert("RGBA")
+
+                background = Image.new(
+                    "RGB",
+                    rgba_image.size,
+                    "white",
+                )
+
+                background.paste(
+                    rgba_image,
+                    mask=rgba_image.getchannel("A"),
+                )
+
+                image = background
+
+            elif image.mode not in {
+                "RGB",
+                "L",
+            }:
+
                 image = image.convert("RGB")
 
             save_kwargs = {
@@ -758,3 +785,125 @@ def compress_uploaded_image(
     )
 
     return compressed_file
+
+# =========================================================
+# STEP 8 - DOCUMENT THUMBNAIL GENERATION
+# =========================================================
+
+THUMBNAIL_MAX_DIMENSION = 300
+
+
+def generate_document_thumbnail(document):
+    """
+    Generate a private thumbnail for an image MemberDocument.
+
+    STEP 8 RULES
+    ------------
+    - JPEG/JPG, PNG and WebP receive thumbnails.
+    - PDFs do not receive thumbnails.
+    - The thumbnail is generated from the already processed
+      document.file.
+    - Maximum dimension is 300px.
+    - Aspect ratio is preserved.
+    - Images are never enlarged.
+    - Thumbnail failure does not invalidate the document.
+
+    Returns:
+        True if a thumbnail was generated.
+        False if no thumbnail was generated.
+    """
+
+    if not document:
+        return False
+
+    if not document.file:
+        return False
+
+    extension = Path(
+        document.file.name
+    ).suffix.lower()
+
+    if extension not in {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+    }:
+        return False
+
+    try:
+        with document.file.open("rb") as source_file:
+
+            image = Image.open(source_file)
+
+            image.load()
+
+            image.thumbnail(
+                (
+                    THUMBNAIL_MAX_DIMENSION,
+                    THUMBNAIL_MAX_DIMENSION,
+                ),
+                Image.Resampling.LANCZOS,
+            )
+
+            if image.mode not in {
+                "RGB",
+                "L",
+            }:
+                image = image.convert("RGB")
+
+            output = BytesIO()
+
+            image.save(
+                output,
+                format="JPEG",
+                quality=82,
+                optimize=True,
+                progressive=True,
+            )
+
+            thumbnail_data = output.getvalue()
+
+        if not thumbnail_data:
+            return False
+
+        original_name = Path(
+            document.file.name
+        )
+
+        thumbnail_filename = (
+            f"{original_name.stem}-thumb.jpg"
+        )
+
+        if document.thumbnail:
+            try:
+                document.thumbnail.delete(
+                    save=False
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to remove old thumbnail "
+                    "for MemberDocument %s",
+                    document.pk,
+                )
+
+        document.thumbnail.save(
+            thumbnail_filename,
+            ContentFile(thumbnail_data),
+            save=False,
+        )
+
+        document.save(
+            update_fields=["thumbnail"]
+        )
+
+        return True
+
+    except Exception:
+        logger.exception(
+            "Thumbnail generation failed for "
+            "MemberDocument %s",
+            getattr(document, "pk", None),
+        )
+
+        return False

@@ -1281,6 +1281,16 @@ class MemberDocument(models.Model):
         upload_to="member_documents/%Y/%m/",
     )
 
+    thumbnail = models.ImageField(
+        upload_to="member_documents/%Y/%m/thumbnails/",
+        null=True,
+        blank=True,
+        help_text=(
+            "Private thumbnail generated for image documents. "
+            "Access through the secure document thumbnail endpoint."
+        ),
+    )
+
     # ======================================================
     # STATUS & AUDIT
     # ======================================================

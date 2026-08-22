@@ -6,8 +6,9 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from backend.members.views_frontend import documents
 from backend.members.services.document_files import (
-    DocumentUploadValidationError,
     prepare_document_file,
+    generate_document_thumbnail,
+    DocumentUploadValidationError,
 )
 from django.http import FileResponse, Http404
 from django.views.decorators.http import require_GET
@@ -135,6 +136,62 @@ def admin_document_file(request, document_id):
             or document.file.name.rsplit("/", 1)[-1]
         ),
         content_type=content_type,
+    )
+
+# =========================================================
+# SECURE ADMIN DOCUMENT THUMBNAIL
+# =========================================================
+
+@admin_required
+def admin_document_thumbnail(request, document_id):
+    """
+    Securely serve a MemberDocument thumbnail to an
+    authorised administrator.
+
+    The thumbnail is never served directly through MEDIA_URL.
+    """
+
+    # =====================================================
+    # FIND DOCUMENT
+    # =====================================================
+
+    document = get_object_or_404(
+        MemberDocument,
+        id=document_id,
+    )
+
+    # =====================================================
+    # VERIFY THUMBNAIL EXISTS
+    # =====================================================
+
+    if not document.thumbnail:
+        raise Http404("Thumbnail not found.")
+
+    # =====================================================
+    # OPEN THROUGH DJANGO STORAGE
+    # =====================================================
+
+    try:
+        file_handle = document.thumbnail.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404(
+            "Thumbnail could not be opened."
+        )
+
+    # =====================================================
+    # RETURN THUMBNAIL
+    # =====================================================
+
+    return FileResponse(
+        file_handle,
+        as_attachment=False,
+        filename=(
+            document.thumbnail.name.rsplit(
+                "/",
+                1,
+            )[-1]
+        ),
+        content_type="image/jpeg",
     )
 
 # =========================================================
@@ -457,7 +514,7 @@ def upload_requested_document_admin(request, request_id):
         # CREATE DOCUMENT
         # ================================================
 
-        MemberDocument.objects.create(
+        doc = MemberDocument.objects.create(
             member=member,
             title=document_request.title,
             description=(
@@ -471,6 +528,8 @@ def upload_requested_document_admin(request, request_id):
             reviewed_at=timezone.now(),
             reviewed_by=request.user,
         )
+
+        generate_document_thumbnail(doc)
 
         # ================================================
         # MARK REQUEST COMPLETED

@@ -266,7 +266,7 @@
             {% if doc.file_type == "image" %}
 
                 <img
-                    src="{% url 'members_admin:admin_document_file' doc.id %}"
+                    src="{% url 'members_admin:admin_document_thumbnail' doc.id %}"
                     class="preview-thumb"
                     alt="{{ doc.title }}"
                     onclick="openPreview(
@@ -306,7 +306,7 @@
 
             {% else %}
 
-                <a href="{% url url 'members_admin:admin_document_file' doc.id %}"
+                <a href="{% url 'members_admin:admin_document_file' doc.id %}"
                    target="_blank"
                    class="btn btn-sm btn-secondary">
 

@@ -61,6 +61,7 @@ from backend.members.views_frontend.documents import(
     upload_document,
     resubmit_document,
     view_document_file,
+    view_document_thumbnail,
 )
 
 
@@ -150,6 +151,11 @@ urlpatterns = [
     path("documents/upload/", upload_document, name="upload_document"),
     path("documents/<int:document_id>/resubmit/", resubmit_document, name="resubmit_document",),
     path("privacy-policy/",  privacy_policy, name="privacy_policy",),
+    path(
+        "documents/<int:file_id>/thumbnail/",
+        view_document_thumbnail,
+        name="view_document_thumbnail",
+    ),
     # =========================================================
     # SECURE MEMBER DOCUMENT VIEW
     # =========================================================
@@ -157,5 +163,3 @@ urlpatterns = [
     path("documents/<int:file_id>/view/", view_document_file, name="view_document_file",),
     
 ]
-
-

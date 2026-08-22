@@ -465,10 +465,10 @@
 
                     <!-- PREVIEW -->
                     <td data-label="Preview">
-                        {% if document.file_type == "image" %}
+                        {% if document.thumbnail %}
 
                             <img
-                                src="{% url 'members:view_document_file' document.id %}"
+                                src="{% url 'members:view_document_thumbnail' document.id %}"
                                 class="preview-image"
                                 alt="{{ document.title }}"
                             >

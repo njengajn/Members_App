@@ -6,9 +6,11 @@ from django.contrib import messages
 import os, tempfile, zipfile
 from backend.members.models import (Member, MemberDocument, DocumentRequest,)
 from backend.members.services.document_files import (
-    DocumentUploadValidationError,
     prepare_document_file,
+    generate_document_thumbnail,
+    DocumentUploadValidationError,
 )
+
 import mimetypes
 
 
@@ -120,6 +122,8 @@ def upload_document(request):
             file=uploaded_file,
             original_filename=original_filename,
         )
+
+        generate_document_thumbnail(doc)
 
         # =================================================
         # LINK TO DOCUMENT REQUEST
@@ -361,6 +365,105 @@ def view_document_file(request, file_id):
     )
 
 # =========================================================
+# SECURE MEMBER DOCUMENT THUMBNAIL
+# =========================================================
+
+@login_required
+def view_document_thumbnail(request, file_id):
+    """
+    Securely serve a MemberDocument thumbnail.
+
+    SECURITY:
+        - User must be authenticated.
+        - Authorised administrators may view any MemberDocument.
+        - Members may view only their own documents.
+        - MemberDocument.can_be_viewed_by() remains
+          authoritative for member access.
+        - Archived documents remain unavailable to members.
+        - Raw thumbnail MEDIA_URL is never exposed.
+    """
+
+    # =====================================================
+    # ADMIN ACCESS
+    # =====================================================
+    #
+    # Administrators do not need to have a Member record.
+    #
+    # They are allowed to access authorised MemberDocuments
+    # through the secure endpoint.
+    #
+
+    if request.user.is_staff:
+
+        document = get_object_or_404(
+            MemberDocument,
+            id=file_id,
+        )
+
+    # =====================================================
+    # MEMBER ACCESS
+    # =====================================================
+    #
+    # Non-admin authenticated users must have a Member
+    # record and may only access their own document.
+    #
+
+    else:
+
+        member = get_object_or_404(
+            Member,
+            user=request.user,
+        )
+
+        document = get_object_or_404(
+            MemberDocument,
+            id=file_id,
+            member=member,
+        )
+
+        # =================================================
+        # CENTRAL SECURITY CHECK
+        # =================================================
+
+        if not document.can_be_viewed_by(request.user):
+            raise Http404("Document not found.")
+
+    # =====================================================
+    # VERIFY THUMBNAIL EXISTS
+    # =====================================================
+
+    if not document.thumbnail:
+        raise Http404("Thumbnail not found.")
+
+    # =====================================================
+    # OPEN THROUGH DJANGO STORAGE
+    # =====================================================
+
+    try:
+        file_handle = document.thumbnail.open("rb")
+
+    except (FileNotFoundError, OSError):
+        raise Http404(
+            "Thumbnail could not be opened."
+        )
+
+    # =====================================================
+    # RETURN THUMBNAIL
+    # =====================================================
+
+    return FileResponse(
+        file_handle,
+        as_attachment=False,
+        filename=(
+            document.thumbnail.name.rsplit(
+                "/",
+                1,
+            )[-1]
+        ),
+        content_type="image/jpeg",
+    )
+
+# =========================================================
 # DOWNLOAD SINGLE DOCUMENT
 # =========================================================
 
@@ -540,13 +643,16 @@ def upload_requested_document(request, request_id):
                 request_id=request_id
             )
 
-        MemberDocument.objects.create(
+        doc = MemberDocument.objects.create(
             member=member,
             file=uploaded_file,
             original_filename=original_filename,
             title=doc_request.title,
             document_request=doc_request,
         )
+
+        generate_document_thumbnail(doc)
+
         # =================================================
         # MARK REQUEST COMPLETE
         # =================================================
@@ -696,6 +802,31 @@ def resubmit_document(request, document_id,):
                 MemberDocument.STATUS_PENDING
             )
 
+            # =================================================
+            # REMOVE OLD THUMBNAIL
+            # =================================================
+
+            if document.thumbnail:
+
+                try:
+                    document.thumbnail.delete(
+                        save=False
+                    )
+                except Exception:
+                    pass
+
+            document.thumbnail = None
+
+            # =================================================
+            # REPLACE DOCUMENT FILE
+            # =================================================
+
+            document.file = uploaded_file
+
+            document.original_filename = original_filename
+
+            document.status = MemberDocument.STATUS_PENDING
+
             document.rejection_reason = ""
 
             document.admin_notes = ""
@@ -704,7 +835,16 @@ def resubmit_document(request, document_id,):
 
             document.save()
 
-            # Keep the linked request in sync
+            # =================================================
+            # GENERATE NEW THUMBNAIL
+            # =================================================
+
+            generate_document_thumbnail(document)
+
+            # =================================================
+            # UPDATE REQUEST STATUS
+            # =================================================
+
             if document.document_request:
                 document.document_request.update_request_status()
 

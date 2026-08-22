@@ -12,7 +12,6 @@ from backend.members.views_admin.admin_auth import login_view
 from backend.members.views_admin.admin_dashboard import admin_dashboard
 
 # MEMBERS
-from backend.members.views_admin.admin_documents import admin_documents_list, approve_document, document_dashboard, reject_document, request_document
 from backend.members.views_admin.admin_members import (
     admin_update_member_permissions,
     dependant_detail,
@@ -86,7 +85,13 @@ from backend.members.views_admin.admin_members import (
     toggle_member_edit,
     member_card_view,
 )
+# =========================================================
+# ADMIN DOCUMENT VIEWS
+# =========================================================
+
 from backend.members.views_admin.admin_documents import (
+    request_document,
+    admin_documents_list,
     document_dashboard,
     approve_document,
     reject_document,
@@ -95,6 +100,9 @@ from backend.members.views_admin.admin_documents import (
     upload_requested_document_admin,
     reject_document_form,
     admin_document_preview,
+    admin_document_thumbnail,
+    admin_document_review,
+    admin_document_file,
 )
 from backend.members.views_admin import admin_dashboard, payment_filters
 from backend.members.views_admin.admin_member_search import admin_member_search
@@ -116,14 +124,6 @@ from backend.members.views_admin.admin_treasurer_dashboard import (
 # =========================================================
 # ADMIN DOCUMENT VIEWS
 # =========================================================
-
-from backend.members.views_admin.admin_documents import(
-    document_dashboard,
-    admin_document_review,
-    admin_document_preview,
-    request_document,
-    admin_document_file
-    )
 
 from backend.members.views_admin.admin_members import (
     toggle_member_dependant_edit,
@@ -294,7 +294,12 @@ urlpatterns = [
     path("admin/documents/<int:pk>/approve/", approve_document, name="approve_document"),
     path("admin/documents/<int:document_id>/reject/", reject_document_form, name="reject_document_form",),
     path("documents/<int:document_id>/preview/", admin_document_preview, name="admin_document_preview",),
-    
+    path(
+        "documents/<int:document_id>/thumbnail/",
+        admin_document_thumbnail,
+        name="admin_document_thumbnail",
+    ),
+
     #======================
     # MEMBER EDIT AND UPDATE
     #
