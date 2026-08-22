@@ -62,6 +62,7 @@ from backend.members.views_frontend.documents import(
     resubmit_document,
     view_document_file,
     view_document_thumbnail,
+    view_document_preview,
 )
 
 
@@ -161,5 +162,10 @@ urlpatterns = [
     # =========================================================
 
     path("documents/<int:file_id>/view/", view_document_file, name="view_document_file",),
+    path(
+        "documents/<int:file_id>/preview/",
+        view_document_preview,
+        name="view_document_preview",
+    ),
     
 ]

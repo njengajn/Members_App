@@ -1,66 +1,61 @@
-{% extends "members/members_base.html" %}
-{% load static %}
+{% extends "members/members_base.html" %} {% load static %} {% block content %}
 
-{% block content %}
-
-<link rel="stylesheet"
-      href="{% static 'css/documents-responsive.css' %}">
+<link rel="stylesheet" href="{% static 'css/documents-responsive.css' %}" />
 
 <style>
+  /* ========================= */
+  /* PAGE */
+  /* ========================= */
 
-/* ========================= */
-/* PAGE */
-/* ========================= */
-
-.page-title {
+  .page-title {
     margin-bottom: 20px;
     font-weight: 700;
-}
+  }
 
-/* ========================= */
-/* REQUEST CARD */
-/* ========================= */
+  /* ========================= */
+  /* REQUEST CARD */
+  /* ========================= */
 
-.request-card {
+  .request-card {
     border: 1px solid #ddd;
     border-radius: 10px;
     padding: 15px;
     margin-bottom: 15px;
     background: #fff;
     transition: all 0.2s ease;
-}
+  }
 
-.request-card:hover {
-    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-}
+  .request-card:hover {
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+  }
 
-/* ========================= */
-/* HEADER */
-/* ========================= */
+  /* ========================= */
+  /* HEADER */
+  /* ========================= */
 
-.request-header {
+  .request-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 15px;
-}
+  }
 
-.request-title {
+  .request-title {
     font-size: 16px;
     font-weight: 600;
-}
+  }
 
-.request-description {
+  .request-description {
     color: #666;
     margin-top: 4px;
     font-size: 13px;
-}
+  }
 
-/* ========================= */
-/* STATUS BADGE */
-/* ========================= */
+  /* ========================= */
+  /* STATUS BADGE */
+  /* ========================= */
 
-.status-badge {
+  .status-badge {
     padding: 5px 12px;
     border-radius: 20px;
     color: white;
@@ -68,37 +63,37 @@
     font-weight: 600;
     white-space: nowrap;
     display: inline-block;
-}
+  }
 
-.pending {
+  .pending {
     background: #f59e0b;
-}
+  }
 
-.completed {
+  .completed {
     background: #16a34a;
-}
+  }
 
-.rejected {
+  .rejected {
     background: #dc2626;
-}
+  }
 
-/* ========================= */
-/* COMPACT UPLOAD ROW */
-/* ========================= */
+  /* ========================= */
+  /* COMPACT UPLOAD ROW */
+  /* ========================= */
 
-.upload-row {
+  .upload-row {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-top: 15px;
     flex-wrap: wrap;
-}
+  }
 
-/* ========================= */
-/* DROP ZONE */
-/* ========================= */
+  /* ========================= */
+  /* DROP ZONE */
+  /* ========================= */
 
-.drop-zone {
+  .drop-zone {
     border: 2px dashed #bbb;
     border-radius: 8px;
     padding: 10px 14px;
@@ -107,411 +102,372 @@
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: center;
-}
+  }
 
-.drop-zone:hover {
+  .drop-zone:hover {
     background: #f3f4f6;
-}
+  }
 
-.drop-zone.dragover {
+  .drop-zone.dragover {
     border-color: #2563eb;
     background: #eff6ff;
-}
+  }
 
-.drop-zone-text {
+  .drop-zone-text {
     font-size: 13px;
     color: #555;
-}
+  }
 
-/* ========================= */
-/* FILE PREVIEW */
-/* ========================= */
+  /* ========================= */
+  /* FILE PREVIEW */
+  /* ========================= */
 
-.preview-container {
+  .preview-container {
     margin-top: 10px;
-}
+  }
 
-.preview-image {
+  .preview-image {
     max-width: 120px;
     max-height: 120px;
     border-radius: 6px;
     border: 1px solid #ddd;
-}
+  }
 
-.preview-file {
+  .preview-file {
     padding: 6px 10px;
     border: 1px solid #ddd;
     border-radius: 6px;
     background: #f9f9f9;
     font-size: 13px;
-}
+  }
 
-/* ========================= */
-/* PROGRESS */
-/* ========================= */
+  /* ========================= */
+  /* PROGRESS */
+  /* ========================= */
 
-.progress {
+  .progress {
     height: 18px;
     width: 180px;
     display: none;
-}
+  }
 
-.progress-bar {
+  .progress-bar {
     font-size: 11px;
     line-height: 18px;
-}
+  }
 
-/* ========================= */
-/* FEEDBACK */
-/* ========================= */
+  /* ========================= */
+  /* FEEDBACK */
+  /* ========================= */
 
-.feedback {
+  .feedback {
     font-size: 13px;
     margin-top: 6px;
-}
+  }
 
-.feedback.success {
+  .feedback.success {
     color: #16a34a;
     font-weight: 600;
-}
+  }
 
-.feedback.error {
+  .feedback.error {
     color: #dc2626;
     font-weight: 600;
-}
+  }
 
-.feedback.loading {
+  .feedback.loading {
     color: #444;
-}
+  }
 
-/* ========================= */
-/* TABLE */
-/* ========================= */
+  /* ========================= */
+  /* TABLE */
+  /* ========================= */
 
-.documents-table {
+  .documents-table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 20px;
-}
+  }
 
-.documents-table th {
+  .documents-table th {
     background: #f8f9fa;
     padding: 10px;
     border-bottom: 2px solid #ddd;
     text-align: left;
-}
+  }
 
-.documents-table td {
+  .documents-table td {
     padding: 10px;
     border-bottom: 1px solid #eee;
     vertical-align: middle;
-}
+  }
 
-.document-link {
+  .document-link {
     text-decoration: none;
     font-weight: 500;
-}
+  }
 
-.document-link:hover {
+  .document-link:hover {
     text-decoration: underline;
-}
+  }
 
-.section-title {
+  .section-title {
     margin-top: 35px;
     margin-bottom: 15px;
     font-size: 20px;
     font-weight: 700;
-}
+  }
 
-.resubmit-btn {
+  .resubmit-btn {
     margin-top: 8px;
-}
-
+  }
 </style>
 
 <div class="container mt-4">
+  <!-- ========================= -->
+  <!-- REQUESTS -->
+  <!-- ========================= -->
 
-    <!-- ========================= -->
-    <!-- REQUESTS -->
-    <!-- ========================= -->
+  <h3 class="page-title">Pending Document Requests</h3>
 
-    <h3 class="page-title">
-        Pending Document Requests
-    </h3>
+  {% for r in requests %}
 
-    {% for r in requests %}
+  <div class="request-card">
+    <!-- HEADER -->
+    <div class="request-header">
+      <div>
+        <div class="request-title">{{ r.title }}</div>
 
-    <div class="request-card">
-
-        <!-- HEADER -->
-        <div class="request-header">
-
-            <div>
-
-                <div class="request-title">
-                    {{ r.title }}
-                </div>
-
-                <div class="request-description">
-                    {{ r.description|default:"No description provided" }}
-                </div>
-
-            </div>
-
-            <div>
-
-                {% if r.completed %}
-
-                    <span class="status-badge completed">
-                        Completed
-                    </span>
-
-                {% else %}
-
-                    <span class="status-badge pending">
-                        Pending
-                    </span>
-
-                {% endif %}
-
-            </div>
-
+        <div class="request-description">
+          {{ r.description|default:"No description provided" }}
         </div>
+      </div>
 
-        {% if not r.completed %}
+      <div>
+        {% if r.completed %}
 
-        <!-- UPLOAD -->
-        <div class="upload-row">
-
-            <!-- DROP ZONE -->
-            <div class="drop-zone"
-                 id="dropZone_{{ r.id }}"
-                 onclick="document.getElementById('file_{{ r.id }}').click();">
-
-                <div class="drop-zone-text">
-                    Drag & Drop or Click
-                </div>
-
-                <input type="file"
-                       id="file_{{ r.id }}"
-                       hidden
-                       onchange="handleFileSelection({{ r.id }})">
-
-            </div>
-
-            <!-- BUTTON -->
-            <button type="button"
-                    class="btn btn-primary btn-sm"
-                    onclick="uploadFile({{ r.id }})">
-
-                Upload File
-
-            </button>
-
-            <!-- PROGRESS -->
-            <div class="progress"
-                 id="progressWrapper_{{ r.id }}">
-
-                <div class="progress-bar progress-bar-striped progress-bar-animated"
-                     id="progressBar_{{ r.id }}"
-                     role="progressbar"
-                     style="width:0%">
-
-                    0%
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <!-- PREVIEW -->
-        <div id="preview_{{ r.id }}"
-             class="preview-container"></div>
-
-        <!-- FEEDBACK -->
-        <div id="feedback_{{ r.id }}"
-             class="feedback"></div>
+        <span class="status-badge completed"> Uploaded </span>
 
         {% else %}
 
-        <div class="feedback success mt-3">
-            ✔ Request completed successfully
-        </div>
+        <span class="status-badge pending"> Pending Submission </span>
 
         {% endif %}
-
+      </div>
     </div>
 
-    {% empty %}
+    {% if not r.completed %}
 
-    <div class="alert alert-info">
-        No pending document requests found.
+    <!-- UPLOAD -->
+    <div class="upload-row">
+      <!-- DROP ZONE -->
+      <div
+        class="drop-zone"
+        id="dropZone_{{ r.id }}"
+        onclick="document.getElementById('file_{{ r.id }}').click();"
+      >
+        <div class="drop-zone-text">Drag & Drop or Click</div>
+
+        <input
+          type="file"
+          id="file_{{ r.id }}"
+          hidden
+          onchange="handleFileSelection({{ r.id }})"
+        />
+      </div>
+
+      <!-- BUTTON -->
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        onclick="uploadFile({{ r.id }})"
+      >
+        Upload File
+      </button>
+
+      <!-- PROGRESS -->
+      <div class="progress" id="progressWrapper_{{ r.id }}">
+        <div
+          class="progress-bar progress-bar-striped progress-bar-animated"
+          id="progressBar_{{ r.id }}"
+          role="progressbar"
+          style="width: 0%"
+        >
+          0%
+        </div>
+      </div>
     </div>
 
-    {% endfor %}
+    <!-- PREVIEW -->
+    <div id="preview_{{ r.id }}" class="preview-container"></div>
 
-    <!-- ========================= -->
-    <!-- DOCUMENTS -->
-    <!-- ========================= -->
+    <!-- FEEDBACK -->
+    <div id="feedback_{{ r.id }}" class="feedback"></div>
 
-    <div class="section-title">
-        Uploaded Documents
+    {% else %}
+
+    <div class="feedback success mt-3">
+      ✔ Requested Document Uploaded successfully
     </div>
 
-    <div class="table-responsive-documents">
+    {% endif %}
+  </div>
 
-        <table class="documents-table">
+  {% empty %}
 
-            <thead>
+  <div class="alert alert-info">No pending document requests found.</div>
 
-                <tr>
+  {% endfor %}
 
-                    <th>Title</th>
-                    <th>Status</th>
-                    <th>Uploaded</th>
-                    <th>Preview</th>
+  <!-- ========================= -->
+  <!-- DOCUMENTS -->
+  <!-- ========================= -->
 
-                </tr>
+  <div class="section-title">Uploaded Documents</div>
 
-            </thead>
+  <div class="table-responsive-documents">
+    <table class="documents-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Status</th>
+          <th>Uploaded</th>
+          <th>Preview</th>
+        </tr>
+      </thead>
 
-            <tbody>
+      <tbody>
+        {% for document in uploaded_documents %}
 
-                {% for document in uploaded_documents %}
+        <tr>
+          <!-- TITLE -->
+          <td data-label="Title">
+            <a
+              href="{% url 'members:view_document_file' document.id %}"
+              target="_blank"
+            >
+              View File {{ document.title }}
+            </a>
 
-                <tr>
+            {% if document.original_filename %}
+            <div class="document-original-name">
+              {{ document.original_filename }}
+            </div>
+            {% endif %}
+          </td>
 
-                    <!-- TITLE -->
-                    <td data-label="Title">
-                        <a
-                            href="{% url 'members:view_document_file' document.id %}"
-                            target="_blank"
-                        >
-                            View File
+          <!-- STATUS -->
+          <td data-label="Status">
 
-                            {{ document.title }}
+              {% if document.status == "approved" %}
 
-                        </a>
+                  <span class="status-badge completed">
+                      Approved
+                  </span>
 
-                        {% if document.original_filename %}
-                            <div class="document-original-name">
-                                {{ document.original_filename }}
-                            </div>
-                        {% endif %}
+              {% elif document.status == "rejected" %}
 
-                    </td>
+                  <span class="status-badge rejected">
+                      Rejected
+                  </span>
 
-                    <!-- STATUS -->
-                    <td data-label="Status">
+                  {% if document.can_resubmit %}
 
-                        {# -------------------------------------------------- #}
-                        {# DOCUMENT APPROVED                                #}
-                        {# -------------------------------------------------- #}
+                      <div class="mt-2">
 
-                        {% if document.status == "approved" %}
+                          <a
+                              href="{% url 'members:resubmit_document' document.id %}"
+                              class="btn btn-danger btn-sm"
+                          >
+                              Upload Replacement Document
+                          </a>
 
-                            <span class="status-badge completed">
-                                Approved
-                            </span>
+                      </div>
 
-                        {# -------------------------------------------------- #}
-                        {# DOCUMENT REJECTED                                #}
-                        {# -------------------------------------------------- #}
+                  {% endif %}
 
-                        {% elif document.status == "rejected" %}
+              {% elif document.status == "pending" %}
 
-                            <span class="status-badge rejected">
-                                Rejected
-                            </span>
+                  <span class="status-badge pending">
+                      Pending Review
+                  </span>
 
-                            {# ---------------------------------------------- #}
-                            {# MEMBER MAY UPLOAD A REPLACEMENT               #}
-                            {# ---------------------------------------------- #}
+              {% endif %}
 
-                            {% if document.can_resubmit %}
+          </td>
+          <!-- DATE -->
+          <td data-label="Uploaded">
+            {{ document.uploaded_at|date:"Y-m-d H:i" }}
+          </td>
 
-                                <div class="mt-2">
+          <!-- PREVIEW -->
+          <td data-label="Preview">
+            {% if document.thumbnail %}
 
-                                    <a href="{% url 'members:resubmit_document' document.id %}"
-                                    class="btn btn-danger btn-sm">
+              <img
+                  src="{% url 'members:view_document_thumbnail' document.id %}"
+                  class="preview-image"
+                  alt="{{ document.title }}"
+                  role="button"
+                  tabindex="0"
+                  onclick="openMemberPreview(
+                      '{% url 'members:view_document_file' document.id %}',
+                      'image',
+                      '{{ document.title|escapejs }}'
+                  )"
+                  onkeydown="if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openMemberPreview(
+                          '{% url 'members:view_document_file' document.id %}',
+                          'image',
+                          '{{ document.title|escapejs }}'
+                      );
+                  }"
+              />
 
-                                        Upload Replacement Document
+          {% elif document.file_type == "pdf" %}
 
-                                    </a>
+              <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  onclick="openMemberPreview(
+                      '{% url 'members:view_document_preview' document.id %}',
+                      'pdf',
+                      '{{ document.title|escapejs }}'
+                  )"
+              >
+                  View PDF
+              </button>
 
-                                </div>
+          {% else %}
 
-                            {% endif %}
+              <a
+                  href="{% url 'members:view_document_file' document.id %}"
+                  target="_blank"
+                  rel="noopener"
+                  class="btn btn-secondary btn-sm"
+              >
+                  Open / Download
+              </a>
 
-                        {# -------------------------------------------------- #}
-                        {# DOCUMENT AWAITING REVIEW                          #}
-                        {# -------------------------------------------------- #}
+          {% endif %}
+          </td>
+        </tr>
 
-                        {% else %}
+        {% empty %}
 
-                            <span class="status-badge pending">
-                                Pending Review
-                            </span>
+        <tr>
+          <td colspan="4">
+            <div style="padding: 15px; color: #666">
+              No uploaded documents yet.
+            </div>
+          </td>
+        </tr>
 
-                        {% endif %}
-
-                    </td>
-
-                    <!-- DATE -->
-                    <td data-label="Uploaded">
-                        {{ document.uploaded_at|date:"Y-m-d H:i" }}
-                    </td>
-
-                    <!-- PREVIEW -->
-                    <td data-label="Preview">
-                        {% if document.thumbnail %}
-
-                            <img
-                                src="{% url 'members:view_document_thumbnail' document.id %}"
-                                class="preview-image"
-                                alt="{{ document.title }}"
-                            >
-
-                        {% else %}
-
-                            <a
-                                href="{% url 'members:view_document_file' document.id %}"
-                                target="_blank"
-                            >
-                                View File
-                            </a>
-
-                        {% endif %}
-
-                    </td>
-
-                </tr>
-
-                {% empty %}
-
-                <tr>
-
-                    <td colspan="4">
-
-                        <div style="padding:15px; color:#666;">
-
-                            No uploaded documents yet.
-
-                        </div>
-
-                    </td>
-
-                </tr>
-
-                {% endfor %}
-
-            </tbody>
-
-        </table>
-
-    </div>
-
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <!-- ========================= -->
@@ -519,21 +475,16 @@
 <!-- ========================= -->
 
 <script>
+  /* ========================= */
+  /* FILE PREVIEW */
+  /* ========================= */
 
-/* ========================= */
-/* FILE PREVIEW */
-/* ========================= */
+  function handleFileSelection(requestId) {
+    const input = document.getElementById("file_" + requestId);
 
-function handleFileSelection(requestId) {
+    const file = input.files[0];
 
-    const input =
-        document.getElementById("file_" + requestId);
-
-    const file =
-        input.files[0];
-
-    const preview =
-        document.getElementById("preview_" + requestId);
+    const preview = document.getElementById("preview_" + requestId);
 
     preview.innerHTML = "";
 
@@ -541,97 +492,80 @@ function handleFileSelection(requestId) {
 
     /* IMAGE */
     if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
 
-        const reader = new FileReader();
-
-        reader.onload = function(e) {
-
-            preview.innerHTML = `
+      reader.onload = function (e) {
+        preview.innerHTML = `
                 <img src="${e.target.result}"
                      class="preview-image">
             `;
-        };
+      };
 
-        reader.readAsDataURL(file);
-    }
+      reader.readAsDataURL(file);
+    } else {
 
     /* OTHER */
-    else {
-
-        preview.innerHTML = `
+      preview.innerHTML = `
             <div class="preview-file">
                 📄 ${file.name}
             </div>
         `;
     }
-}
+  }
 
-/* ========================= */
-/* DRAG & DROP */
-/* ========================= */
+  /* ========================= */
+  /* DRAG & DROP */
+  /* ========================= */
 
-document.querySelectorAll(".drop-zone").forEach(zone => {
+  document.querySelectorAll(".drop-zone").forEach((zone) => {
+    zone.addEventListener("dragover", (e) => {
+      e.preventDefault();
 
-    zone.addEventListener("dragover", e => {
-
-        e.preventDefault();
-
-        zone.classList.add("dragover");
+      zone.classList.add("dragover");
     });
 
     zone.addEventListener("dragleave", () => {
-
-        zone.classList.remove("dragover");
+      zone.classList.remove("dragover");
     });
 
-    zone.addEventListener("drop", e => {
+    zone.addEventListener("drop", (e) => {
+      e.preventDefault();
 
-        e.preventDefault();
+      zone.classList.remove("dragover");
 
-        zone.classList.remove("dragover");
+      const input = zone.querySelector("input[type=file]");
 
-        const input =
-            zone.querySelector("input[type=file]");
+      input.files = e.dataTransfer.files;
 
-        input.files = e.dataTransfer.files;
+      const requestId = input.id.split("_")[1];
 
-        const requestId =
-            input.id.split("_")[1];
-
-        handleFileSelection(requestId);
+      handleFileSelection(requestId);
     });
-});
+  });
 
-/* ========================= */
-/* AJAX UPLOAD */
-/* ========================= */
+  /* ========================= */
+  /* AJAX UPLOAD */
+  /* ========================= */
 
-function uploadFile(requestId) {
+  function uploadFile(requestId) {
+    const input = document.getElementById("file_" + requestId);
 
-    const input =
-        document.getElementById("file_" + requestId);
+    const file = input.files[0];
 
-    const file =
-        input.files[0];
+    const feedback = document.getElementById("feedback_" + requestId);
 
-    const feedback =
-        document.getElementById("feedback_" + requestId);
+    const progressWrapper = document.getElementById(
+      "progressWrapper_" + requestId,
+    );
 
-    const progressWrapper =
-        document.getElementById("progressWrapper_" + requestId);
-
-    const progressBar =
-        document.getElementById("progressBar_" + requestId);
+    const progressBar = document.getElementById("progressBar_" + requestId);
 
     if (!file) {
+      feedback.innerHTML = "⚠ Please select a file.";
 
-        feedback.innerHTML =
-            "⚠ Please select a file.";
+      feedback.className = "feedback error";
 
-        feedback.className =
-            "feedback error";
-
-        return;
+      return;
     }
 
     let formData = new FormData();
@@ -642,10 +576,7 @@ function uploadFile(requestId) {
 
     formData.append("title", file.name);
 
-    formData.append(
-        "description",
-        "Uploaded from member requests page"
-    );
+    formData.append("description", "Uploaded from member requests page");
 
     progressWrapper.style.display = "block";
 
@@ -655,75 +586,406 @@ function uploadFile(requestId) {
 
     let xhr = new XMLHttpRequest();
 
-    xhr.open(
-        "POST",
-        "/documents/upload/",
-        true
-    );
+    xhr.open("POST", "/documents/upload/", true);
 
-    xhr.setRequestHeader(
-        "X-CSRFToken",
-        "{{ csrf_token }}"
-    );
+    xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
 
-    xhr.setRequestHeader(
-        "X-Requested-With",
-        "XMLHttpRequest"
-    );
+    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
 
     /* PROGRESS */
-    xhr.upload.addEventListener("progress", function(e) {
+    xhr.upload.addEventListener("progress", function (e) {
+      if (e.lengthComputable) {
+        let percent = Math.round((e.loaded / e.total) * 100);
 
-        if (e.lengthComputable) {
+        progressBar.style.width = percent + "%";
 
-            let percent =
-                Math.round((e.loaded / e.total) * 100);
-
-            progressBar.style.width =
-                percent + "%";
-
-            progressBar.innerHTML =
-                percent + "%";
-        }
+        progressBar.innerHTML = percent + "%";
+      }
     });
 
     /* SUCCESS */
-    xhr.onload = function() {
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        feedback.innerHTML = "✔ Upload successful!";
 
-        if (xhr.status === 200) {
+        feedback.className = "feedback success";
 
-            feedback.innerHTML =
-                "✔ Upload successful!";
+        setTimeout(() => {
+          location.reload();
+        }, 1000);
+      } else {
+        feedback.innerHTML = "✖ Upload failed.";
 
-            feedback.className =
-                "feedback success";
-
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
-
-        } else {
-
-            feedback.innerHTML =
-                "✖ Upload failed.";
-
-            feedback.className =
-                "feedback error";
-        }
+        feedback.className = "feedback error";
+      }
     };
 
     /* ERROR */
-    xhr.onerror = function() {
+    xhr.onerror = function () {
+      feedback.innerHTML = "✖ Upload failed.";
 
-        feedback.innerHTML =
-            "✖ Upload failed.";
-
-        feedback.className =
-            "feedback error";
+      feedback.className = "feedback error";
     };
 
     xhr.send(formData);
+  }
+</script>
+
+<!-- ========================================================= -->
+<!-- STEP 9 - MEMBER DOCUMENT PREVIEW MODAL                  -->
+<!-- ========================================================= -->
+
+<div id="memberPreviewModal"
+     class="document-preview-modal"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="memberPreviewTitle"
+     aria-hidden="true">
+
+    <div class="document-preview-backdrop"
+         onclick="closeMemberPreview()"></div>
+
+    <div class="document-preview-dialog">
+
+        <div class="document-preview-header">
+
+            <div id="memberPreviewTitle"
+                 class="document-preview-title">
+                Document Preview
+            </div>
+
+            <button
+                type="button"
+                class="document-preview-close"
+                onclick="closeMemberPreview()"
+                aria-label="Close preview"
+            >
+                &times;
+            </button>
+
+        </div>
+
+        <div id="memberPreviewLoading"
+             class="document-preview-loading"
+             aria-live="polite">
+            Loading preview…
+        </div>
+
+        <div id="memberPreviewError"
+             class="document-preview-error"
+             role="alert"
+             hidden>
+            Unable to load this preview.
+        </div>
+
+        <div id="memberPreviewContent"
+             class="document-preview-content">
+        </div>
+
+    </div>
+</div>
+
+<style>
+
+/* ========================================================= */
+/* STEP 9 - MEMBER PREVIEW                                   */
+/* ========================================================= */
+
+.document-preview-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
 }
+
+.document-preview-modal.is-open {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+}
+
+.document-preview-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.78);
+}
+
+.document-preview-dialog {
+    position: relative;
+    z-index: 1;
+
+    width: min(1200px, 96vw);
+    height: min(900px, 94vh);
+
+    max-width: 1200px;
+    max-height: 94vh;
+
+    display: flex;
+    flex-direction: column;
+
+    background: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+.document-preview-header {
+    flex: 0 0 auto;
+
+    min-height: 52px;
+    padding: 10px 14px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    border-bottom: 1px solid #ddd;
+}
+
+.document-preview-title {
+    min-width: 0;
+    padding-right: 10px;
+
+    font-weight: 700;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.document-preview-close {
+    flex: 0 0 auto;
+
+    width: 40px;
+    height: 40px;
+
+    border: 0;
+    border-radius: 50%;
+
+    background: transparent;
+
+    font-size: 28px;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+.document-preview-content {
+    position: relative;
+
+    flex: 1 1 auto;
+    min-height: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    overflow: auto;
+
+    padding: 16px;
+
+    background: #111;
+}
+
+.document-preview-image {
+    display: block;
+
+    max-width: 100%;
+    max-height: 100%;
+
+    width: auto;
+    height: auto;
+
+    object-fit: contain;
+}
+
+.document-preview-frame {
+    display: block;
+
+    width: 100%;
+    height: 100%;
+
+    min-height: 0;
+
+    border: 0;
+    background: #fff;
+}
+
+.document-preview-loading {
+    display: none;
+
+    position: absolute;
+    z-index: 3;
+
+    top: 50%;
+    left: 50%;
+
+    transform: translate(-50%, -50%);
+
+    padding: 10px 16px;
+
+    border-radius: 8px;
+
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+}
+
+.document-preview-loading.is-visible {
+    display: block;
+}
+
+.document-preview-error {
+    position: absolute;
+    z-index: 4;
+
+    top: 50%;
+    left: 50%;
+
+    transform: translate(-50%, -50%);
+
+    max-width: 90%;
+
+    padding: 14px 18px;
+
+    border-radius: 8px;
+
+    background: #fff;
+    color: #b00020;
+
+    text-align: center;
+}
+
+@media (max-width: 600px) {
+
+    .document-preview-modal.is-open {
+        padding: 0;
+    }
+
+    .document-preview-dialog {
+        width: 100vw;
+        height: 100vh;
+
+        max-width: none;
+        max-height: none;
+
+        border-radius: 0;
+    }
+
+    .document-preview-content {
+        padding: 8px;
+    }
+}
+
+</style>
+
+<script>
+
+let memberPreviewPreviousFocus = null;
+
+function openMemberPreview(url, type, title) {
+
+    const modal = document.getElementById("memberPreviewModal");
+    const content = document.getElementById("memberPreviewContent");
+    const loading = document.getElementById("memberPreviewLoading");
+    const error = document.getElementById("memberPreviewError");
+    const titleElement = document.getElementById("memberPreviewTitle");
+
+    memberPreviewPreviousFocus = document.activeElement;
+
+    content.replaceChildren();
+
+    error.hidden = true;
+
+    titleElement.textContent = title || "Document Preview";
+
+    loading.classList.add("is-visible");
+
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden", "false");
+
+    document.body.style.overflow = "hidden";
+
+    if (type === "image") {
+
+        const image = document.createElement("img");
+
+        image.className = "document-preview-image";
+        image.alt = title || "Document preview";
+
+        image.onload = function () {
+            loading.classList.remove("is-visible");
+        };
+
+        image.onerror = function () {
+            loading.classList.remove("is-visible");
+            error.hidden = false;
+        };
+
+        image.src = url;
+
+        content.appendChild(image);
+
+    } else if (type === "pdf") {
+
+        const frame = document.createElement("iframe");
+
+        frame.className = "document-preview-frame";
+        frame.title = title || "PDF document preview";
+
+        frame.onload = function () {
+            loading.classList.remove("is-visible");
+        };
+
+        frame.src = url;
+
+        content.appendChild(frame);
+
+    }
+}
+
+function closeMemberPreview() {
+
+    const modal = document.getElementById("memberPreviewModal");
+    const content = document.getElementById("memberPreviewContent");
+    const loading = document.getElementById("memberPreviewLoading");
+    const error = document.getElementById("memberPreviewError");
+
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+
+    content.replaceChildren();
+
+    loading.classList.remove("is-visible");
+    error.hidden = true;
+
+    document.body.style.overflow = "";
+
+    if (
+        memberPreviewPreviousFocus &&
+        typeof memberPreviewPreviousFocus.focus === "function"
+    ) {
+        memberPreviewPreviousFocus.focus();
+    }
+
+    memberPreviewPreviousFocus = null;
+}
+
+document.addEventListener("keydown", function (event) {
+
+    if (event.key === "Escape") {
+
+        const modal = document.getElementById("memberPreviewModal");
+
+        if (
+            modal &&
+            modal.classList.contains("is-open")
+        ) {
+            closeMemberPreview();
+        }
+    }
+});
 
 </script>
 

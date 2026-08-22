@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import FileResponse, JsonResponse, Http404
 from django.contrib.auth.decorators import login_required
@@ -10,8 +12,9 @@ from backend.members.services.document_files import (
     generate_document_thumbnail,
     DocumentUploadValidationError,
 )
-
 import mimetypes
+from django.views.decorators.http import require_GET
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 
 # =========================================================
@@ -362,6 +365,96 @@ def view_document_file(request, file_id):
             or document.file.name.rsplit("/", 1)[-1]
         ),
         content_type=content_type,
+    )
+
+# =========================================================
+# SECURE MEMBER PDF PREVIEW
+# =========================================================
+
+@login_required
+@require_GET
+@xframe_options_sameorigin
+def view_document_preview(request, file_id):
+    """
+    Securely preview a member PDF in the browser.
+
+    SECURITY:
+        - User must be authenticated.
+        - Document must belong to the logged-in member.
+        - MemberDocument.can_be_viewed_by() remains authoritative.
+        - Archived documents remain unavailable to members.
+        - Only PDF documents are served through this endpoint.
+        - Same-origin framing is explicitly permitted.
+        - Raw MEDIA_URL is never exposed.
+    """
+
+    # =====================================================
+    # FIND LOGGED-IN MEMBER
+    # =====================================================
+
+    member = get_object_or_404(
+        Member,
+        user=request.user,
+    )
+
+    # =====================================================
+    # FIND MEMBER'S DOCUMENT
+    # =====================================================
+
+    document = get_object_or_404(
+        MemberDocument,
+        id=file_id,
+        member=member,
+    )
+
+    # =====================================================
+    # CENTRAL SECURITY CHECK
+    # =====================================================
+
+    if not document.can_be_viewed_by(request.user):
+        raise Http404("Document not found.")
+
+    # =====================================================
+    # VERIFY FILE EXISTS
+    # =====================================================
+
+    if not document.file:
+        raise Http404("File not found.")
+
+    # =====================================================
+    # PDF ONLY
+    # =====================================================
+
+    extension = Path(
+        document.file.name
+        ).suffix.lower()
+
+    if extension != ".pdf":
+        raise Http404("PDF preview is not available.")
+
+    # =====================================================
+    # OPEN THROUGH DJANGO STORAGE
+    # =====================================================
+
+    try:
+        file_handle = document.file.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404(
+            "Document file could not be opened."
+        )
+
+    # =====================================================
+    # RETURN PDF
+    # =====================================================
+
+    return FileResponse(
+        file_handle,
+        as_attachment=False,
+        filename=(
+            document.original_filename
+            or document.file.name.rsplit("/", 1)[-1]
+        ),
+        content_type="application/pdf",
     )
 
 # =========================================================
