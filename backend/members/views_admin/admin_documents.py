@@ -514,6 +514,8 @@ def upload_requested_document_admin(request, request_id):
         # CREATE DOCUMENT
         # ================================================
 
+        now = timezone.now()
+
         doc = MemberDocument.objects.create(
             member=member,
             title=document_request.title,
@@ -525,8 +527,10 @@ def upload_requested_document_admin(request, request_id):
             original_filename=original_filename,
             document_request=document_request,
             status=MemberDocument.STATUS_APPROVED,
-            reviewed_at=timezone.now(),
+            reviewed_at=now,
             reviewed_by=request.user,
+            approved_at=now,
+            approved_by=request.user,
         )
 
         generate_document_thumbnail(doc)

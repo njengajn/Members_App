@@ -1,12 +1,16 @@
-{% extends "members/admin/admin_base.html" %} 
+{% extends "members/admin/admin_base.html" %}
 {% load static %}
 
 {% block content %}
+
 <link rel="stylesheet" href="{% static 'css/documents-responsive.css' %}">
 
 <style>
 
-/* REQUEST BOX */
+/* =========================================================
+   REQUEST BOX
+   ========================================================= */
+
 .request-box {
     display: none;
     margin-top: 15px;
@@ -16,92 +20,333 @@
     background: #f9f9f9;
 }
 
+
+/* =========================================================
+   PAGE HEADER / MOBILE
+   ========================================================= */
+
 @media (max-width: 768px) {
 
     .page-header {
-
         flex-direction: column;
         align-items: stretch;
     }
 
     .request-btn {
-
         width: 100%;
+    }
+}
+
+
+/* =========================================================
+   PREVIEW THUMBNAIL
+   ========================================================= */
+
+.preview-thumb {
+    display: block;
+    width: 90px;
+    height: 70px;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: 6px;
+    cursor: pointer;
+    background: #f3f4f6;
+    border: 1px solid #ddd;
+}
+
+.preview-thumb:hover {
+    opacity: 0.85;
+}
+
+
+/*
+ * When the thumbnail itself cannot be loaded, JavaScript
+ * falls back to the secure original-file endpoint.
+ */
+.preview-thumb.preview-fallback {
+    object-fit: contain;
+}
+
+
+/* =========================================================
+   PREVIEW MODAL
+   ========================================================= */
+
+#previewModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 9999;
+    overflow: auto;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+
+/* Modal inner area */
+
+.preview-modal-content {
+    position: relative;
+    width: min(1100px, 100%);
+    max-height: calc(100vh - 40px);
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+
+/* Close button */
+
+.preview-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 10;
+
+    width: 38px;
+    height: 38px;
+
+    border: none;
+    border-radius: 50%;
+
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+
+    font-size: 20px;
+    line-height: 38px;
+    text-align: center;
+
+    cursor: pointer;
+}
+
+.preview-close:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+
+/* Modal content */
+
+#previewContent {
+    width: 100%;
+    max-height: calc(100vh - 40px);
+    overflow: auto;
+    box-sizing: border-box;
+}
+
+
+/* Image preview */
+
+#previewContent img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: calc(100vh - 60px);
+    margin: 0 auto;
+    object-fit: contain;
+}
+
+
+/* PDF preview */
+
+.preview-pdf-frame {
+    display: block;
+    width: 100%;
+    height: calc(100vh - 80px);
+    min-height: 500px;
+    border: 0;
+}
+
+
+/* Loading / error */
+
+.preview-loading,
+.preview-error {
+    padding: 50px 20px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.preview-error {
+    color: #b91c1c;
+}
+
+
+/* =========================================================
+   MOBILE PREVIEW
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    #previewModal {
+        padding: 8px;
+    }
+
+    .preview-modal-content {
+        width: 100%;
+        max-height: calc(100vh - 16px);
+        border-radius: 6px;
+    }
+
+    #previewContent {
+        max-height: calc(100vh - 16px);
+    }
+
+    #previewContent img {
+        max-width: 100%;
+        max-height: calc(100vh - 30px);
+    }
+
+    .preview-pdf-frame {
+        width: 100%;
+        height: calc(100vh - 30px);
+        min-height: 400px;
+    }
+
+    .preview-close {
+        top: 6px;
+        right: 6px;
     }
 }
 
 </style>
 
+
+<!-- =========================================================
+     PAGE TITLE
+     ========================================================= -->
+
 <h1>Documents for {{ member }}</h1>
 
+
+<!-- =========================================================
+     REQUEST DOCUMENT BUTTON
+     ========================================================= -->
+
 <div style="margin-bottom: 20px;">
-    <button class="button" onclick="toggleRequestBox()">
+
+    <button
+        type="button"
+        class="button"
+        onclick="toggleRequestBox()"
+    >
         ➕ Request Document
     </button>
+
 </div>
 
-<!-- ========================= -->
-<!-- REQUEST FORM (UPDATED) -->
-<!-- ========================= -->
+
+<!-- =========================================================
+     REQUEST FORM
+     ========================================================= -->
+
 <div id="requestBox" class="request-box">
 
-    <form id="requestForm" method="POST"
-          action="{% url 'members_admin:request_document' member.id %}">
+    <form
+        id="requestForm"
+        method="POST"
+        action="{% url 'members_admin:request_document' member.id %}"
+    >
 
         {% csrf_token %}
 
+
         <!-- TITLE -->
+
         <div style="margin-bottom:10px;">
-            <label class="fw-bold">Document Title</label>
-            <input type="text"
-                   name="title"
-                   id="requestTitle"
-                   class="form-control"
-                   placeholder="e.g. Passport, Bank Statement"
-                   required>
+
+            <label class="fw-bold">
+                Document Title
+            </label>
+
+            <input
+                type="text"
+                name="title"
+                id="requestTitle"
+                class="form-control"
+                placeholder="e.g. Passport, Bank Statement"
+                required
+            >
+
         </div>
+
 
         <!-- DESCRIPTION -->
+
         <div style="margin-bottom:10px;">
-            <label class="fw-bold">Description / Instructions</label>
-            <textarea name="description"
-                      id="requestDescription"
-                      class="form-control"
-                      rows="3"
-                      placeholder="Provide details, requirements, format, etc."></textarea>
+
+            <label class="fw-bold">
+                Description / Instructions
+            </label>
+
+            <textarea
+                name="description"
+                id="requestDescription"
+                class="form-control"
+                rows="3"
+                placeholder="Provide details, requirements, format, etc."
+            ></textarea>
+
         </div>
 
+
+        <!-- BUTTONS -->
+
         <div style="margin-top:10px;">
-            <button type="submit" class="btn btn-primary btn-sm">
+
+            <button
+                type="submit"
+                class="btn btn-primary btn-sm"
+            >
                 Send Request
             </button>
 
-            <button type="button"
-                    class="btn btn-secondary btn-sm"
-                    onclick="toggleRequestBox()">
+
+            <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                onclick="toggleRequestBox()"
+            >
                 Cancel
             </button>
+
         </div>
 
     </form>
 
 </div>
 
+
 <hr>
 
+
+<!-- =========================================================
+     PENDING REQUESTS
+     ========================================================= -->
+
 <h4>Pending Requests</h4>
+
 <hr>
+
 
 <table class="admin-table">
 
     <thead>
+
         <tr>
             <th>Title</th>
             <th>Description</th>
             <th>Status</th>
             <th>Actions</th>
         </tr>
+
     </thead>
+
 
     <tbody>
 
@@ -113,9 +358,11 @@
                 {{ r.title }}
             </td>
 
+
             <td data-label="Description">
                 {{ r.description|default:"-" }}
             </td>
+
 
             <td data-label="Status">
 
@@ -141,27 +388,32 @@
 
             </td>
 
+
             <td data-label="Actions">
 
                 {% if not r.completed and r.status != "completed" %}
 
-                    <form method="POST"
-                          action="{% url 'members_admin:upload_requested_document_admin' r.id %}"
-                          enctype="multipart/form-data"
-                          class="admin-request-upload-form">
+                    <form
+                        method="POST"
+                        action="{% url 'members_admin:upload_requested_document_admin' r.id %}"
+                        enctype="multipart/form-data"
+                        class="admin-request-upload-form"
+                    >
 
                         {% csrf_token %}
 
-                        <input type="file"
-                               name="file"
-                               required
-                               class="form-control form-control-sm admin-request-file">
+                        <input
+                            type="file"
+                            name="file"
+                            required
+                            class="form-control form-control-sm admin-request-file"
+                        >
 
-                        <button type="submit"
-                                class="btn btn-primary btn-sm">
-
+                        <button
+                            type="submit"
+                            class="btn btn-primary btn-sm"
+                        >
                             Upload Document
-
                         </button>
 
                     </form>
@@ -178,6 +430,7 @@
 
         </tr>
 
+
         {% empty %}
 
         <tr>
@@ -193,668 +446,759 @@
     </tbody>
 
 </table>
+
+
 <hr>
+
+
+<!-- =========================================================
+     UPLOADED DOCUMENTS
+     ========================================================= -->
 
 <h4>Uploaded documents</h4>
+
 <hr>
 
-    <div class="table-responsive-documents">
-        <table class="documents-table">
-    <thead>
-        <tr>
-            <th style="width: 20%;">Stored filename</th>
-            <th style="width: 15%;">Ref: Subject</th>
-            <th style="width: 15%;">Status</th>
-            <th style="width: 15%;">Uploaded</th>
-            <th style="width: 15%;">Preview</th>
-            <th style="width: 20%;">Actions</th>
-        </tr>
-    </thead>
 
-   <tbody>
+<div class="table-responsive-documents">
 
-    {% for doc in documents %}
+    <table class="documents-table">
 
-    <tr>
+        <thead>
 
-        <td data-label="Title">
+            <tr>
 
-            {{ doc.filename }}
+                <th style="width:20%;">
+                    Stored filename
+                </th>
 
-            {% if doc.original_filename %}
-                <div class="document-original-name">
-                    {{ doc.original_filename }}
-                </div>
-            {% endif %}
+                <th style="width:15%;">
+                    Ref: Subject
+                </th>
 
-        </td>
+                <th style="width:15%;">
+                    Status
+                </th>
 
-        <td data-label="Ref: Subject">
-            {{ doc.dependant|default:"Member" }}
-        </td>
+                <th style="width:15%;">
+                    Uploaded
+                </th>
 
-        <td data-label="Status">
+                <th style="width:15%;">
+                    Preview
+                </th>
 
-            {% if doc.status == "pending" %}
+                <th style="width:20%;">
+                    Actions
+                </th>
 
-                <span class="badge badge-pending">
-                    Pending
-                </span>
+            </tr>
 
-            {% elif doc.status == "approved" %}
+        </thead>
 
-                <span class="badge badge-approved">
-                    Approved
-                </span>
 
-            {% else %}
+        <tbody>
 
-                <span class="badge badge-rejected">
-                    Rejected
-                </span>
+            {% for doc in documents %}
 
-            {% endif %}
+            <tr>
 
-        </td>
 
-        <td data-label="Uploaded">
-            {{ doc.uploaded_at|date:"Y-m-d H:i" }}
-        </td>
+                <!-- =================================================
+                     FILENAME
+                     ================================================= -->
 
-        <td data-label="Preview">
+                <td data-label="Title">
 
-            {% if doc.file_type == "image" %}
+                    {{ doc.filename }}
 
-                <img
-                    src="{% url 'members_admin:admin_document_thumbnail' doc.id %}"
-                    class="preview-thumb"
-                    alt="{{ doc.title }}"
-                    onclick="openPreview(
-                        '{% url 'members_admin:admin_document_file' doc.id %}',
-                        'image',
-                        '{{ doc.title|escapejs }}'
-                    )"
+                    {% if doc.original_filename %}
+
+                        <div class="document-original-name">
+                            {{ doc.original_filename }}
+                        </div>
+
+                    {% endif %}
+
+                </td>
+
+
+                <!-- =================================================
+                     SUBJECT
+                     ================================================= -->
+
+                <td data-label="Ref: Subject">
+
+                    {{ doc.dependant|default:"Member" }}
+
+                </td>
+
+
+                <!-- =================================================
+                     STATUS
+                     ================================================= -->
+
+                <td data-label="Status">
+
+                    {% if doc.status == "pending" %}
+
+                        <span class="badge badge-pending">
+                            Pending
+                        </span>
+
+                    {% elif doc.status == "approved" %}
+
+                        <span class="badge badge-approved">
+                            Approved
+                        </span>
+
+                    {% else %}
+
+                        <span class="badge badge-rejected">
+                            Rejected
+                        </span>
+
+                    {% endif %}
+
+                </td>
+
+
+                <!-- =================================================
+                     UPLOADED
+                     ================================================= -->
+
+                <td data-label="Uploaded">
+
+                    {{ doc.uploaded_at|date:"Y-m-d H:i" }}
+
+                </td>
+
+
+                <!-- =================================================
+                     PREVIEW
+                     ================================================= -->
+
+                <td data-label="Preview">
+
+
+                    {% if doc.file_type == "image" %}
+
+                        <!--
+                        IMPORTANT:
+
+                        1. Thumbnail is used for the table/list.
+                        2. Original file is NOT loaded unless the
+                           thumbnail fails.
+                        3. Both URLs are authenticated Django views.
+                        4. Never use doc.file.url here.
+                        -->
+
+                        <img
+                            src="{% url 'members_admin:admin_document_thumbnail' doc.id %}"
+                            data-original-url="{% url 'members_admin:admin_document_file' doc.id %}"
+                            class="preview-thumb"
+                            alt="{{ doc.title }}"
+                            loading="lazy"
+                            decoding="async"
+                            onclick="openPreview(
+                                '{% url 'members_admin:admin_document_file' doc.id %}',
+                                'image',
+                                '{{ doc.title|escapejs }}'
+                            )"
+                            onerror="thumbnailFallback(this)"
+                        >
+
+
+                    {% elif doc.file_type == "pdf" %}
+
+                        <!-- ==================================================
+                             SECURE PDF PREVIEW
+                             ==================================================
+
+                             KEEP THIS URL.
+
+                             Do NOT replace with doc.file.url.
+
+                             The admin preview view provides the existing
+                             authenticated same-origin PDF protection.
+                             ================================================== -->
+
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-secondary"
+                            onclick="openPreview(
+                                '{% url 'members_admin:admin_document_preview' doc.id %}',
+                                'pdf',
+                                '{{ doc.title|escapejs }}'
+                            )"
+                        >
+
+                            View PDF
+
+                        </button>
+
+
+                    {% else %}
+
+                        <a
+                            href="{% url 'members_admin:admin_document_file' doc.id %}"
+                            target="_blank"
+                            rel="noopener"
+                            class="btn btn-sm btn-secondary"
+                        >
+
+                            Download
+
+                        </a>
+
+                    {% endif %}
+
+                </td>
+
+
+                <!-- =================================================
+                     ACTIONS
+                     ================================================= -->
+
+                <td
+                    data-label="Actions"
+                    class="action-links"
                 >
 
-            {% elif doc.file_type == "pdf" %}
 
-                <!-- ================================================== -->
-                <!-- SECURE PDF PREVIEW -->
-                <!-- ================================================== -->
-                <!--
-                Do NOT use doc.file.url here.
-
-                The raw media URL bypasses the authenticated document
-                access path and is also blocked by X-Frame-Options.
-
-                Instead, request the PDF through the authenticated
-                admin preview view.
-                -->
-
-                <button
-                    type="button"
-                    class="btn btn-sm btn-secondary"
-                    onclick="openPreview(
-                        '{% url 'members_admin:admin_document_preview' doc.id %}',
-                        'pdf',
-                        '{{ doc.title|escapejs }}'
-                    )"
-                >
-
-                    View PDF
-
-                </button>
+                    {% if doc.status == "pending" %}
 
 
+                        <a
+                            href="{% url 'members_admin:admin_document_review' doc.id 'approve' %}"
+                            class="btn btn-sm btn-success"
+                            onclick="return confirmApprove();"
+                        >
+                            ✔ Approve
+                        </a>
 
-            {% else %}
 
-                <a href="{% url 'members_admin:admin_document_file' doc.id %}"
-                   target="_blank"
-                   class="btn btn-sm btn-secondary">
+                        <a
+                            href="{% url 'members_admin:reject_document_form' doc.id %}"
+                            class="btn btn-sm btn-danger"
+                            onclick="return confirmReject();"
+                        >
+                            ✖ Reject
+                        </a>
 
-                    Download
 
-                </a>
+                    {% elif doc.status == "approved" %}
 
-            {% endif %}
 
-        </td>
+                        {% if not doc.is_archived %}
 
-        <td data-label="Actions"
-            class="action-links">
+                            <a
+                                href="{% url 'members_admin:archive_document' doc.id %}"
+                                class="btn btn-sm btn-secondary"
+                                onclick="return confirmArchive();"
+                            >
+                                Archive
+                            </a>
 
-            {% if doc.status == "pending" %}
+                        {% endif %}
 
-                <a href="{% url 'members_admin:admin_document_review' doc.id 'approve' %}"
-                   class="btn btn-sm btn-success"
-                   onclick="return confirmApprove();">
 
-                    ✔ Approve
+                        <a
+                            href="{% url 'members_admin:delete_document' doc.id %}"
+                            class="btn btn-sm btn-dark"
+                            onclick="return confirmDelete();"
+                        >
+                            Delete
+                        </a>
 
-                </a>
 
-                <a href="{% url 'members_admin:reject_document_form' doc.id %}"
-                   class="btn btn-sm btn-danger"
-                   onclick="return confirmReject();">
+                    {% elif doc.status == "rejected" %}
 
-                    ✖ Reject
 
-                </a>
+                        {% if not doc.is_archived %}
 
-            {% elif doc.status == "approved" %}
+                            <a
+                                href="{% url 'members_admin:archive_document' doc.id %}"
+                                class="btn btn-sm btn-secondary"
+                                onclick="return confirmArchive();"
+                            >
+                                Archive
+                            </a>
 
-                {% if not doc.is_archived %}
+                        {% endif %}
 
-                    <a href="{% url 'members_admin:archive_document' doc.id %}"
-                       class="btn btn-sm btn-secondary"
-                       onclick="return confirmArchive();">
 
-                        Archive
+                        <a
+                            href="{% url 'members_admin:delete_document' doc.id %}"
+                            class="btn btn-sm btn-dark"
+                            onclick="return confirmDelete();"
+                        >
+                            Delete
+                        </a>
 
-                    </a>
 
-                {% endif %}
+                    {% endif %}
 
-                <a href="{% url 'members_admin:delete_document' doc.id %}"
-                   class="btn btn-sm btn-dark"
-                   onclick="return confirmDelete();">
 
-                    Delete
+                </td>
 
-                </a>
+            </tr>
 
-            {% elif doc.status == "rejected" %}
 
-                {% if not doc.is_archived %}
+            {% empty %}
 
-                    <a href="{% url 'members_admin:archive_document' doc.id %}"
-                       class="btn btn-sm btn-secondary"
-                       onclick="return confirmArchive();">
+            <tr>
 
-                        Archive
+                <td colspan="6">
+                    No documents found
+                </td>
 
-                    </a>
+            </tr>
 
-                {% endif %}
+            {% endfor %}
 
-                <a href="{% url 'members_admin:delete_document' doc.id %}"
-                   class="btn btn-sm btn-dark"
-                   onclick="return confirmDelete();">
+        </tbody>
 
-                    Delete
+    </table>
 
-                </a>
-
-            {% endif %}
-
-        </td>
-
-    </tr>
-
-    {% empty %}
-
-    <tr>
-
-        <td colspan="6">
-            No documents found
-        </td>
-
-    </tr>
-
-    {% endfor %}
-
-</tbody>
-
-   <script>
-
-        function confirmApprove() {
-
-            return confirm(
-                "This document will be APPROVED.\n\n" +
-                "The member will now see this document as approved.\n\n" +
-                "Do you want to continue?"
-            );
-
-        }
-
-        function confirmReject() {
-
-            return confirm(
-                "This document will be REJECTED.\n\n" +
-                "The member will be allowed to upload a replacement document.\n\n" +
-                "Do you want to continue?"
-            );
-
-        }
-
-        function confirmArchive() {
-
-            return confirm(
-                "Archive this document?\n\n" +
-                "Archived documents are hidden from active member views.\n\n" +
-                "Do you want to continue?"
-            );
-
-        }
-
-        function confirmDelete() {
-
-            return confirm(
-                "DELETE this document permanently?\n\n" +
-                "This action cannot be undone.\n\n" +
-                "Do you want to continue?"
-            );
-
-        }
-
-        </script>
-    </tbody>
-</table>
 </div>
 
-<!-- PREVIEW MODAL -->
-<!-- ========================================================= -->
-<!-- STEP 9 - RESPONSIVE DOCUMENT PREVIEW MODAL -->
-<!-- ========================================================= -->
 
-<div id="previewModal"
-     class="document-preview-modal"
-     role="dialog"
-     aria-modal="true"
-     aria-labelledby="previewModalTitle"
-     aria-hidden="true">
+<!-- =========================================================
+     PREVIEW MODAL
+     ========================================================= -->
 
-    <div class="document-preview-backdrop"
-         onclick="closePreview()"></div>
+<div
+    id="previewModal"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-label="Document preview"
+>
 
-    <div class="document-preview-dialog">
+    <div class="preview-modal-content">
 
-        <div class="document-preview-header">
 
-            <div id="previewModalTitle"
-                 class="document-preview-title">
-                Document Preview
-            </div>
+        <button
+            type="button"
+            class="preview-close"
+            onclick="closePreview()"
+            aria-label="Close preview"
+            title="Close"
+        >
+            ✖
+        </button>
 
-            <button
-                type="button"
-                class="document-preview-close"
-                onclick="closePreview()"
-                aria-label="Close preview"
-            >
-                &times;
-            </button>
 
-        </div>
+        <div id="previewContent"></div>
 
-        <div id="previewLoading"
-             class="document-preview-loading"
-             aria-live="polite">
-            Loading preview…
-        </div>
-
-        <div id="previewError"
-             class="document-preview-error"
-             role="alert"
-             hidden>
-            Unable to load this preview.
-        </div>
-
-        <div id="previewContent"
-             class="document-preview-content">
-        </div>
 
     </div>
+
 </div>
 
-<style>
 
-/* ========================================================= */
-/* STEP 9 - PREVIEW MODAL                                   */
-/* ========================================================= */
-
-.document-preview-modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 99999;
-}
-
-.document-preview-modal.is-open {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12px;
-}
-
-.document-preview-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.78);
-}
-
-.document-preview-dialog {
-    position: relative;
-    z-index: 1;
-
-    width: min(1200px, 96vw);
-    height: min(900px, 94vh);
-
-    max-width: 1200px;
-    max-height: 94vh;
-
-    display: flex;
-    flex-direction: column;
-
-    background: #fff;
-    border-radius: 10px;
-    overflow: hidden;
-
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
-}
-
-.document-preview-header {
-    flex: 0 0 auto;
-
-    min-height: 52px;
-    padding: 10px 14px;
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    border-bottom: 1px solid #ddd;
-    background: #fff;
-}
-
-.document-preview-title {
-    min-width: 0;
-    padding-right: 10px;
-
-    font-weight: 700;
-
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.document-preview-close {
-    flex: 0 0 auto;
-
-    width: 40px;
-    height: 40px;
-
-    border: 0;
-    border-radius: 50%;
-
-    background: transparent;
-
-    font-size: 28px;
-    line-height: 1;
-
-    cursor: pointer;
-}
-
-.document-preview-close:hover,
-.document-preview-close:focus {
-    background: #eee;
-}
-
-.document-preview-content {
-    position: relative;
-
-    flex: 1 1 auto;
-
-    min-height: 0;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    overflow: auto;
-
-    padding: 16px;
-
-    background: #111;
-}
-
-.document-preview-image {
-    display: block;
-
-    max-width: 100%;
-    max-height: 100%;
-
-    width: auto;
-    height: auto;
-
-    object-fit: contain;
-}
-
-.document-preview-frame {
-    display: block;
-
-    width: 100%;
-    height: 100%;
-
-    min-height: 0;
-
-    border: 0;
-    background: #fff;
-}
-
-.document-preview-loading {
-    display: none;
-
-    position: absolute;
-    z-index: 3;
-
-    top: 50%;
-    left: 50%;
-
-    transform: translate(-50%, -50%);
-
-    padding: 10px 16px;
-
-    border-radius: 8px;
-
-    background: rgba(0, 0, 0, 0.75);
-    color: #fff;
-
-    font-weight: 600;
-}
-
-.document-preview-loading.is-visible {
-    display: block;
-}
-
-.document-preview-error {
-    position: absolute;
-    z-index: 4;
-
-    top: 50%;
-    left: 50%;
-
-    transform: translate(-50%, -50%);
-
-    max-width: 90%;
-
-    padding: 14px 18px;
-
-    border-radius: 8px;
-
-    background: #fff;
-    color: #b00020;
-
-    text-align: center;
-}
-
-@media (max-width: 600px) {
-
-    .document-preview-modal.is-open {
-        padding: 0;
-    }
-
-    .document-preview-dialog {
-        width: 100vw;
-        height: 100vh;
-
-        max-width: none;
-        max-height: none;
-
-        border-radius: 0;
-    }
-
-    .document-preview-header {
-        min-height: 50px;
-    }
-
-    .document-preview-content {
-        padding: 8px;
-    }
-
-    .document-preview-image {
-        max-width: 100%;
-        max-height: 100%;
-    }
-
-    .document-preview-frame {
-        min-height: 0;
-    }
-}
-
-</style>
+<!-- =========================================================
+     JAVASCRIPT
+     ========================================================= -->
 
 <script>
 
-/* ========================================================= */
-/* STEP 9 - SECURE PREVIEW CONTROLLER                        */
-/* ========================================================= */
+/* =========================================================
+   REQUEST BOX
+   ========================================================= */
 
-let previewPreviousFocus = null;
+function toggleRequestBox() {
+
+    const box = document.getElementById("requestBox");
+
+    if (!box) {
+        return;
+    }
+
+    if (box.style.display === "block") {
+
+        box.style.display = "none";
+
+    } else {
+
+        box.style.display = "block";
+
+    }
+
+}
+
+
+/* =========================================================
+   THUMBNAIL FALLBACK
+   =========================================================
+
+   The thumbnail remains the preferred list-page resource.
+
+   If the thumbnail cannot be loaded after deployment,
+   fall back to the authenticated original-file endpoint.
+
+   This does NOT use doc.file.url or /media/.
+   ========================================================= */
+
+function thumbnailFallback(image) {
+
+    if (!image) {
+        return;
+    }
+
+    const fallbackUrl = image.dataset.originalUrl;
+
+    if (!fallbackUrl) {
+        return;
+    }
+
+
+    /*
+     * Prevent an infinite onerror loop.
+     */
+
+    if (image.dataset.fallbackUsed === "true") {
+        return;
+    }
+
+
+    image.dataset.fallbackUsed = "true";
+
+    image.classList.add("preview-fallback");
+
+    image.src = fallbackUrl;
+
+}
+
+
+/* =========================================================
+   OPEN PREVIEW
+   ========================================================= */
 
 function openPreview(url, type, title) {
 
     const modal = document.getElementById("previewModal");
     const content = document.getElementById("previewContent");
-    const loading = document.getElementById("previewLoading");
-    const error = document.getElementById("previewError");
-    const titleElement = document.getElementById("previewModalTitle");
 
-    previewPreviousFocus = document.activeElement;
+    if (!modal || !content) {
+        return;
+    }
 
-    content.replaceChildren();
 
-    error.hidden = true;
+    /*
+     * Clear previous preview.
+     */
 
-    titleElement.textContent = title || "Document Preview";
+    content.innerHTML = "";
 
-    loading.classList.add("is-visible");
 
-    modal.classList.add("is-open");
+    /*
+     * Accessibility.
+     */
+
     modal.setAttribute("aria-hidden", "false");
 
-    document.body.style.overflow = "hidden";
+
+    /*
+     * IMAGE
+     * -----------------------------------------------------
+     * Original is loaded ONLY after the user clicks the
+     * thumbnail.
+     */
 
     if (type === "image") {
 
+        content.innerHTML =
+            '<div class="preview-loading">Loading image…</div>';
+
+
         const image = document.createElement("img");
 
-        image.className = "document-preview-image";
         image.alt = title || "Document preview";
 
         image.onload = function () {
-            loading.classList.remove("is-visible");
+
+            content.innerHTML = "";
+
+            content.appendChild(image);
+
         };
 
+
         image.onerror = function () {
-            loading.classList.remove("is-visible");
-            error.hidden = false;
+
+            content.innerHTML =
+                '<div class="preview-error">' +
+                'Unable to load this image.' +
+                '</div>';
+
         };
+
 
         image.src = url;
 
-        content.appendChild(image);
+
+    /*
+     * PDF
+     * -----------------------------------------------------
+     * This MUST remain the secure admin preview endpoint.
+     */
 
     } else if (type === "pdf") {
 
-        const frame = document.createElement("iframe");
+        content.innerHTML =
+            '<div class="preview-loading">Loading PDF…</div>';
 
-        frame.className = "document-preview-frame";
 
-        frame.title = title || "PDF document preview";
+        const iframe = document.createElement("iframe");
 
-        frame.onload = function () {
-            loading.classList.remove("is-visible");
+        iframe.className = "preview-pdf-frame";
+
+        iframe.title = title || "PDF preview";
+
+        iframe.onload = function () {
+
+            const loading =
+                content.querySelector(".preview-loading");
+
+            if (loading) {
+                loading.remove();
+            }
+
         };
 
-        frame.src = url;
 
-        content.appendChild(frame);
+        iframe.src = url;
+
+        content.appendChild(iframe);
+
+
+    /*
+     * Unknown type.
+     */
 
     } else {
 
-        loading.classList.remove("is-visible");
+        content.innerHTML =
+            '<div class="preview-error">' +
+            'Preview is not available for this file type.' +
+            '</div>';
 
-        const link = document.createElement("a");
-
-        link.href = url;
-        link.target = "_blank";
-        link.rel = "noopener";
-        link.textContent = "Open document";
-
-        link.className = "btn btn-primary";
-
-        content.appendChild(link);
     }
+
+
+    /*
+     * Display modal.
+     */
+
+    modal.style.display = "block";
+
+
+    /*
+     * Prevent background page scrolling while modal is open.
+     */
+
+    document.body.style.overflow = "hidden";
+
 }
+
+
+/* =========================================================
+   CLOSE PREVIEW
+   ========================================================= */
 
 function closePreview() {
 
     const modal = document.getElementById("previewModal");
     const content = document.getElementById("previewContent");
-    const loading = document.getElementById("previewLoading");
-    const error = document.getElementById("previewError");
 
-    modal.classList.remove("is-open");
+    if (!modal) {
+        return;
+    }
+
+
+    modal.style.display = "none";
+
     modal.setAttribute("aria-hidden", "true");
 
-    content.replaceChildren();
 
-    loading.classList.remove("is-visible");
+    /*
+     * Important:
+     * remove iframe/image from DOM so the PDF does not
+     * continue running after the modal is closed.
+     */
 
-    error.hidden = true;
+    if (content) {
+        content.innerHTML = "";
+    }
+
+
+    /*
+     * Restore page scrolling.
+     */
 
     document.body.style.overflow = "";
 
-    if (
-        previewPreviousFocus &&
-        typeof previewPreviousFocus.focus === "function"
-    ) {
-        previewPreviousFocus.focus();
-    }
-
-    previewPreviousFocus = null;
 }
 
-/* ========================================================= */
-/* ESCAPE KEY                                                */
-/* ========================================================= */
 
-document.addEventListener("keydown", function (event) {
+/* =========================================================
+   ESCAPE KEY
+   ========================================================= */
+
+document.addEventListener("keydown", function(event) {
 
     if (event.key === "Escape") {
 
-        const modal = document.getElementById("previewModal");
+        const modal =
+            document.getElementById("previewModal");
 
         if (
             modal &&
-            modal.classList.contains("is-open")
+            modal.style.display === "block"
         ) {
+
             closePreview();
+
         }
+
     }
+
 });
+
+
+/* =========================================================
+   CLICK OUTSIDE MODAL CONTENT
+   ========================================================= */
+
+document.getElementById("previewModal").addEventListener(
+    "click",
+    function(event) {
+
+        if (event.target === this) {
+
+            closePreview();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   CONFIRM APPROVE
+   ========================================================= */
+
+function confirmApprove() {
+
+    return confirm(
+        "This document will be APPROVED.\n\n" +
+        "The member will now see this document as approved.\n\n" +
+        "Do you want to continue?"
+    );
+
+}
+
+
+/* =========================================================
+   CONFIRM REJECT
+   ========================================================= */
+
+function confirmReject() {
+
+    return confirm(
+        "This document will be REJECTED.\n\n" +
+        "The member will be allowed to upload a replacement document.\n\n" +
+        "Do you want to continue?"
+    );
+
+}
+
+
+/* =========================================================
+   CONFIRM ARCHIVE
+   ========================================================= */
+
+function confirmArchive() {
+
+    return confirm(
+        "Archive this document?\n\n" +
+        "Archived documents are hidden from active member views.\n\n" +
+        "Do you want to continue?"
+    );
+
+}
+
+
+/* =========================================================
+   CONFIRM DELETE
+   ========================================================= */
+
+function confirmDelete() {
+
+    return confirm(
+        "DELETE this document permanently?\n\n" +
+        "This action cannot be undone.\n\n" +
+        "Do you want to continue?"
+    );
+
+}
+
+
+/* =========================================================
+   REQUEST FORM CONFIRMATION
+   ========================================================= */
+
+const requestForm =
+    document.getElementById("requestForm");
+
+
+if (requestForm) {
+
+    requestForm.addEventListener(
+        "submit",
+        function(event) {
+
+            const title =
+                document.getElementById("requestTitle").value;
+
+            const desc =
+                document.getElementById("requestDescription").value;
+
+
+            const confirmSend = confirm(
+
+                "Send document request?\n\n" +
+
+                "Member: " +
+                "{{ member.first_name }} {{ member.surname }}\n" +
+
+                "Title: " +
+                title +
+                "\n" +
+
+                (
+                    desc
+                        ? "Description: " +
+                          desc +
+                          "\n"
+                        : ""
+                )
+
+            );
+
+
+            if (!confirmSend) {
+
+                event.preventDefault();
+
+            }
+
+        }
+    );
+
+}
 
 </script>
 

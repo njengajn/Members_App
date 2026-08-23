@@ -1319,6 +1319,32 @@ class MemberDocument(models.Model):
         related_name="reviewed_member_documents",
     )
 
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_member_documents",
+    )
+
+    rejected_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    rejected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rejected_member_documents",
+    )
+
     # ======================================================
     # REJECTION / RESUBMISSION
     # ======================================================
@@ -1501,11 +1527,15 @@ class MemberDocument(models.Model):
         marked completed.
         """
 
+        now = timezone.now()
+
         self.status = self.STATUS_APPROVED
 
         self.reviewed_by = user
+        self.reviewed_at = now
 
-        self.reviewed_at = timezone.now()
+        self.approved_by = user
+        self.approved_at = now
 
         self.rejection_reason = ""
 
@@ -1525,11 +1555,15 @@ class MemberDocument(models.Model):
         awaiting another upload.
         """
 
+        now = timezone.now()
+
         self.status = self.STATUS_REJECTED
 
         self.reviewed_by = user
+        self.reviewed_at = now
 
-        self.reviewed_at = timezone.now()
+        self.rejected_by = user
+        self.rejected_at = now
 
         self.rejection_reason = reason
 
