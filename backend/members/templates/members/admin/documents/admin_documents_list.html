@@ -655,19 +655,20 @@
 
                 </td>
 
-
                 <!-- =================================================
-                     ACTIONS
-                     ================================================= -->
+                    ACTIONS
+                    ================================================= -->
 
                 <td
                     data-label="Actions"
                     class="action-links"
                 >
 
-
                     {% if doc.status == "pending" %}
 
+                        <!-- =================================================
+                            PENDING DOCUMENT
+                            ================================================= -->
 
                         <a
                             href="{% url 'members_admin:admin_document_review' doc.id 'approve' %}"
@@ -676,7 +677,6 @@
                         >
                             ✔ Approve
                         </a>
-
 
                         <a
                             href="{% url 'members_admin:reject_document_form' doc.id %}"
@@ -689,56 +689,144 @@
 
                     {% elif doc.status == "approved" %}
 
+                        {% if doc.is_archived %}
 
-                        {% if not doc.is_archived %}
+                            <!-- =================================================
+                                ARCHIVED APPROVED DOCUMENT
+                                ================================================= -->
 
-                            <a
-                                href="{% url 'members_admin:archive_document' doc.id %}"
-                                class="btn btn-sm btn-secondary"
-                                onclick="return confirmArchive();"
+                            <!-- RESTORE -->
+                            <form
+                                method="POST"
+                                action="{% url 'members_admin:restore_document' doc.id %}"
+                                style="display: inline;"
+                                onsubmit="return confirmRestore();"
                             >
-                                Archive
-                            </a>
+                                {% csrf_token %}
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-sm btn-success"
+                                >
+                                    Restore
+                                </button>
+                            </form>
+
+
+                            <!-- PERMANENT DELETE -->
+                            <form
+                                method="POST"
+                                action="{% url 'members_admin:delete_document' doc.id %}"
+                                style="display: inline;"
+                                onsubmit="return confirmDelete();"
+                            >
+                                {% csrf_token %}
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-sm btn-dark"
+                                >
+                                    Delete Permanently
+                                </button>
+                            </form>
+
+
+                        {% else %}
+
+                            <!-- =================================================
+                                ACTIVE APPROVED DOCUMENT
+                                ================================================= -->
+
+                            <!-- ARCHIVE -->
+                            <form
+                                method="POST"
+                                action="{% url 'members_admin:archive_document' doc.id %}"
+                                style="display: inline;"
+                                onsubmit="return confirmArchive();"
+                            >
+                                {% csrf_token %}
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-sm btn-secondary"
+                                >
+                                    Archive
+                                </button>
+                            </form>
 
                         {% endif %}
-
-
-                        <a
-                            href="{% url 'members_admin:delete_document' doc.id %}"
-                            class="btn btn-sm btn-dark"
-                            onclick="return confirmDelete();"
-                        >
-                            Delete
-                        </a>
 
 
                     {% elif doc.status == "rejected" %}
 
+                        {% if doc.is_archived %}
 
-                        {% if not doc.is_archived %}
+                            <!-- =================================================
+                                ARCHIVED REJECTED DOCUMENT
+                                ================================================= -->
 
-                            <a
-                                href="{% url 'members_admin:archive_document' doc.id %}"
-                                class="btn btn-sm btn-secondary"
-                                onclick="return confirmArchive();"
+                            <!-- RESTORE -->
+                            <form
+                                method="POST"
+                                action="{% url 'members_admin:restore_document' doc.id %}"
+                                style="display: inline;"
+                                onsubmit="return confirmRestore();"
                             >
-                                Archive
-                            </a>
+                                {% csrf_token %}
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-sm btn-success"
+                                >
+                                    Restore
+                                </button>
+                            </form>
+
+
+                            <!-- PERMANENT DELETE -->
+                            <form
+                                method="POST"
+                                action="{% url 'members_admin:delete_document' doc.id %}"
+                                style="display: inline;"
+                                onsubmit="return confirmDelete();"
+                            >
+                                {% csrf_token %}
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-sm btn-dark"
+                                >
+                                    Delete Permanently
+                                </button>
+                            </form>
+
+
+                        {% else %}
+
+                            <!-- =================================================
+                                ACTIVE REJECTED DOCUMENT
+                                ================================================= -->
+
+                            <!-- ARCHIVE -->
+                            <form
+                                method="POST"
+                                action="{% url 'members_admin:archive_document' doc.id %}"
+                                style="display: inline;"
+                                onsubmit="return confirmArchive();"
+                            >
+                                {% csrf_token %}
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-sm btn-secondary"
+                                >
+                                    Archive
+                                </button>
+                            </form>
 
                         {% endif %}
 
-
-                        <a
-                            href="{% url 'members_admin:delete_document' doc.id %}"
-                            class="btn btn-sm btn-dark"
-                            onclick="return confirmDelete();"
-                        >
-                            Delete
-                        </a>
-
-
                     {% endif %}
-
 
                 </td>
 
@@ -1138,8 +1226,23 @@ function confirmArchive() {
 function confirmDelete() {
 
     return confirm(
-        "DELETE this document permanently?\n\n" +
+        "DELETE THIS DOCUMENT PERMANENTLY?\n\n" +
+        "This will permanently remove the document and its stored files.\n\n" +
         "This action cannot be undone.\n\n" +
+        "Do you want to continue?"
+    );
+
+}
+
+/* =========================================================
+   CONFIRM RESTORE
+   ========================================================= */
+
+function confirmRestore() {
+
+    return confirm(
+        "Restore this document?\n\n" +
+        "The document will return to the active document list.\n\n" +
         "Do you want to continue?"
     );
 

@@ -11,7 +11,7 @@ from backend.members.services.document_files import (
     DocumentUploadValidationError,
 )
 from django.http import FileResponse, Http404
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 import os
 import mimetypes
@@ -360,7 +360,15 @@ def documents_list(request, member_id):
     """
     member = get_object_or_404(Member, id=member_id)
 
-    documents = MemberDocument.objects.filter(member=member,is_archived=False).order_by("-uploaded_at")
+    # =====================================================
+    # ADMIN DOCUMENT LIST
+    # =====================================================
+    # Admins need to see both active and archived documents
+    # so that archived documents can be restored or permanently
+    # deleted.
+    documents = MemberDocument.objects.filter(
+        member=member,
+    ).order_by("-uploaded_at")
 
     return render(
         request,
@@ -569,24 +577,67 @@ def upload_requested_document_admin(request, request_id):
 # =====================================================
 @staff_member_required
 def archive_document(request, document_id):
+    """
+    Archive an active document.
+
+    Archive is a soft-delete operation:
+        - The database record is retained.
+        - The uploaded file is retained.
+        - The document becomes hidden from normal
+          member access.
+        - The document can later be restored.
+
+    IMPORTANT:
+        Archiving changes database state, therefore this
+        endpoint MUST only accept POST requests.
+
+        The template submits the action through a POST form
+        containing Django's CSRF token.
+    """
+
+    # -------------------------------------------------
+    # SECURITY: STATE-CHANGING ACTION MUST BE POST
+    # -------------------------------------------------
+
+    if request.method != "POST":
+
+        messages.error(
+            request,
+            "Invalid request method.",
+        )
+
+        return redirect(
+            "members_admin:admin_documents_list",
+            member_id=get_object_or_404(
+                MemberDocument,
+                id=document_id,
+            ).member_id,
+        )
 
     document = get_object_or_404(
         MemberDocument,
-        id=document_id
+        id=document_id,
     )
 
-    # Prevent double archive
-    if not document.is_archived:
+    # -------------------------------------------------
+    # ARCHIVE ONLY ACTIVE DOCUMENTS
+    # -------------------------------------------------
+    # MemberDocument.archive() owns the actual archive
+    # state transition and returns False if the document
+    # is already archived.
 
-        document.is_archived = True
-
-        document.archived_at = timezone.now()
-
-        document.save()
+    if document.archive():
 
         messages.success(
             request,
-            "Document archived successfully."
+            "Document archived successfully.",
+        )
+
+    else:
+
+        messages.info(
+            request,
+            "Document is already archived.",
         )
 
     return redirect(
@@ -594,38 +645,190 @@ def archive_document(request, document_id):
         member_id=document.member_id,
     )
 
-
 # =====================================================
-# ADMIN DELETE DOCUMENT
+# ADMIN RESTORE DOCUMENT
 # =====================================================
 @staff_member_required
-def delete_document(request, document_id):
+def restore_document(request, document_id):
+    """
+    Restore an archived document.
+
+    Only archived documents can be restored.
+
+    Restoring:
+        - removes the archived flag
+        - clears archived_at
+        - keeps the original document record
+        - keeps the uploaded file
+        - keeps the document's review history
+
+    IMPORTANT:
+        Restoring changes database state, therefore this
+        endpoint MUST only accept POST requests.
+
+        The template submits the action through a POST form
+        containing Django's CSRF token.
+    """
+
+    # -------------------------------------------------
+    # SECURITY: STATE-CHANGING ACTION MUST BE POST
+    # -------------------------------------------------
+
+    if request.method != "POST":
+
+        messages.error(
+            request,
+            "Invalid request method.",
+        )
+
+        return redirect(
+            "members_admin:admin_documents_list",
+            member_id=get_object_or_404(
+                MemberDocument,
+                id=document_id,
+            ).member_id,
+        )
 
     document = get_object_or_404(
         MemberDocument,
-        id=document_id
+        id=document_id,
+    )
+
+    # -------------------------------------------------
+    # RESTORE ONLY ARCHIVED DOCUMENTS
+    # -------------------------------------------------
+    # MemberDocument.unarchive() owns the actual restore
+    # state transition and returns False if the document
+    # is already active.
+
+    if document.unarchive():
+
+        messages.success(
+            request,
+            "Document restored successfully.",
+        )
+
+    else:
+
+        messages.info(
+            request,
+            "Document is already active.",
+        )
+
+    return redirect(
+        "members_admin:admin_documents_list",
+        member_id=document.member_id,
+    )
+
+# =====================================================
+# ADMIN DELETE DOCUMENT PERMANENTLY
+# =====================================================
+@staff_member_required
+def delete_document(request, document_id):
+    """
+    Permanently delete an archived document.
+
+    Permanent deletion is deliberately restricted to
+    archived documents so that active documents cannot
+    bypass the archive lifecycle.
+
+    This removes:
+        - the original uploaded file
+        - the generated thumbnail
+        - the database record
+
+    IMPORTANT:
+        Permanent deletion changes database state and
+        removes uploaded files, therefore this endpoint
+        MUST only accept POST requests.
+
+        The template submits the action through a POST form
+        containing Django's CSRF token.
+    """
+
+    # -------------------------------------------------
+    # SECURITY: STATE-CHANGING ACTION MUST BE POST
+    # -------------------------------------------------
+
+    if request.method != "POST":
+
+        messages.error(
+            request,
+            "Invalid request method.",
+        )
+
+        return redirect(
+            "members_admin:admin_documents_list",
+            member_id=get_object_or_404(
+                MemberDocument,
+                id=document_id,
+            ).member_id,
+        )
+
+    document = get_object_or_404(
+        MemberDocument,
+        id=document_id,
     )
 
     member_id = document.member_id
 
-    # ================================================
-    # DELETE PHYSICAL FILE
-    # ================================================
+    # -------------------------------------------------
+    # SAFETY GUARD
+    # -------------------------------------------------
+    # Active documents MUST be archived first.
+    #
+    # This is an important second layer of protection.
+    # Even if somebody manually submits a POST request,
+    # an active document cannot be permanently deleted.
+
+    if not document.is_archived:
+
+        messages.error(
+            request,
+            "Only archived documents can be permanently deleted.",
+        )
+
+        return redirect(
+            "members_admin:admin_documents_list",
+            member_id=member_id,
+        )
+
+    # -------------------------------------------------
+    # DELETE ORIGINAL FILE
+    # -------------------------------------------------
+
     if document.file:
 
         try:
             document.file.delete(save=False)
         except Exception:
+            # Do not allow a storage-level deletion error
+            # to leave the application in an inconsistent
+            # request state.
             pass
 
-    # ================================================
-    # DELETE RECORD
-    # ================================================
+    # -------------------------------------------------
+    # DELETE GENERATED THUMBNAIL
+    # -------------------------------------------------
+
+    if document.thumbnail:
+
+        try:
+            document.thumbnail.delete(save=False)
+        except Exception:
+            # Thumbnail cleanup failure should not prevent
+            # deletion of the database record.
+            pass
+
+    # -------------------------------------------------
+    # DELETE DATABASE RECORD
+    # -------------------------------------------------
+
     document.delete()
 
     messages.success(
         request,
-        "Document deleted successfully."
+        "Document permanently deleted.",
     )
 
     return redirect(

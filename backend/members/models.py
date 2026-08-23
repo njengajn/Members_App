@@ -1602,31 +1602,47 @@ class MemberDocument(models.Model):
         
     def archive(self):
         """
-        Soft archive document.
-        Keeps audit trail while hiding from active UI.
+        Soft archive the document.
+
+        Archived documents remain in the database so the
+        document history and audit trail are preserved.
         """
 
-        if not self.is_archived:
+        if self.is_archived:
+            return False
 
-            self.is_archived = True
+        self.is_archived = True
+        self.archived_at = timezone.now()
 
-            self.archived_at = timezone.now()
+        self.save(
+            update_fields=[
+                "is_archived",
+                "archived_at",
+            ]
+        )
 
-            self.save()
+        return True
 
 
     def unarchive(self):
         """
-        Restore archived document.
+        Restore an archived document to the active lifecycle.
         """
 
-        if self.is_archived:
+        if not self.is_archived:
+            return False
 
-            self.is_archived = False
+        self.is_archived = False
+        self.archived_at = None
 
-            self.archived_at = None
+        self.save(
+            update_fields=[
+                "is_archived",
+                "archived_at",
+            ]
+        )
 
-            self.save()
+        return True
 
 class AuditLog(models.Model):
     """

@@ -97,6 +97,7 @@ from backend.members.views_admin.admin_documents import (
     reject_document,
     archive_document,
     delete_document,
+    restore_document,
     upload_requested_document_admin,
     reject_document_form,
     admin_document_preview,
@@ -425,6 +426,7 @@ urlpatterns = [
     path("admin/documents/request/<int:member_id>/", request_document, name="request_document",),
     
     path("documents/<int:document_id>/archive/", archive_document,name="archive_document",),
+    path("documents/<int:document_id>/restore/",restore_document, name="restore_document",),
     path("documents/<int:document_id>/delete/", delete_document, name="delete_document",),
     
     path("documents/request/<int:request_id>/upload/", upload_requested_document_admin, name="upload_requested_document_admin",),
