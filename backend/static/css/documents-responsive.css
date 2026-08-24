@@ -374,7 +374,6 @@ button {
         padding: 7px 0;
         border: 0;
         text-align: left;
-        vertical-align: top;
     }
 
     /* -------------------------------------------------
@@ -527,4 +526,229 @@ button {
     .admin-request-upload-form .btn {
         width: 100%;
     }
+}
+
+/* =========================================================
+   DOCUMENT DASHBOARD - STATUS CARDS
+   ========================================================= */
+
+.document-status-cards {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 16px;
+    width: 100%;
+    margin-top: 15px;
+    margin-bottom: 10px;
+}
+
+
+/* Individual card */
+
+.document-status-card {
+    position: relative;
+    min-height: 125px;
+    padding: 20px;
+    border: 1px solid #d9dee5;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    box-sizing: border-box;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+
+/* Hover */
+
+.document-status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.12);
+}
+
+
+/* Label */
+
+.document-status-card-label {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #374151;
+}
+
+
+/* Large number */
+
+.document-status-card-value {
+    margin-top: 12px;
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1;
+    color: #111827;
+}
+
+
+/* =========================================================
+   STATUS ACCENTS
+   ========================================================= */
+
+.document-status-pending {
+    border-top: 5px solid #f59e0b;
+}
+
+.document-status-pending .document-status-card-value {
+    color: #b45309;
+}
+
+
+.document-status-approved {
+    border-top: 5px solid #16a34a;
+}
+
+.document-status-approved .document-status-card-value {
+    color: #15803d;
+}
+
+
+.document-status-rejected {
+    border-top: 5px solid #dc2626;
+}
+
+.document-status-rejected .document-status-card-value {
+    color: #b91c1c;
+}
+
+
+.document-status-resubmission {
+    border-top: 5px solid #7c3aed;
+}
+
+.document-status-resubmission .document-status-card-value {
+    color: #6d28d9;
+}
+
+
+.document-status-archived {
+    border-top: 5px solid #6b7280;
+}
+
+.document-status-archived .document-status-card-value {
+    color: #4b5563;
+}
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 1100px) {
+
+    .document-status-cards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+}
+
+
+/* =========================================================
+   SMALL TABLET / LARGE PHONE
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    .document-status-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .document-status-card {
+        min-height: 115px;
+        padding: 16px;
+    }
+
+    .document-status-card-value {
+        font-size: 30px;
+    }
+
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+    .document-status-cards {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .document-status-card {
+        min-height: 100px;
+        padding: 16px;
+    }
+
+    .document-status-card-label {
+        font-size: 14px;
+    }
+
+    .document-status-card-value {
+        font-size: 30px;
+    }
+
+}
+/* =========================================================
+   UPLOADS & STORAGE CARDS
+   ========================================================= */
+
+.document-storage-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+
+/* Storage card accents */
+
+.document-storage-uploads {
+    border-top: 5px solid #2563eb;
+}
+
+.document-storage-uploads .document-status-card-value {
+    color: #1d4ed8;
+}
+
+
+.document-storage-used {
+    border-top: 5px solid #0891b2;
+}
+
+.document-storage-used .document-status-card-value {
+    color: #0e7490;
+}
+
+
+.document-storage-average {
+    border-top: 5px solid #059669;
+}
+
+.document-storage-average .document-status-card-value {
+    color: #047857;
+}
+
+
+/* =========================================================
+   UPLOADS & STORAGE RESPONSIVENESS
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    .document-storage-cards {
+        grid-template-columns: 1fr;
+    }
+
 }
