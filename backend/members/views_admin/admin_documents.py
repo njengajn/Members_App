@@ -836,17 +836,225 @@ def delete_document(request, document_id):
         member_id=member_id,
     )
 
+@admin_required
 def document_dashboard(request):
-    documents = MemberDocument.objects.all().order_by("-uploaded_at")
-    requests = (DocumentRequest.objects.filter(completed=False).order_by("-created_at"))
+    """
+    Documents dashboard.
+
+    Provides operational document metrics and recent activity
+    using the existing MemberDocument lifecycle.
+    """
+
+    today = timezone.localdate()
+
+    # =====================================================
+    # BASE QUERYSETS
+    # =====================================================
+
+    active_documents = MemberDocument.objects.filter(
+        is_archived=False,
+    )
+
+    archived_documents = MemberDocument.objects.filter(
+        is_archived=True,
+    )
+
+    # =====================================================
+    # STATUS METRICS
+    # =====================================================
+
+    pending_review = active_documents.filter(
+        status=MemberDocument.STATUS_PENDING,
+    ).count()
+
+    approved = active_documents.filter(
+        status=MemberDocument.STATUS_APPROVED,
+    ).count()
+
+    awaiting_resubmission = active_documents.filter(
+        status=MemberDocument.STATUS_REJECTED,
+        can_resubmit=True,
+    ).count()
+
+    rejected = active_documents.filter(
+        status=MemberDocument.STATUS_REJECTED,
+    ).count()
+
+    archived = archived_documents.count()
+
+    # =====================================================
+    # UPLOAD METRICS
+    # =====================================================
+
+    todays_uploads = MemberDocument.objects.filter(
+        uploaded_at__date=today,
+    ).count()
+
+    documents_with_files = (
+        MemberDocument.objects
+        .exclude(file="")
+        .order_by("-uploaded_at")
+    )
+
+    file_sizes = []
+
+    for document in documents_with_files:
+        try:
+            if document.file:
+                file_sizes.append(
+                    (document, document.file.size)
+                )
+        except (OSError, ValueError):
+            # Ignore files that are no longer available
+            # in storage.
+            continue
+
+    total_storage_bytes = sum(
+        size for _, size in file_sizes
+    )
+
+    average_upload_size = (
+        total_storage_bytes / len(file_sizes)
+        if file_sizes
+        else 0
+    )
+
+    largest_uploads = sorted(
+        file_sizes,
+        key=lambda item: item[1],
+        reverse=True,
+    )[:5]
+
+    # =====================================================
+    # RECENT ACTIVITY
+    # =====================================================
+
+    allowed_activity_limits = {10, 20, 100}
+
+    try:
+        activity_limit = int(request.GET.get("activity_limit", 10))
+    except (TypeError, ValueError):
+        activity_limit = 10
+
+    if activity_limit not in allowed_activity_limits:
+        activity_limit = 10
+
+    recent_activity = []
+
+    activity_documents = (
+        MemberDocument.objects
+        .select_related("member", "dependant")
+        .order_by("-uploaded_at")
+    )
+
+    for document in activity_documents:
+
+        if document.uploaded_at:
+            recent_activity.append({
+                "document": document,
+                "action": "Uploaded",
+                "timestamp": document.uploaded_at,
+            })
+
+        if document.approved_at:
+            recent_activity.append({
+                "document": document,
+                "action": "Approved",
+                "timestamp": document.approved_at,
+            })
+
+        if document.rejected_at:
+            recent_activity.append({
+                "document": document,
+                "action": "Rejected",
+                "timestamp": document.rejected_at,
+            })
+
+        if document.resubmitted_at:
+            recent_activity.append({
+                "document": document,
+                "action": "Resubmitted",
+                "timestamp": document.resubmitted_at,
+            })
+
+        if document.archived_at:
+            recent_activity.append({
+                "document": document,
+                "action": "Archived",
+                "timestamp": document.archived_at,
+            })
+
+    recent_activity.sort(
+        key=lambda item: item["timestamp"],
+        reverse=True,
+    )
+
+    # =====================================================
+    # MEMBER-DIVERSE ACTIVITY
+    # =====================================================
+
+    selected_activity = []
+    deferred_activity = []
+
+    seen_members = set()
+
+    # First pass: give each member their newest activity.
+    for activity in recent_activity:
+        member_id = activity["document"].member_id
+
+        if member_id not in seen_members:
+            selected_activity.append(activity)
+            seen_members.add(member_id)
+
+            if len(selected_activity) >= activity_limit:
+                break
+
+    # Second pass: fill any remaining places with the next
+    # most recent activities across all members.
+    if len(selected_activity) < activity_limit:
+
+        selected_ids = {
+            id(activity)
+            for activity in selected_activity
+        }
+
+        deferred_activity = [
+            activity
+            for activity in recent_activity
+            if id(activity) not in selected_ids
+        ]
+
+        selected_activity.extend(
+            deferred_activity[
+                :activity_limit - len(selected_activity)
+            ]
+        )
+
+    recent_activity = selected_activity
+
+    # =====================================================
+    # CONTEXT
+    # =====================================================
+
+    context = {
+        "pending_review": pending_review,
+        "approved": approved,
+        "rejected": rejected,
+        "awaiting_resubmission": awaiting_resubmission,
+        "archived": archived,
+        "todays_uploads": todays_uploads,
+        "storage_used": total_storage_bytes,
+        "average_upload_size": average_upload_size,
+        "largest_uploads": largest_uploads,
+        "recent_activity": recent_activity,
+        "activity_limit": activity_limit,
+        "activity_limits": [10, 20, 100],
+    }
 
     return render(
         request,
         "members/admin/documents/documents_dashboard.html",
-        {
-            "documents": documents,
-            "requests": requests
-        }
+        context,
     )
     
 @staff_member_required

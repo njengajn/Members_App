@@ -168,16 +168,8 @@ urlpatterns = [
     #path("dependants/<int:dependant_id>/update/", admin_members.update_dependant_inline, name="update_dependant_inline",),
     path("members/<int:member_id>/dependants/bulk-update/", bulk_update_dependants, name="bulk_update_dependants",),
 
-    path(
-        "members/<int:member_id>/update-permissions/",
-        admin_update_member_permissions,
-        name="update_member_permissions",
-    ),
-    path(
-    "dependants/<int:pk>/",
-    dependant_detail,
-    name="dependant_detail",
-    ),
+    path("members/<int:member_id>/update-permissions/", admin_update_member_permissions, name="update_member_permissions",),
+    path("dependants/<int:pk>/", dependant_detail, name="dependant_detail",),
     path("members/<int:member_id>/restore/", restore_member_view, name="restore_member"),
     path("members/<int:member_id>/retire/", retire_member_view, name="retire_member"),
     
@@ -187,11 +179,7 @@ urlpatterns = [
         name="toggle_member_dependant_edit",
     ),
 
-    path(
-        "members/<int:member_id>/toggle-portal-access/",
-        toggle_member_portal_access,
-        name="toggle_member_portal_access",
-    ),
+    path("members/<int:member_id>/toggle-portal-access/",toggle_member_portal_access, name="toggle_member_portal_access",),
     
 
     # ======================
@@ -320,15 +308,12 @@ urlpatterns = [
     path("members/<int:pk>/card/", member_card_view, name="member_card"),
 
     # DOCUMENTS DASHBOARD
-    path("documents/", document_dashboard, name="admin_documents"),
     path("documents/<int:pk>/approve/", approve_document, name="approve_document"),
     path("documents/<int:pk>/reject/", reject_document, name="reject_document"),
     
     path("admin/documents/", document_dashboard, name="admin_documents"),
 
     path("admin/documents/member/<int:member_id>/", admin_documents_list, name="admin_documents_list"),
-
-    path("admin/documents/request/<int:member_id>/", request_document, name="request_document"),
     
     #search
     path("claims/search-members/", search_members, name="search_members"),
@@ -362,8 +347,6 @@ urlpatterns = [
     # MEMBER DOCUMENTS PAGE
     # =====================================================
 
-    path("admin/documents/member/<int:member_id>/", admin_documents_list, name="admin_documents_list",),
-
     # =====================================================
     # DOCUMENT REVIEW
     # =====================================================
@@ -378,8 +361,7 @@ urlpatterns = [
     #
     # =====================================================
 
-    path("admin/documents/review/<int:document_id>/<str:action>/", admin_document_review, name="admin_document_review",
-    ),
+    path("admin/documents/review/<int:document_id>/<str:action>/", admin_document_review, name="admin_document_review",),
 
     # =====================================================
     # REQUEST DOCUMENT
@@ -416,8 +398,6 @@ urlpatterns = [
     # admin_documents_list.html
     #
     # =====================================================
-
-    path("admin/documents/review/<int:document_id>/<str:action>/", admin_document_review, name="admin_document_review",),
 
     # =====================================================
     # REQUEST DOCUMENT

@@ -2,127 +2,563 @@
 {% load static %}
 {% block content %}
 
-<!-- ================================================== -->
-<!-- RESPONSIVE DOCUMENT CSS -->
-<!-- ================================================== -->
-
 <link rel="stylesheet"
       href="{% static 'css/documents-responsive.css' %}">
 
+<style>
+
+/* =========================================================
+   DOCUMENT PREVIEW MODAL
+   ========================================================= */
+
+#previewModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 9999;
+    overflow: auto;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.preview-modal-content {
+    position: relative;
+    width: min(1100px, 100%);
+    max-height: calc(100vh - 40px);
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.preview-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 10;
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 20px;
+    line-height: 38px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.preview-close:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+#previewContent {
+    width: 100%;
+    max-height: calc(100vh - 40px);
+    overflow: auto;
+    box-sizing: border-box;
+}
+
+#previewContent img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: calc(100vh - 60px);
+    margin: 0 auto;
+    object-fit: contain;
+}
+
+.preview-pdf-frame {
+    display: block;
+    width: 100%;
+    height: calc(100vh - 80px);
+    min-height: 500px;
+    border: 0;
+}
+
+.preview-loading,
+.preview-error {
+    padding: 50px 20px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.preview-error {
+    color: #b91c1c;
+}
+
+@media (max-width: 768px) {
+
+    #previewModal {
+        padding: 8px;
+    }
+
+    .preview-modal-content {
+        width: 100%;
+        max-height: calc(100vh - 16px);
+        border-radius: 6px;
+    }
+
+    #previewContent {
+        max-height: calc(100vh - 16px);
+    }
+
+    #previewContent img {
+        max-width: 100%;
+        max-height: calc(100vh - 30px);
+    }
+
+    .preview-pdf-frame {
+        width: 100%;
+        height: calc(100vh - 30px);
+        min-height: 400px;
+    }
+
+    .preview-close {
+        top: 6px;
+        right: 6px;
+    }
+}
+
+</style>
 
 <h1>Documents Dashboard</h1>
 
-<!-- ========================= -->
-<!-- DOCUMENTS SECTION -->
-<!-- ========================= -->
+<!-- ================================================== -->
+<!-- DOCUMENT STATUS -->
+<!-- ================================================== -->
 
-<h2>Recent Documents</h2>
+<h2>Document Status</h2>
+
+<div class="document-status-cards">
+
+    <div class="document-status-card document-status-pending">
+        <div class="document-status-card-label">Pending Review</div>
+        <div class="document-status-card-value">{{ pending_review }}</div>
+    </div>
+
+    <div class="document-status-card document-status-approved">
+        <div class="document-status-card-label">Approved</div>
+        <div class="document-status-card-value">{{ approved }}</div>
+    </div>
+
+    <div class="document-status-card document-status-rejected">
+        <div class="document-status-card-label">Rejected</div>
+        <div class="document-status-card-value">{{ rejected }}</div>
+    </div>
+
+    <div class="document-status-card document-status-resubmission">
+        <div class="document-status-card-label">Awaiting Resubmission</div>
+        <div class="document-status-card-value">{{ awaiting_resubmission }}</div>
+    </div>
+
+    <div class="document-status-card document-status-archived">
+        <div class="document-status-card-label">Archived</div>
+        <div class="document-status-card-value">{{ archived }}</div>
+    </div>
+
+</div>
+
+
+<!-- ================================================== -->
+<!-- UPLOAD / STORAGE METRICS -->
+<!-- ================================================== -->
+
+<h2 style="margin-top:40px;">Uploads &amp; Storage</h2>
+
+<div class="document-status-cards document-storage-cards">
+
+    <div class="document-status-card document-storage-uploads">
+        <div class="document-status-card-label">Today's Uploads</div>
+        <div class="document-status-card-value">{{ todays_uploads }}</div>
+    </div>
+
+    <div class="document-status-card document-storage-used">
+        <div class="document-status-card-label">Storage Used</div>
+        <div class="document-status-card-value">
+            {{ storage_used|filesizeformat }}
+        </div>
+    </div>
+
+    <div class="document-status-card document-storage-average">
+        <div class="document-status-card-label">Average Upload Size</div>
+        <div class="document-status-card-value">
+            {{ average_upload_size|filesizeformat }}
+        </div>
+    </div>
+
+</div>
+
+
+<!-- ================================================== -->
+<!-- LARGEST UPLOADS -->
+<!-- ================================================== -->
+
+<h2 style="margin-top:40px;">Largest Uploads</h2>
 
 <table class="adminlist">
     <thead>
         <tr>
             <th>Member</th>
-            <th>Title</th>
-            <th>Status</th>
+            <th>Document</th>
+            <th>Size</th>
             <th>Uploaded</th>
             <th>Open</th>
         </tr>
     </thead>
 
     <tbody>
-        {% for doc in documents %}
+        {% for item in largest_uploads %}
         <tr>
             <td data-label="Member">
-                {{ doc.member }}
-                <br>
-
-                <!-- 🔑 LINK TO MEMBER DOCUMENTS -->
-                <a href="{% url 'members_admin:admin_documents_list' doc.member.id %}">
-                    View Member Docs
-                </a>
+                {{ item.0.member }}
             </td>
 
-            <td data-label="Title">
-                {{ doc.title }}
+            <td data-label="Document">
+                {{ item.0.title }}
 
-                {% if doc.original_filename %}
+                {% if item.0.original_filename %}
                     <div class="document-original-name">
-                        {{ doc.original_filename }}
+                        {{ item.0.original_filename }}
                     </div>
                 {% endif %}
             </td>
-            <td data-label="Status">
-                {{ doc.status }}
+
+            <td data-label="Size">
+                {{ item.1|filesizeformat }}
             </td>
+
             <td data-label="Uploaded">
-                {{ doc.uploaded_at }}
+                {{ item.0.uploaded_at }}
             </td>
 
             <td data-label="Open">
-                <a
-                    href="{% url 'members_admin:admin_document_file' doc.id %}"
-                    target="_blank"
-                >
-                    Open
-                </a>
+
+                {% if item.0.file_type == "image" %}
+
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-secondary"
+                        onclick="openPreview(
+                            '{% url 'members_admin:admin_document_file' item.0.id %}',
+                            'image',
+                            '{{ item.0.title|escapejs }}'
+                        )"
+                    >
+                        View
+                    </button>
+
+                {% elif item.0.file_type == "pdf" %}
+
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-secondary"
+                        onclick="openPreview(
+                            '{% url 'members_admin:admin_document_preview' item.0.id %}',
+                            'pdf',
+                            '{{ item.0.title|escapejs }}'
+                        )"
+                    >
+                        View PDF
+                    </button>
+
+                {% else %}
+
+                    <a
+                        href="{% url 'members_admin:admin_document_file' item.0.id %}"
+                        target="_blank"
+                        rel="noopener"
+                        class="btn btn-sm btn-secondary"
+                    >
+                        Open
+                    </a>
+
+                {% endif %}
+
             </td>
         </tr>
         {% empty %}
         <tr>
-            <td colspan="5">No documents found</td>
+            <td colspan="5">No uploaded files found.</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 
 
-<!-- ========================= -->
-<!-- REQUESTS SECTION -->
-<!-- ========================= -->
+<!-- ================================================== -->
+<!-- RECENT ACTIVITY -->
+<!-- ================================================== -->
 
-<h2 style="margin-top:40px;">Document Requests</h2>
+    <div class="dashboard-section-heading" style="margin-top:40px;">
+        <h2>Recent Activity</h2>
+
+        <form method="get">
+            <label for="activity-limit">Show:</label>
+
+            <select
+                id="activity-limit"
+                name="activity_limit"
+                onchange="this.form.submit()"
+            >
+                {% for limit in activity_limits %}
+                    <option
+                        value="{{ limit }}"
+                        {% if activity_limit == limit %}selected{% endif %}
+                    >
+                        {{ limit }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
 
 <table class="adminlist">
     <thead>
         <tr>
+            <th>Activity</th>
             <th>Member</th>
-            <th>Title</th>
-            <th>Status</th>
-            <th>Go to Member</th>
+            <th>Document</th>
+            <th>Date</th>
+            <th>Actions</th>
         </tr>
     </thead>
 
     <tbody>
-        {% for r in requests %}
+        {% for activity in recent_activity %}
         <tr>
+            <td data-label="Activity">
+                {{ activity.action }}
+            </td>
+
             <td data-label="Member">
-                {{ r.member }}
-            </td>
-            <td data-label="Title">
-                {{ r.title }}
+                {{ activity.document.member }}
             </td>
 
-            <td data-label="Status">
-                 {% if r.completed %}
-                    ✔ Completed
-                {% else %}
-                    ⏳ Pending
-                {% endif %}
+            <td data-label="Document">
+                {{ activity.document.title }}
             </td>
 
-            <td data-label="Go to Member">
-                <!-- 🔑 DIRECT NAVIGATION -->
-                <a href="{% url 'members_admin:admin_documents_list' r.member.id %}">
-                    Open Documents
+            <td data-label="Date">
+                {{ activity.timestamp }}
+            </td>
+
+            <td data-label="Actions">
+                <a href="{% url 'members_admin:admin_documents_list' activity.document.member.id %}">
+                    View Member Docs
                 </a>
+                &nbsp;
+                {% if activity.document.file_type == "image" %}
+
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-secondary"
+                        onclick="openPreview(
+                            '{% url 'members_admin:admin_document_file' activity.document.id %}',
+                            'image',
+                            '{{ activity.document.title|escapejs }}'
+                        )"
+                    >
+                        View
+                    </button>
+
+                {% elif activity.document.file_type == "pdf" %}
+
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-secondary"
+                        onclick="openPreview(
+                            '{% url 'members_admin:admin_document_preview' activity.document.id %}',
+                            'pdf',
+                            '{{ activity.document.title|escapejs }}'
+                        )"
+                    >
+                        View PDF
+                    </button>
+
+                {% else %}
+
+                    <a
+                        href="{% url 'members_admin:admin_document_file' activity.document.id %}"
+                        target="_blank"
+                        rel="noopener"
+                        class="btn btn-sm btn-secondary"
+                    >
+                        Open
+                    </a>
+
+                {% endif %}
             </td>
         </tr>
         {% empty %}
         <tr>
-            <td colspan="4">No document requests</td>
+            <td colspan="5">No recent activity.</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+
+<!-- =========================================================
+     DOCUMENT PREVIEW MODAL
+     ========================================================= -->
+
+<div
+    id="previewModal"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-label="Document preview"
+>
+
+    <div class="preview-modal-content">
+
+        <button
+            type="button"
+            class="preview-close"
+            onclick="closePreview()"
+            aria-label="Close preview"
+            title="Close"
+        >
+            ×
+        </button>
+
+        <div id="previewContent"></div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+function openPreview(url, type, title) {
+
+    const modal = document.getElementById("previewModal");
+    const content = document.getElementById("previewContent");
+
+    if (!modal || !content) {
+        return;
+    }
+
+    content.innerHTML = "";
+
+    modal.setAttribute("aria-hidden", "false");
+
+    if (type === "image") {
+
+        content.innerHTML =
+            '<div class="preview-loading">Loading image…</div>';
+
+        const image = document.createElement("img");
+
+        image.alt = title || "Document preview";
+
+        image.onload = function () {
+            content.innerHTML = "";
+            content.appendChild(image);
+        };
+
+        image.onerror = function () {
+            content.innerHTML =
+                '<div class="preview-error">' +
+                'Unable to load this image.' +
+                '</div>';
+        };
+
+        image.src = url;
+
+    } else if (type === "pdf") {
+
+        content.innerHTML =
+            '<div class="preview-loading">Loading PDF…</div>';
+
+        const iframe = document.createElement("iframe");
+
+        iframe.className = "preview-pdf-frame";
+        iframe.title = title || "PDF preview";
+
+        iframe.onload = function () {
+
+            const loading =
+                content.querySelector(".preview-loading");
+
+            if (loading) {
+                loading.remove();
+            }
+
+        };
+
+        iframe.src = url;
+
+        content.appendChild(iframe);
+
+    } else {
+
+        content.innerHTML =
+            '<div class="preview-error">' +
+            'Preview is not available for this file type.' +
+            '</div>';
+    }
+
+    modal.style.display = "block";
+    document.body.style.overflow = "hidden";
+}
+
+
+function closePreview() {
+
+    const modal = document.getElementById("previewModal");
+    const content = document.getElementById("previewContent");
+
+    if (!modal) {
+        return;
+    }
+
+    modal.style.display = "none";
+    modal.setAttribute("aria-hidden", "true");
+
+    if (content) {
+        content.innerHTML = "";
+    }
+
+    document.body.style.overflow = "";
+}
+
+
+document.addEventListener("keydown", function(event) {
+
+    if (event.key === "Escape") {
+
+        const modal =
+            document.getElementById("previewModal");
+
+        if (
+            modal &&
+            modal.style.display === "block"
+        ) {
+            closePreview();
+        }
+    }
+
+});
+
+
+document.getElementById("previewModal").addEventListener(
+    "click",
+    function(event) {
+
+        if (event.target === this) {
+            closePreview();
+        }
+
+    }
+);
+
+</script>
 
 {% endblock %}
