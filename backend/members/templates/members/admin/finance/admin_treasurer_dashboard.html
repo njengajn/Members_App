@@ -3,50 +3,32 @@
 
 {% block content %}
 
-<div class="container-fluid mt-4">
+<div class="container-fluid mt-4 treasurer-dashboard">
 
     <!-- ===================================================== -->
     <!-- PAGE HEADER -->
     <!-- ===================================================== -->
 
-    <div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
+    <div class="d-flex justify-content-between align-items-start
+                flex-wrap gap-3 mb-4">
 
         <div>
 
-            <h3 class="fw-bold">
+            <h3 class="fw-bold mb-1">
                 Treasurer Control Panel
             </h3>
 
-            <!-- ========================================= -->
-            <!-- REPORTING PERIOD -->
-            <!-- ========================================= -->
-
-            <div class="alert alert-light border mb-4">
-
-                <div class="fw-bold mb-1">
-                    Reporting Period
-                </div>
-
-                <div>
-                    {{ period_label }}
-                </div>
-
-                <small class="text-muted">
-
-                    {{ start_date|date:"d/m/Y" }}
-                    -
-
-                    {{ end_date|date:"d/m/Y" }}
-
-                </small>
-
-            </div>
+            <p class="text-muted mb-0">
+                Financial overview and claim settlement activity.
+            </p>
 
         </div>
 
+        <!-- ================================================= -->
         <!-- EXPORT BUTTONS -->
+        <!-- ================================================= -->
 
-        <div class="d-flex gap-2 flex-wrap mt-3 mt-md-0">
+        <div class="d-flex gap-2 flex-wrap">
 
             <a href="{% url 'members_admin:treasurer_dashboard_pdf' %}?{{ request.GET.urlencode }}"
                class="btn btn-danger shadow-sm">
@@ -68,8 +50,56 @@
 
     </div>
 
+
     <!-- ===================================================== -->
-    <!-- FILTER -->
+    <!-- REPORTING PERIOD -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm border-0 mb-4 period-card">
+
+        <div class="card-body">
+
+            <div class="d-flex align-items-center
+                        justify-content-between flex-wrap gap-2">
+
+                <div>
+
+                    <div class="text-muted small mb-1">
+                        REPORTING PERIOD
+                    </div>
+
+                    <div class="fw-bold fs-5">
+
+                        {{ period_label }}
+
+                    </div>
+
+                    <div class="text-muted small">
+
+                        {{ report_start|date:"d/m/Y" }}
+                        -
+                        {{ report_end|date:"d/m/Y" }}
+
+                    </div>
+
+                </div>
+
+                <div class="text-muted small">
+
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    Financial reporting
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- REPORTING FILTER -->
     <!-- ===================================================== -->
 
     <div class="card shadow-sm border-0 mb-4">
@@ -80,7 +110,9 @@
 
                 <div class="row g-3 align-items-end">
 
+                    <!-- ===================================== -->
                     <!-- PERIOD -->
+                    <!-- ===================================== -->
 
                     <div class="col-12 col-md-4 col-lg-3">
 
@@ -92,6 +124,11 @@
                                 class="form-select"
                                 id="periodSelect">
 
+                            <option value="today"
+                                {% if period == "today" %}selected{% endif %}>
+                                Today
+                            </option>
+
                             <option value="this_month"
                                 {% if period == "this_month" %}selected{% endif %}>
                                 This Month
@@ -100,16 +137,6 @@
                             <option value="last_month"
                                 {% if period == "last_month" %}selected{% endif %}>
                                 Last Month
-                            </option>
-
-                            <option value="90_days"
-                                {% if period == "90_days" %}selected{% endif %}>
-                                Last 90 Days
-                            </option>
-
-                            <option value="6_months"
-                                {% if period == "6_months" %}selected{% endif %}>
-                                Last 6 Months
                             </option>
 
                             <option value="this_year"
@@ -131,10 +158,14 @@
 
                     </div>
 
-                    <!-- CUSTOM DATES -->
+
+                    <!-- ===================================== -->
+                    <!-- CUSTOM DATE RANGE -->
+                    <!-- ===================================== -->
 
                     <div id="customDateFields"
-                         class="{% if period != 'custom' %}d-none{% endif %} col-md-6">
+                         class="col-12 col-md-6
+                         {% if period != 'custom' %}d-none{% endif %}">
 
                         <div class="row g-2">
 
@@ -150,6 +181,7 @@
                                        class="form-control">
 
                             </div>
+
 
                             <div class="col-md-6">
 
@@ -168,13 +200,17 @@
 
                     </div>
 
-                    <!-- APPLY -->
 
-                    <div class="col-md-2">
+                    <!-- ===================================== -->
+                    <!-- APPLY -->
+                    <!-- ===================================== -->
+
+                    <div class="col-12 col-md-2">
 
                         <button type="submit"
                                 class="btn btn-primary w-100">
 
+                            <i class="fas fa-filter me-1"></i>
                             Apply
 
                         </button>
@@ -189,33 +225,73 @@
 
     </div>
 
+
     <!-- ===================================================== -->
-    <!-- SUMMARY CARDS -->
+    <!-- PRIMARY FINANCIAL OVERVIEW -->
     <!-- ===================================================== -->
 
-    <div class="row g-4">
+    <div class="mb-3">
 
-        <!-- TOTAL FUNDS -->
+        <h5 class="fw-bold mb-1">
+            Financial Overview
+        </h5>
 
-        <div class="col-12 col-sm-6 col-lg-3">
+        <small class="text-muted">
+            Selected reporting period
+        </small>
 
-            <div class="card shadow-sm border-0 h-100">
+    </div>
 
-                <div class="card-body text-center">
 
-                    <h6 class="text-muted mb-2">
-                        Funds Collected
-                    </h6>
+    <div class="row g-4 mb-4">
+
+
+        <!-- ================================================= -->
+        <!-- FUNDS COLLECTED -->
+        <!-- ================================================= -->
+
+        <div class="col-12 col-sm-6 col-xl-3">
+
+            <div class="card dashboard-card shadow-sm
+                        border-0 h-100">
+
+                <div class="card-body">
+
+                    <div class="d-flex
+                                justify-content-between
+                                align-items-start">
+
+                        <div>
+
+                            <div class="dashboard-label">
+
+                                Funds Collected
+
+                            </div>
+
+                            <div class="dashboard-value
+                                        text-success">
+
+                                £{{ total_collected|floatformat:2|intcomma }}
+
+                            </div>
+
+                        </div>
+
+                        <div class="dashboard-icon
+                                    text-success">
+
+                            <i class="fas fa-wallet"></i>
+
+                        </div>
+
+                    </div>
 
                     <small class="text-muted">
-                        Selected Period
+
+                        Completed payments received
+
                     </small>
-
-                    <h3 class="text-success fw-bold mt-2">
-
-                        £{{ collected_total|floatformat:2|intcomma }}
-
-                    </h3>
 
                 </div>
 
@@ -223,27 +299,223 @@
 
         </div>
 
-        <!-- COMPLIANCE -->
 
-        <div class="col-12 col-sm-6 col-lg-3">
+        <!-- ================================================= -->
+        <!-- CLAIMS PAID -->
+        <!-- ================================================= -->
 
-            <div class="card shadow-sm border-0 h-100">
+        <div class="col-12 col-sm-6 col-xl-3">
 
-                <div class="card-body text-center">
+            <div class="card dashboard-card shadow-sm
+                        border-0 h-100">
 
-                    <h6 class="text-muted mb-2">
-                        Compliance
-                    </h6>
+                <div class="card-body">
+
+                    <div class="d-flex
+                                justify-content-between
+                                align-items-start">
+
+                        <div>
+
+                            <div class="dashboard-label">
+
+                                Claims Paid
+
+                            </div>
+
+                            <div class="dashboard-value
+                                        text-danger">
+
+                                £{{ claims_paid_total|floatformat:2|intcomma }}
+
+                            </div>
+
+                        </div>
+
+                        <div class="dashboard-icon
+                                    text-danger">
+
+                            <i class="fas fa-hand-holding-usd"></i>
+
+                        </div>
+
+                    </div>
 
                     <small class="text-muted">
-                        Selected Period
+
+                        Approved claim settlements
+
                     </small>
 
-                    <h3 class="fw-bold mt-2">
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- NET POSITION -->
+        <!-- ================================================= -->
+
+        <div class="col-12 col-sm-6 col-xl-3">
+
+            <div class="card dashboard-card shadow-sm
+                        border-0 h-100">
+
+                <div class="card-body">
+
+                    <div class="d-flex
+                                justify-content-between
+                                align-items-start">
+
+                        <div>
+
+                            <div class="dashboard-label">
+
+                                Net Position
+
+                            </div>
+
+                            <div class="dashboard-value
+                                        {% if net_position >= 0 %}
+                                            text-success
+                                        {% else %}
+                                            text-danger
+                                        {% endif %}">
+
+                                £{{ net_position|floatformat:2|intcomma }}
+
+                            </div>
+
+                        </div>
+
+                        <div class="dashboard-icon
+                                    text-primary">
+
+                            <i class="fas fa-chart-line"></i>
+
+                        </div>
+
+                    </div>
+
+                    <small class="text-muted">
+
+                        Funds collected less claims paid
+
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- OUTSTANDING LIABILITIES -->
+        <!-- ================================================= -->
+
+        <div class="col-12 col-sm-6 col-xl-3">
+
+            <div class="card dashboard-card shadow-sm
+                        border-0 h-100">
+
+                <div class="card-body">
+
+                    <div class="d-flex
+                                justify-content-between
+                                align-items-start">
+
+                        <div>
+
+                            <div class="dashboard-label">
+
+                                Outstanding Liabilities
+
+                            </div>
+
+                            <div class="dashboard-value
+                                        text-warning">
+
+                                £{{ outstanding_liabilities|floatformat:2|intcomma }}
+
+                            </div>
+
+                        </div>
+
+                        <div class="dashboard-icon
+                                    text-warning">
+
+                            <i class="fas fa-exclamation-circle"></i>
+
+                        </div>
+
+                    </div>
+
+                    <small class="text-muted">
+
+                        Approved claim liabilities
+
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- OPERATIONAL INDICATORS -->
+    <!-- ===================================================== -->
+
+    <div class="mb-3">
+
+        <h5 class="fw-bold mb-1">
+            Settlement and Compliance
+        </h5>
+
+        <small class="text-muted">
+            Selected reporting period
+        </small>
+
+    </div>
+
+
+    <div class="row g-4 mb-4">
+
+
+        <!-- ================================================= -->
+        <!-- COMPLIANCE -->
+        <!-- ================================================= -->
+
+        <div class="col-12 col-md-4">
+
+            <div class="card dashboard-card shadow-sm
+                        border-0 h-100">
+
+                <div class="card-body">
+
+                    <div class="dashboard-label">
+
+                        Compliance
+
+                    </div>
+
+                    <div class="dashboard-value">
 
                         {{ compliance_rate }}%
 
-                    </h3>
+                    </div>
+
+                    <small class="text-muted">
+
+                        Active members with completed payments
+
+                    </small>
 
                 </div>
 
@@ -251,47 +523,136 @@
 
         </div>
 
-        <!-- CLAIMS -->
 
-        <div class="col-12 col-sm-6 col-lg-3">
-
-            <div class="card shadow-sm border-0 h-100">
-
-                <div class="card-body text-center">
-
-                    <h6 class="text-muted mb-2">
-                        Claims Paid
-                    </h6>
-
-                    <h3 class="text-danger fw-bold">
-
-                        £{{ claims_paid_total|floatformat:2|intcomma }}
-
-                    </h3>
-
-                </div>
-
-            </div>
-
-        </div>
-
+        <!-- ================================================= -->
         <!-- DEDUCTIONS -->
+        <!-- ================================================= -->
 
-        <div class="col-12 col-sm-6 col-lg-3">
+        <div class="col-12 col-md-4">
 
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card dashboard-card shadow-sm
+                        border-0 h-100">
 
-                <div class="card-body text-center">
+                <div class="card-body">
 
-                    <h6 class="text-muted mb-2">
+                    <div class="dashboard-label">
+
                         Deductions
-                    </h6>
 
-                    <h3 class="text-primary fw-bold">
+                    </div>
+
+                    <div class="dashboard-value
+                                text-primary">
 
                         £{{ deductions_total|floatformat:2|intcomma }}
 
-                    </h3>
+                    </div>
+
+                    <small class="text-muted">
+
+                        Recorded on approved settlements
+
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- CLAIM COLLECTIONS -->
+        <!-- ================================================= -->
+
+        <div class="col-12 col-md-4">
+
+            <div class="card dashboard-card shadow-sm
+                        border-0 h-100">
+
+                <div class="card-body">
+
+                    <div class="dashboard-label">
+
+                        Claim Collections
+
+                    </div>
+
+                    <div class="dashboard-value
+                                text-info">
+
+                        £{{ collected_total|floatformat:2|intcomma }}
+
+                    </div>
+
+                    <small class="text-muted">
+
+                        Amounts collected within approved settlements
+
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- FINANCIAL NOTES -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-body">
+
+            <h6 class="fw-bold mb-3">
+
+                <i class="fas fa-info-circle me-2"></i>
+                Reporting Notes
+
+            </h6>
+
+            <div class="row g-3">
+
+                <div class="col-12 col-md-4">
+
+                    <small class="text-muted">
+
+                        <strong>Funds Collected:</strong>
+
+                        Completed payments received during
+                        the selected reporting period.
+
+                    </small>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <small class="text-muted">
+
+                        <strong>Claims Paid:</strong>
+
+                        Actual financial payouts from
+                        approved claim settlements.
+
+                    </small>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <small class="text-muted">
+
+                        <strong>Net Position:</strong>
+
+                        Funds collected less approved
+                        claim payouts.
+
+                    </small>
 
                 </div>
 
@@ -303,62 +664,209 @@
 
 </div>
 
+
 <!-- ===================================================== -->
-<!-- CUSTOM RANGE JS -->
+<!-- PAGE STYLES -->
+<!-- ===================================================== -->
+
+<style>
+
+.treasurer-dashboard {
+    padding-bottom: 40px;
+}
+
+
+/* ========================================================= */
+/* REPORTING PERIOD */
+/* ========================================================= */
+
+.period-card {
+    border-radius: 14px;
+}
+
+
+/* ========================================================= */
+/* DASHBOARD CARDS */
+/* ========================================================= */
+
+.dashboard-card {
+
+    border-radius: 14px;
+
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+
+}
+
+
+.dashboard-card:hover {
+
+    transform: translateY(-2px);
+
+}
+
+
+/* ========================================================= */
+/* LABEL */
+/* ========================================================= */
+
+.dashboard-label {
+
+    font-size: 0.9rem;
+
+    color: #6c757d;
+
+    margin-bottom: 10px;
+
+    font-weight: 600;
+
+}
+
+
+/* ========================================================= */
+/* VALUE */
+/* ========================================================= */
+
+.dashboard-value {
+
+    font-size: 1.8rem;
+
+    font-weight: 700;
+
+    margin-bottom: 8px;
+
+}
+
+
+/* ========================================================= */
+/* ICON */
+/* ========================================================= */
+
+.dashboard-icon {
+
+    font-size: 1.4rem;
+
+    opacity: 0.75;
+
+}
+
+
+/* ========================================================= */
+/* TABLET */
+/* ========================================================= */
+
+@media (max-width: 768px) {
+
+    .dashboard-value {
+
+        font-size: 1.5rem;
+
+    }
+
+}
+
+
+/* ========================================================= */
+/* MOBILE */
+/* ========================================================= */
+
+@media (max-width: 576px) {
+
+    .treasurer-dashboard {
+
+        padding-left: 10px;
+
+        padding-right: 10px;
+
+    }
+
+
+    .dashboard-value {
+
+        font-size: 1.45rem;
+
+    }
+
+}
+
+</style>
+
+
+<!-- ===================================================== -->
+<!-- CUSTOM RANGE JAVASCRIPT -->
 <!-- ===================================================== -->
 
 <script>
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
 
-    const periodSelect =
-        document.getElementById("periodSelect");
+        const periodSelect =
+            document.getElementById(
+                "periodSelect"
+            );
 
-    const customFields =
-        document.getElementById("customDateFields");
+        const customFields =
+            document.getElementById(
+                "customDateFields"
+            );
 
-    const startDateInput =
-        document.querySelector(
-            'input[name="start_date"]'
-        );
+        const startDateInput =
+            document.querySelector(
+                'input[name="start_date"]'
+            );
 
-    const endDateInput =
-        document.querySelector(
-            'input[name="end_date"]'
-        );
+        const endDateInput =
+            document.querySelector(
+                'input[name="end_date"]'
+            );
 
-    // =================================================
-    // TOGGLE CUSTOM FIELDS
-    // =================================================
 
-    function toggleCustomFields() {
+        // =================================================
+        // TOGGLE CUSTOM DATE FIELDS
+        // =================================================
 
-        if (periodSelect.value === "custom") {
+        function toggleCustomFields() {
 
-            customFields.classList.remove("d-none");
+            if (
+                periodSelect.value === "custom"
+            ) {
 
-        } else {
+                customFields.classList.remove(
+                    "d-none"
+                );
 
-            customFields.classList.add("d-none");
+            } else {
 
-            // =========================================
-            // IMPORTANT:
-            // Clear stale custom dates
-            // =========================================
+                customFields.classList.add(
+                    "d-none"
+                );
 
-            startDateInput.value = "";
+                // Clear stale custom dates.
 
-            endDateInput.value = "";
+                startDateInput.value = "";
+
+                endDateInput.value = "";
+
+            }
+
         }
+
+
+        // Initial state.
+
+        toggleCustomFields();
+
+
+        periodSelect.addEventListener(
+            "change",
+            toggleCustomFields
+        );
+
     }
-
-    toggleCustomFields();
-
-    periodSelect.addEventListener(
-        "change",
-        toggleCustomFields
-    );
-});
+);
 
 </script>
 

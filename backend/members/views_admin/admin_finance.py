@@ -25,6 +25,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from calendar import monthrange
+from django.utils.dateparse import parse_date
 
 @admin_required
 def treasurer_control_panel(request):
@@ -32,38 +33,78 @@ def treasurer_control_panel(request):
     Treasurer financial dashboard.
     """
 
-    now = timezone.now()
+    # ======================================================
+    # REPORTING PERIOD
+    # ======================================================
+
+    (
+        start_date,
+        end_date,
+        period,
+    ) = get_report_dates(request)
+
+    period_labels = {
+        "today": "Today",
+        "this_month": "This Month",
+        "last_month": "Last Month",
+        "this_year": "Current Financial Year",
+        "last_year": "Previous Financial Year",
+        "custom": "Custom Range",
+    }
+
+    period_label = period_labels.get(
+        period,
+        "This Month"
+    )
+
+    # ======================================================
+    # COMPLETED PAYMENTS — SELECTED PERIOD
+    # ======================================================
+
+    payments_queryset = Payment.objects.filter(
+        status=Payment.STATUS_COMPLETED,
+        paid_at__date__range=[
+            start_date,
+            end_date,
+        ],
+    )
 
     # ======================================================
     # TOTAL FUNDS COLLECTED
     # ======================================================
+
     total_collected = (
-        Payment.objects
-        .filter(status="completed")
-        .aggregate(total=Sum("amount"))["total"] or 0
+        payments_queryset.aggregate(
+            total=Sum("amount")
+        )["total"] or Decimal("0.00")
     )
 
     # ======================================================
     # OUTSTANDING LIABILITIES
     # ======================================================
+
     outstanding_requests = PaymentRequest.objects.filter(
         claim__status="approved"
     )
 
     outstanding_liabilities = sum(
-        pr.amount for pr in outstanding_requests
+        (
+            pr.amount or Decimal("0.00")
+        )
+        for pr in outstanding_requests
     )
 
     # ======================================================
-    # COMPLIANCE RATE
+    # COMPLIANCE RATE — SELECTED PERIOD
     # ======================================================
+
     active_members = Member.objects.filter(
-        status="active"
+        status=Member.STATUS_ACTIVE
     ).count()
 
     members_who_paid = (
-        Payment.objects
-        .filter(status="completed")
+        payments_queryset
+        .exclude(member__isnull=True)
         .values("member")
         .distinct()
         .count()
@@ -72,183 +113,115 @@ def treasurer_control_panel(request):
     compliance_rate = 0
 
     if active_members > 0:
+
         compliance_rate = int(
-            (members_who_paid / active_members) * 100
+            (
+                members_who_paid
+                / active_members
+            ) * 100
         )
 
     # ======================================================
-    # PERIOD FILTER
+    # APPROVED CLAIM SETTLEMENTS — SELECTED PERIOD
+    #
+    # Only approved claim settlements represent
+    # actual financial payouts.
     # ======================================================
-    period = request.GET.get("period", "this_month")
 
-    start_date = None
-    end_date = None
-
-    # ======================================================
-    # THIS MONTH
-    # ======================================================
-    if period == "this_month":
-
-        start_date = now.replace(
-            day=1,
-            hour=0,
-            minute=0,
-            second=0,
-            microsecond=0
-        )
-
-        end_date = now
-
-    # ======================================================
-    # LAST MONTH
-    # ======================================================
-    elif period == "last_month":
-
-        first_day_this_month = now.replace(day=1)
-
-        last_month_end = first_day_this_month - timedelta(days=1)
-
-        start_date = last_month_end.replace(
-            day=1,
-            hour=0,
-            minute=0,
-            second=0,
-            microsecond=0
-        )
-
-        end_date = last_month_end.replace(
-            hour=23,
-            minute=59,
-            second=59
-        )
-
-    # ======================================================
-    # LAST 90 DAYS
-    # ======================================================
-    elif period == "90_days":
-
-        start_date = now - timedelta(days=90)
-        end_date = now
-
-    # ======================================================
-    # LAST 6 MONTHS
-    # ======================================================
-    elif period == "6_months":
-
-        start_date = now - timedelta(days=180)
-        end_date = now
-
-    # ======================================================
-    # FINANCIAL YEAR
-    # STARTS JUNE 1
-    # ======================================================
-    elif period == "this_year":
-
-        if now.month >= 6:
-            fy_year = now.year
-        else:
-            fy_year = now.year - 1
-
-        start_date = now.replace(
-            year=fy_year,
-            month=6,
-            day=1,
-            hour=0,
-            minute=0,
-            second=0,
-            microsecond=0
-        )
-
-        end_date = now
-
-    # ======================================================
-    # CUSTOM RANGE
-    # ======================================================
-    elif period == "custom":
-
-        custom_start = request.GET.get("start_date")
-        custom_end = request.GET.get("end_date")
-
-        if custom_start:
-
-            parsed_start = datetime.strptime(
-                custom_start,
-                "%Y-%m-%d"
-            )
-
-            start_date = timezone.make_aware(
-                datetime.combine(
-                    parsed_start.date(),
-                    time.min
-                )
-            )
-
-        if custom_end:
-
-            parsed_end = datetime.strptime(
-                custom_end,
-                "%Y-%m-%d"
-            )
-
-            end_date = timezone.make_aware(
-                datetime.combine(
-                    parsed_end.date(),
-                    time.max
-                )
-            )
-
-    # ======================================================
-    # CLAIM SETTLEMENTS
-    # ======================================================
     claims_paid_queryset = ClaimSettlement.objects.filter(
-        settlement_date__isnull=False
+        is_approved=True,
+        settlement_date__date__range=[
+            start_date,
+            end_date,
+        ],
     )
 
     # ======================================================
-    # APPLY DATE FILTERS
+    # CLAIM SETTLEMENT TOTALS
     # ======================================================
-    if start_date:
-        claims_paid_queryset = claims_paid_queryset.filter(
-            settlement_date__gte=start_date
-        )
 
-    if end_date:
-        claims_paid_queryset = claims_paid_queryset.filter(
-            settlement_date__lte=end_date
-        )
-
-    # ======================================================
-    # TOTALS
-    # ======================================================
     claims_paid_total = Decimal("0.00")
     deductions_total = Decimal("0.00")
     collected_total = Decimal("0.00")
 
     for settlement in claims_paid_queryset:
 
-        claims_paid_total += settlement.amount_paid
-        deductions_total += settlement.total_deductions
-        collected_total += settlement.total_collected
+        claims_paid_total += (
+            settlement.amount_paid
+            or Decimal("0.00")
+        )
+
+        deductions_total += (
+            settlement.total_deductions
+            or Decimal("0.00")
+        )
+
+        collected_total += (
+            settlement.total_collected
+            or Decimal("0.00")
+        )
+
+    # ======================================================
+    # NET POSITION
+    # ======================================================
+
+    net_position = (
+        total_collected
+        - claims_paid_total
+    )
 
     # ======================================================
     # CONTEXT
     # ======================================================
+
     context = {
 
-        # Existing
+        # ==================================================
+        # REPORTING PERIOD
+        # ==================================================
+
+        "period": period,
+
+        "period_label": period_label,
+
+        "report_start": start_date,
+
+        "report_end": end_date,
+
+        # Preserve submitted custom dates
+        # for the date input fields.
+
+        "start_date": request.GET.get(
+            "start_date",
+            ""
+        ),
+
+        "end_date": request.GET.get(
+            "end_date",
+            ""
+        ),
+
+        # ==================================================
+        # FINANCIAL SUMMARY
+        # ==================================================
+
         "total_collected": total_collected,
+
         "outstanding_liabilities": outstanding_liabilities,
+
+        "net_position": net_position,
+
         "compliance_rate": compliance_rate,
 
-        # New claims dashboard
-        "claims_paid_total": claims_paid_total,
-        "deductions_total": deductions_total,
-        "collected_total": collected_total,
+        # ==================================================
+        # CLAIM SETTLEMENTS
+        # ==================================================
 
-        # Filter UI
-        "period": period,
-        "start_date": request.GET.get("start_date", ""),
-        "end_date": request.GET.get("end_date", ""),
+        "claims_paid_total": claims_paid_total,
+
+        "deductions_total": deductions_total,
+
+        "collected_total": collected_total,
     }
 
     return render(
@@ -257,13 +230,12 @@ def treasurer_control_panel(request):
         context,
     )
 
-
 @admin_required
 def treasurer_analytics_dashboard(request):
     """
     Treasurer analytics dashboard.
 
-    Produces:
+    Produces period-filtered:
     - Monthly income trend
     - Claims paid trend
     - Payment request trend
@@ -272,19 +244,52 @@ def treasurer_analytics_dashboard(request):
     """
 
     # ======================================================
+    # REPORTING PERIOD
+    # ======================================================
+
+    (
+        start_date,
+        end_date,
+        period,
+    ) = get_report_dates(request)
+
+    period_labels = {
+        "today": "Today",
+        "this_month": "This Month",
+        "last_month": "Last Month",
+        "this_year": "Current Financial Year",
+        "last_year": "Previous Financial Year",
+        "custom": "Custom Range",
+    }
+
+    period_label = period_labels.get(
+        period,
+        "This Month"
+    )
+
+    # ======================================================
     # MONTHLY INCOME TREND
     # ======================================================
-    # IMPORTANT:
-    # Use paid_at because approved_at may be NULL
-    # for some valid completed payments.
+    # Source of truth:
+    # Completed Payment records using paid_at.
     # ======================================================
 
     income_queryset = (
         Payment.objects
-        .filter(status="completed")
-        .annotate(month=TruncMonth("paid_at"))
+        .filter(
+            status=Payment.STATUS_COMPLETED,
+            paid_at__date__range=[
+                start_date,
+                end_date,
+            ],
+        )
+        .annotate(
+            month=TruncMonth("paid_at")
+        )
         .values("month")
-        .annotate(total=Sum("amount"))
+        .annotate(
+            total=Sum("amount")
+        )
         .order_by("month")
     )
 
@@ -293,25 +298,45 @@ def treasurer_analytics_dashboard(request):
     for item in income_queryset:
 
         income_trend.append({
-            "month": item["month"].strftime("%Y-%m-%d")
-            if item["month"] else "",
 
-            "total": float(item["total"] or 0)
+            "month": (
+                item["month"].strftime("%Y-%m-%d")
+                if item["month"]
+                else ""
+            ),
+
+            "total": float(
+                item["total"] or 0
+            ),
         })
 
     # ======================================================
     # CLAIMS PAID TREND
     # ======================================================
     # Source of truth:
-    # ClaimSettlement.settlement_date
+    # Approved ClaimSettlement records using settlement_date.
+    #
+    # Only approved settlements represent actual
+    # financial payouts.
     # ======================================================
 
     claims_queryset = (
         ClaimSettlement.objects
-        .filter(settlement_date__isnull=False)
-        .annotate(month=TruncMonth("settlement_date"))
+        .filter(
+            is_approved=True,
+            settlement_date__isnull=False,
+            settlement_date__date__range=[
+                start_date,
+                end_date,
+            ],
+        )
+        .annotate(
+            month=TruncMonth("settlement_date")
+        )
         .values("month")
-        .annotate(total=Count("id"))
+        .annotate(
+            total=Count("id")
+        )
         .order_by("month")
     )
 
@@ -320,21 +345,38 @@ def treasurer_analytics_dashboard(request):
     for item in claims_queryset:
 
         claims_trend.append({
-            "month": item["month"].strftime("%Y-%m-%d")
-            if item["month"] else "",
 
-            "total": item["total"]
+            "month": (
+                item["month"].strftime("%Y-%m-%d")
+                if item["month"]
+                else ""
+            ),
+
+            "total": item["total"],
         })
 
     # ======================================================
     # PAYMENT REQUEST TREND
     # ======================================================
+    # Source of truth:
+    # PaymentRequest.created_at.
+    # ======================================================
 
     requests_queryset = (
         PaymentRequest.objects
-        .annotate(month=TruncMonth("created_at"))
+        .filter(
+            created_at__date__range=[
+                start_date,
+                end_date,
+            ],
+        )
+        .annotate(
+            month=TruncMonth("created_at")
+        )
         .values("month")
-        .annotate(total=Count("id"))
+        .annotate(
+            total=Count("id")
+        )
         .order_by("month")
     )
 
@@ -343,10 +385,14 @@ def treasurer_analytics_dashboard(request):
     for item in requests_queryset:
 
         request_trend.append({
-            "month": item["month"].strftime("%Y-%m-%d")
-            if item["month"] else "",
 
-            "total": item["total"]
+            "month": (
+                item["month"].strftime("%Y-%m-%d")
+                if item["month"]
+                else ""
+            ),
+
+            "total": item["total"],
         })
 
     # ======================================================
@@ -355,20 +401,53 @@ def treasurer_analytics_dashboard(request):
 
     context = {
 
-        # JSON SAFE
-        "income_trend": json.dumps(income_trend),
+        # ==================================================
+        # REPORTING PERIOD
+        # ==================================================
 
-        "claims_trend": json.dumps(claims_trend),
+        "period": period,
 
-        "request_trend": json.dumps(request_trend),
+        "period_label": period_label,
+
+        "report_start": start_date,
+
+        "report_end": end_date,
+
+        # Preserve submitted custom dates
+        # for the filter inputs.
+
+        "start_date": request.GET.get(
+            "start_date",
+            ""
+        ),
+
+        "end_date": request.GET.get(
+            "end_date",
+            ""
+        ),
+
+        # ==================================================
+        # JSON SAFE ANALYTICS DATA
+        # ==================================================
+
+        "income_trend": json.dumps(
+            income_trend
+        ),
+
+        "claims_trend": json.dumps(
+            claims_trend
+        ),
+
+        "request_trend": json.dumps(
+            request_trend
+        ),
     }
 
     return render(
         request,
         "members/admin/finance/admin_treasurer_analytics.html",
-        context
+        context,
     )
-
 
 # ======================================================
 # HELPER:
@@ -483,12 +562,12 @@ def get_report_dates(request):
     # CUSTOM RANGE
     elif period == "custom":
 
-        start_date = request.GET.get(
-            "start_date"
+        start_date = parse_date(
+            request.GET.get("start_date", "")
         )
 
-        end_date = request.GET.get(
-            "end_date"
+        end_date = parse_date(
+            request.GET.get("end_date", "")
         )
 
     # DEFAULT
@@ -503,6 +582,811 @@ def get_report_dates(request):
         period
     )
 
+# ======================================================
+# TREASURER ANALYTICS PDF EXPORT
+# ======================================================
+
+@admin_required
+def treasurer_analytics_pdf(request):
+    """
+    Export Treasurer Financial Analytics as PDF.
+
+    Uses the same reporting-period logic and source data
+    as treasurer_analytics_dashboard.
+    """
+
+    # ==================================================
+    # REPORTING PERIOD
+    # ==================================================
+
+    (
+        start_date,
+        end_date,
+        period,
+    ) = get_report_dates(request)
+
+    period_labels = {
+        "today": "Today",
+        "this_month": "This Month",
+        "last_month": "Last Month",
+        "this_year": "Current Financial Year",
+        "last_year": "Previous Financial Year",
+        "custom": "Custom Range",
+    }
+
+    period_label = period_labels.get(
+        period,
+        "This Month"
+    )
+
+    # ==================================================
+    # MONTHLY INCOME
+    # ==================================================
+
+    income_queryset = (
+        Payment.objects
+        .filter(
+            status=Payment.STATUS_COMPLETED,
+            paid_at__date__range=[
+                start_date,
+                end_date,
+            ],
+        )
+        .annotate(
+            month=TruncMonth("paid_at")
+        )
+        .values("month")
+        .annotate(
+            total=Sum("amount")
+        )
+        .order_by("month")
+    )
+
+    income_data = []
+
+    for item in income_queryset:
+
+        income_data.append([
+
+            item["month"].strftime(
+                "%B %Y"
+            ) if item["month"] else "",
+
+            f"£{item['total'] or Decimal('0.00'):.2f}",
+        ])
+
+    # ==================================================
+    # CLAIMS PAID
+    # ==================================================
+
+    claims_queryset = (
+        ClaimSettlement.objects
+        .filter(
+            is_approved=True,
+            settlement_date__isnull=False,
+            settlement_date__date__range=[
+                start_date,
+                end_date,
+            ],
+        )
+        .annotate(
+            month=TruncMonth("settlement_date")
+        )
+        .values("month")
+        .annotate(
+            total=Count("id")
+        )
+        .order_by("month")
+    )
+
+    claims_data = []
+
+    for item in claims_queryset:
+
+        claims_data.append([
+
+            item["month"].strftime(
+                "%B %Y"
+            ) if item["month"] else "",
+
+            item["total"],
+        ])
+
+    # ==================================================
+    # PAYMENT REQUESTS
+    # ==================================================
+
+    requests_queryset = (
+        PaymentRequest.objects
+        .filter(
+            created_at__date__range=[
+                start_date,
+                end_date,
+            ],
+        )
+        .annotate(
+            month=TruncMonth("created_at")
+        )
+        .values("month")
+        .annotate(
+            total=Count("id")
+        )
+        .order_by("month")
+    )
+
+    requests_data = []
+
+    for item in requests_queryset:
+
+        requests_data.append([
+
+            item["month"].strftime(
+                "%B %Y"
+            ) if item["month"] else "",
+
+            item["total"],
+        ])
+
+    # ==================================================
+    # PDF RESPONSE
+    # ==================================================
+
+    response = HttpResponse(
+        content_type="application/pdf"
+    )
+
+    response[
+        "Content-Disposition"
+    ] = (
+        'attachment; '
+        'filename="treasurer_financial_analytics.pdf"'
+    )
+
+    buffer = BytesIO()
+
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40,
+    )
+
+    styles = getSampleStyleSheet()
+
+    story = []
+
+    # ==================================================
+    # TITLE
+    # ==================================================
+
+    story.append(
+        Paragraph(
+            "Treasurer Financial Analytics",
+            styles["Title"],
+        )
+    )
+
+    story.append(
+        Spacer(1, 12)
+    )
+
+    story.append(
+        Paragraph(
+            f"<b>Reporting Period:</b> "
+            f"{period_label}",
+            styles["Normal"],
+        )
+    )
+
+    story.append(
+        Paragraph(
+            f"<b>Date Range:</b> "
+            f"{start_date.strftime('%d/%m/%Y')} "
+            f"- "
+            f"{end_date.strftime('%d/%m/%Y')}",
+            styles["Normal"],
+        )
+    )
+
+    story.append(
+        Spacer(1, 20)
+    )
+
+    # ==================================================
+    # MONTHLY INCOME TABLE
+    # ==================================================
+
+    story.append(
+        Paragraph(
+            "Monthly Income",
+            styles["Heading2"],
+        )
+    )
+
+    story.append(
+        Spacer(1, 8)
+    )
+
+    income_table_data = [
+
+        ["Month", "Income"],
+
+    ] + (
+        income_data
+        if income_data
+        else [["No data", "£0.00"]]
+    )
+
+    income_table = Table(
+        income_table_data,
+        colWidths=[250, 150],
+    )
+
+    income_table.setStyle(
+        TableStyle([
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, 0),
+                colors.lightgrey,
+            ),
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey,
+            ),
+            (
+                "FONTNAME",
+                (0, 0),
+                (-1, 0),
+                "Helvetica-Bold",
+            ),
+            (
+                "ALIGN",
+                (1, 1),
+                (1, -1),
+                "RIGHT",
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                8,
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                8,
+            ),
+        ])
+    )
+
+    story.append(
+        income_table
+    )
+
+    story.append(
+        Spacer(1, 24)
+    )
+
+    # ==================================================
+    # CLAIMS PAID TABLE
+    # ==================================================
+
+    story.append(
+        Paragraph(
+            "Claims Paid Per Month",
+            styles["Heading2"],
+        )
+    )
+
+    story.append(
+        Spacer(1, 8)
+    )
+
+    claims_table_data = [
+
+        ["Month", "Claims Paid"],
+
+    ] + (
+        claims_data
+        if claims_data
+        else [["No data", 0]]
+    )
+
+    claims_table = Table(
+        claims_table_data,
+        colWidths=[250, 150],
+    )
+
+    claims_table.setStyle(
+        TableStyle([
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, 0),
+                colors.lightgrey,
+            ),
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey,
+            ),
+            (
+                "FONTNAME",
+                (0, 0),
+                (-1, 0),
+                "Helvetica-Bold",
+            ),
+            (
+                "ALIGN",
+                (1, 1),
+                (1, -1),
+                "RIGHT",
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                8,
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                8,
+            ),
+        ])
+    )
+
+    story.append(
+        claims_table
+    )
+
+    story.append(
+        Spacer(1, 24)
+    )
+
+    # ==================================================
+    # PAYMENT REQUESTS TABLE
+    # ==================================================
+
+    story.append(
+        Paragraph(
+            "Payment Requests Created",
+            styles["Heading2"],
+        )
+    )
+
+    story.append(
+        Spacer(1, 8)
+    )
+
+    requests_table_data = [
+
+        ["Month", "Requests Created"],
+
+    ] + (
+        requests_data
+        if requests_data
+        else [["No data", 0]]
+    )
+
+    requests_table = Table(
+        requests_table_data,
+        colWidths=[250, 150],
+    )
+
+    requests_table.setStyle(
+        TableStyle([
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, 0),
+                colors.lightgrey,
+            ),
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey,
+            ),
+            (
+                "FONTNAME",
+                (0, 0),
+                (-1, 0),
+                "Helvetica-Bold",
+            ),
+            (
+                "ALIGN",
+                (1, 1),
+                (1, -1),
+                "RIGHT",
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                8,
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                8,
+            ),
+        ])
+    )
+
+    story.append(
+        requests_table
+    )
+
+    # ==================================================
+    # BUILD PDF
+    # ==================================================
+
+    document.build(
+        story
+    )
+
+    pdf = buffer.getvalue()
+
+    buffer.close()
+
+    response.write(
+        pdf
+    )
+
+    return response
+
+# ======================================================
+# TREASURER ANALYTICS EXCEL EXPORT
+# ======================================================
+
+@admin_required
+def treasurer_analytics_excel(request):
+    """
+    Export Treasurer Financial Analytics as Excel.
+
+    Uses the same reporting-period logic and source data
+    as treasurer_analytics_dashboard.
+    """
+
+    # ==================================================
+    # REPORTING PERIOD
+    # ==================================================
+
+    (
+        start_date,
+        end_date,
+        period,
+    ) = get_report_dates(request)
+
+    period_labels = {
+        "today": "Today",
+        "this_month": "This Month",
+        "last_month": "Last Month",
+        "this_year": "Current Financial Year",
+        "last_year": "Previous Financial Year",
+        "custom": "Custom Range",
+    }
+
+    period_label = period_labels.get(
+        period,
+        "This Month"
+    )
+
+    # ==================================================
+    # MONTHLY INCOME
+    # ==================================================
+
+    income_queryset = (
+        Payment.objects
+        .filter(
+            status=Payment.STATUS_COMPLETED,
+            paid_at__date__range=[
+                start_date,
+                end_date,
+            ],
+        )
+        .annotate(
+            month=TruncMonth("paid_at")
+        )
+        .values("month")
+        .annotate(
+            total=Sum("amount")
+        )
+        .order_by("month")
+    )
+
+    # ==================================================
+    # CLAIMS PAID
+    # ==================================================
+
+    claims_queryset = (
+        ClaimSettlement.objects
+        .filter(
+            is_approved=True,
+            settlement_date__isnull=False,
+            settlement_date__date__range=[
+                start_date,
+                end_date,
+            ],
+        )
+        .annotate(
+            month=TruncMonth("settlement_date")
+        )
+        .values("month")
+        .annotate(
+            total=Count("id")
+        )
+        .order_by("month")
+    )
+
+    # ==================================================
+    # PAYMENT REQUESTS
+    # ==================================================
+
+    requests_queryset = (
+        PaymentRequest.objects
+        .filter(
+            created_at__date__range=[
+                start_date,
+                end_date,
+            ],
+        )
+        .annotate(
+            month=TruncMonth("created_at")
+        )
+        .values("month")
+        .annotate(
+            total=Count("id")
+        )
+        .order_by("month")
+    )
+
+    # ==================================================
+    # WORKBOOK
+    # ==================================================
+
+    workbook = Workbook()
+
+    # Remove default worksheet.
+    default_sheet = workbook.active
+
+    workbook.remove(
+        default_sheet
+    )
+
+    # ==================================================
+    # MONTHLY INCOME SHEET
+    # ==================================================
+
+    income_sheet = workbook.create_sheet(
+        "Monthly Income"
+    )
+
+    income_sheet.append([
+        "Treasurer Financial Analytics"
+    ])
+
+    income_sheet.append([
+        f"Reporting Period: {period_label}"
+    ])
+
+    income_sheet.append([
+        (
+            "Date Range: "
+            f"{start_date.strftime('%d/%m/%Y')} "
+            f"- "
+            f"{end_date.strftime('%d/%m/%Y')}"
+        )
+    ])
+
+    income_sheet.append([])
+
+    income_sheet.append([
+        "Month",
+        "Income (£)",
+    ])
+
+    for item in income_queryset:
+
+        month_value = (
+            item["month"].strftime("%B %Y")
+            if item["month"]
+            else ""
+        )
+
+        income_sheet.append([
+
+            month_value,
+
+            item["total"]
+            or Decimal("0.00"),
+        ])
+
+    # Header formatting
+
+    for cell in income_sheet[5]:
+
+        cell.font = Font(
+            bold=True
+        )
+
+    income_sheet.column_dimensions[
+        "A"
+    ].width = 25
+
+    income_sheet.column_dimensions[
+        "B"
+    ].width = 18
+
+    # Currency formatting
+
+    for row in range(
+        6,
+        income_sheet.max_row + 1
+    ):
+
+        income_sheet[
+            f"B{row}"
+        ].number_format = "£#,##0.00"
+
+    # ==================================================
+    # CLAIMS PAID SHEET
+    # ==================================================
+
+    claims_sheet = workbook.create_sheet(
+        "Claims Paid"
+    )
+
+    claims_sheet.append([
+        "Treasurer Financial Analytics"
+    ])
+
+    claims_sheet.append([
+        f"Reporting Period: {period_label}"
+    ])
+
+    claims_sheet.append([
+        (
+            "Date Range: "
+            f"{start_date.strftime('%d/%m/%Y')} "
+            f"- "
+            f"{end_date.strftime('%d/%m/%Y')}"
+        )
+    ])
+
+    claims_sheet.append([])
+
+    claims_sheet.append([
+        "Month",
+        "Claims Paid",
+    ])
+
+    for item in claims_queryset:
+
+        month_value = (
+            item["month"].strftime("%B %Y")
+            if item["month"]
+            else ""
+        )
+
+        claims_sheet.append([
+
+            month_value,
+
+            item["total"],
+        ])
+
+    for cell in claims_sheet[5]:
+
+        cell.font = Font(
+            bold=True
+        )
+
+    claims_sheet.column_dimensions[
+        "A"
+    ].width = 25
+
+    claims_sheet.column_dimensions[
+        "B"
+    ].width = 18
+
+    # ==================================================
+    # PAYMENT REQUESTS SHEET
+    # ==================================================
+
+    requests_sheet = workbook.create_sheet(
+        "Payment Requests"
+    )
+
+    requests_sheet.append([
+        "Treasurer Financial Analytics"
+    ])
+
+    requests_sheet.append([
+        f"Reporting Period: {period_label}"
+    ])
+
+    requests_sheet.append([
+        (
+            "Date Range: "
+            f"{start_date.strftime('%d/%m/%Y')} "
+            f"- "
+            f"{end_date.strftime('%d/%m/%Y')}"
+        )
+    ])
+
+    requests_sheet.append([])
+
+    requests_sheet.append([
+        "Month",
+        "Requests Created",
+    ])
+
+    for item in requests_queryset:
+
+        month_value = (
+            item["month"].strftime("%B %Y")
+            if item["month"]
+            else ""
+        )
+
+        requests_sheet.append([
+
+            month_value,
+
+            item["total"],
+        ])
+
+    for cell in requests_sheet[5]:
+
+        cell.font = Font(
+            bold=True
+        )
+
+    requests_sheet.column_dimensions[
+        "A"
+    ].width = 25
+
+    requests_sheet.column_dimensions[
+        "B"
+    ].width = 20
+
+    # ==================================================
+    # HTTP RESPONSE
+    # ==================================================
+
+    response = HttpResponse(
+        content_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        )
+    )
+
+    response[
+        "Content-Disposition"
+    ] = (
+        'attachment; '
+        'filename="treasurer_financial_analytics.xlsx"'
+    )
+
+    workbook.save(
+        response
+    )
+
+    return response
 
 # ======================================================
 # MAIN FINANCE SUMMARY
@@ -522,6 +1406,7 @@ def finance_summary(request):
     # ==================================================
 
     payments = Payment.objects.filter(
+        status=Payment.STATUS_COMPLETED,
         paid_at__date__range=[
             start_date,
             end_date
@@ -574,11 +1459,21 @@ def finance_summary(request):
     # TOTAL PAID OUT
     # ==================================================
 
-    total_paid_out = payments.filter(
-        payment_type="claim"
-    ).aggregate(
-        total=Sum("amount")
-    )["total"] or 0
+    claim_settlements = ClaimSettlement.objects.filter(
+        is_approved=True,
+        settlement_date__gte=start_date,
+        settlement_date__lte=end_date,
+    )
+
+    total_paid_out = sum(
+        settlement.amount_paid
+        for settlement in claim_settlements
+    )
+
+    net_position = (
+        total_received
+        - total_paid_out
+    )
 
     completed_payments = payments.count()
 
@@ -651,6 +1546,8 @@ def finance_summary(request):
         "outstanding_requests": outstanding_requests,
 
         "total_paid_out": total_paid_out,
+
+        "net_position": net_position,
 
         "completed_payments": completed_payments,
     }

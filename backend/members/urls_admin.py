@@ -66,7 +66,11 @@ from backend.members.views_admin.admin_tools import bulk_member_activation
 from backend.members.views_admin.admin_finance import finance_summary, finance_summary_pdf, finance_summary_excel
 from backend.members.views_admin.admin_payment_request_detail import admin_view_payment_request
 from backend.members.views_admin.admin_finance import treasurer_control_panel
-from backend.members.views_admin.admin_finance import treasurer_analytics_dashboard
+from backend.members.views_admin.admin_finance import (
+    treasurer_analytics_dashboard,
+    treasurer_analytics_pdf,
+    treasurer_analytics_excel,
+)
 
 from backend.members.views_admin.admin_payment_request_detail import (
     admin_view_payment_request,
@@ -260,12 +264,12 @@ urlpatterns = [
     # ======================
     
     path("finance/treasurer/", treasurer_control_panel, name="treasurer_control_panel",),
-    path("finance/analytics/", treasurer_analytics_dashboard, name="treasurer_analytics_dashboard", ),
+    path("finance/analytics/", treasurer_analytics_dashboard, name="treasurer_analytics_dashboard",),
+    path("finance/analytics/pdf/", treasurer_analytics_pdf, name="treasurer_analytics_pdf",),
+    path("finance/analytics/excel/", treasurer_analytics_excel, name="treasurer_analytics_excel",),
     path("claims/<int:claim_id>/settle/", settle_claim_payment, name="settle_claim_payment",),
     path("payments/<int:request_id>/confirm/", confirm_claim_payment, name="confirm_claim_payment",),
     path("payments/<int:pk>/export/", export_payment_members, name="export_payment_members"),
-
-
 
     path("payments/<int:pk>/", admin_view_payment_request, name="payment_detail",),
     path("payments/<int:pk>/export/", export_payment_compliance_csv, name="export_payment_compliance_csv",),
@@ -415,7 +419,7 @@ urlpatterns = [
     path("treasurer-dashboard/pdf/", treasurer_dashboard_pdf, name="treasurer_dashboard_pdf",),
 
     path("treasurer-dashboard/excel/", treasurer_dashboard_excel,name="treasurer_dashboard_excel",),
-    
+
     # =========================================================
     # SECURE DOCUMENT PREVIEW
     # =========================================================

@@ -151,129 +151,281 @@
   <!-- SUMMARY CARDS -->
   <!-- ===================================================== -->
 
-  <div class="row g-4">
+ <!-- ===================================================== -->
 
-    <!-- TOTAL RECEIVED -->
+<!-- FINANCIAL POSITION -->
 
-    <div class="col-lg-6">
+<!-- ===================================================== -->
 
-      <div class="card border-0 shadow-sm h-100">
+<div class="mb-4">
 
-        <div class="card-body">
+  <div class="mb-3">
 
-          <h5 class="text-success fw-bold">
-            Total Received
-          </h5>
+<h5 class="fw-bold mb-1">
+  Financial Position
+</h5>
 
-          <h2 class="fw-bold">
-            £{{ total_received|floatformat:2|intcomma }}
-          </h2>
+<p class="text-muted small mb-0">
+  High-level financial position for the selected reporting period.
+</p>
 
-          <hr>
+  </div>
 
-          <div class="small">
+  <div class="row g-3">
 
-            <p class="mb-2">
-              <strong>Claims:</strong>
-              £{{ total_claims|floatformat:2|intcomma }}
-            </p>
+<!-- TOTAL RECEIVED -->
 
-            <p class="mb-2">
-              <strong>Membership:</strong>
-              £{{ total_membership|floatformat:2|intcomma }}
-            </p>
+<div class="col-12 col-md-6 col-xl-3">
 
-            <p class="mb-2">
-              <strong>Subscription:</strong>
-              £{{ total_subscription|floatformat:2|intcomma }}
-            </p>
+  <div class="card border-0 shadow-sm h-100">
 
-            <p class="mb-0">
-              <strong>Other:</strong>
-              £{{ total_other|floatformat:2|intcomma }}
-            </p>
+    <div class="card-body">
 
-          </div>
+      <p class="text-muted small mb-2">
+        Total Received
+      </p>
 
-        </div>
+      <h3 class="fw-bold text-success mb-0">
+        £{{ total_received|floatformat:2|intcomma }}
+      </h3>
 
-      </div>
-
-    </div>
-
-    <!-- OTHER METRICS -->
-
-    <div class="col-lg-6">
-
-      <div class="row g-4">
-
-        <div class="col-md-6">
-
-          <div class="card border-0 shadow-sm h-100">
-
-            <div class="card-body">
-
-              <h6 class="text-muted">
-                Outstanding Requests
-              </h6>
-
-              <h3 class="fw-bold text-warning">
-                £{{ outstanding_requests|floatformat:2|intcomma }}
-              </h3>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        <div class="col-md-6">
-
-          <div class="card border-0 shadow-sm h-100">
-
-            <div class="card-body">
-
-              <h6 class="text-muted">
-                Total Paid Out
-              </h6>
-
-              <h3 class="fw-bold text-danger">
-                £{{ total_paid_out|floatformat:2|intcomma }}
-              </h3>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        <div class="col-md-12">
-
-          <div class="card border-0 shadow-sm h-100">
-
-            <div class="card-body">
-
-              <h6 class="text-muted">
-                Payments Completed
-              </h6>
-
-              <h3 class="fw-bold text-primary">
-                {{ completed_payments|intcomma }}
-              </h3>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
+      <p class="text-muted small mb-0 mt-2">
+        Completed payments received.
+      </p>
 
     </div>
 
   </div>
 
 </div>
+
+<!-- TOTAL PAID OUT -->
+
+<div class="col-12 col-md-6 col-xl-3">
+
+  <div class="card border-0 shadow-sm h-100">
+
+    <div class="card-body">
+
+      <p class="text-muted small mb-2">
+        Total Paid Out
+      </p>
+
+      <h3 class="fw-bold text-danger mb-0">
+        £{{ total_paid_out|floatformat:2|intcomma }}
+      </h3>
+
+      <p class="text-muted small mb-0 mt-2">
+        Approved claim settlements.
+      </p>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- OUTSTANDING REQUESTS -->
+
+<div class="col-12 col-md-6 col-xl-3">
+
+  <div class="card border-0 shadow-sm h-100">
+
+    <div class="card-body">
+
+      <p class="text-muted small mb-2">
+        Outstanding Requests
+      </p>
+
+      <h3 class="fw-bold text-warning mb-0">
+        £{{ outstanding_requests|floatformat:2|intcomma }}
+      </h3>
+
+      <p class="text-muted small mb-0 mt-2">
+        Active payment requests awaiting completion.
+      </p>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- NET POSITION -->
+
+<div class="col-12 col-md-6 col-xl-3">
+
+  <div class="card border-0 shadow-sm h-100">
+
+    <div class="card-body">
+
+      <p class="text-muted small mb-2">
+        Net Position
+      </p>
+
+      <h3 class="fw-bold text-primary mb-0">
+        £{{ net_position|floatformat:2|intcomma }}
+      </h3>
+
+      <p class="text-muted small mb-0 mt-2">
+        Received less approved amounts paid out.
+      </p>
+
+    </div>
+
+  </div>
+
+</div>
+
+  </div>
+
+</div>
+
+<!-- ===================================================== -->
+
+<!-- INCOME BREAKDOWN -->
+
+<!-- ===================================================== -->
+
+<div class="card border-0 shadow-sm mb-4">
+
+  <div class="card-body">
+
+<div class="d-flex justify-content-between
+            align-items-center flex-wrap mb-3">
+
+  <div>
+
+    <h5 class="fw-bold mb-1">
+      Income Breakdown
+    </h5>
+
+    <p class="text-muted small mb-0">
+      Completed payments by payment type.
+    </p>
+
+  </div>
+
+</div>
+
+
+<div class="row g-3">
+
+  <!-- CLAIMS -->
+
+  <div class="col-12 col-sm-6 col-xl-3">
+
+    <div class="border rounded p-3 h-100">
+
+      <p class="text-muted small mb-1">
+        Claims
+      </p>
+
+      <h5 class="fw-bold mb-0">
+        £{{ total_claims|floatformat:2|intcomma }}
+      </h5>
+
+    </div>
+
+  </div>
+
+
+  <!-- MEMBERSHIP -->
+
+  <div class="col-12 col-sm-6 col-xl-3">
+
+    <div class="border rounded p-3 h-100">
+
+      <p class="text-muted small mb-1">
+        Membership
+      </p>
+
+      <h5 class="fw-bold mb-0">
+        £{{ total_membership|floatformat:2|intcomma }}
+      </h5>
+
+    </div>
+
+  </div>
+
+
+  <!-- SUBSCRIPTION -->
+
+  <div class="col-12 col-sm-6 col-xl-3">
+
+    <div class="border rounded p-3 h-100">
+
+      <p class="text-muted small mb-1">
+        Subscription
+      </p>
+
+      <h5 class="fw-bold mb-0">
+        £{{ total_subscription|floatformat:2|intcomma }}
+      </h5>
+
+    </div>
+
+  </div>
+
+
+  <!-- OTHER -->
+
+  <div class="col-12 col-sm-6 col-xl-3">
+
+    <div class="border rounded p-3 h-100">
+
+      <p class="text-muted small mb-1">
+        Other
+      </p>
+
+      <h5 class="fw-bold mb-0">
+        £{{ total_other|floatformat:2|intcomma }}
+      </h5>
+
+    </div>
+
+  </div>
+
+</div>
+
+  </div>
+
+</div>
+
+<!-- ===================================================== -->
+
+<!-- ACTIVITY SUMMARY -->
+
+<!-- ===================================================== -->
+
+<div class="row g-3 mb-4">
+
+  <div class="col-12 col-md-6">
+
+<div class="card border-0 shadow-sm h-100">
+
+  <div class="card-body">
+
+    <p class="text-muted small mb-2">
+      Payments Completed
+    </p>
+
+    <h3 class="fw-bold text-primary mb-0">
+      {{ completed_payments|intcomma }}
+    </h3>
+
+    <p class="text-muted small mb-0 mt-2">
+      Completed transactions in this reporting period.
+    </p>
+
+  </div>
+
+</div>
+
+  </div>
+
+</div>
+
 
 <!-- ===================================================== -->
 <!-- CUSTOM DATE JS -->

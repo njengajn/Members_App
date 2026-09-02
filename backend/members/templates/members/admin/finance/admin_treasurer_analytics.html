@@ -5,34 +5,295 @@
 <div class="container-fluid mt-4 analytics-page">
 
     <!-- ===================================================== -->
-    <!-- PAGE TITLE -->
+    <!-- PAGE HEADER -->
     <!-- ===================================================== -->
-    <div class="mb-4">
-        <h3 class="fw-bold">
-            Treasurer Financial Analytics
-        </h3>
+
+    <div class="d-flex justify-content-between
+                align-items-center
+                flex-wrap
+                mb-4">
+
+        <div>
+
+            <h3 class="fw-bold mb-2">
+                Treasurer Financial Analytics
+            </h3>
+
+            <!-- ============================================= -->
+            <!-- REPORTING PERIOD -->
+            <!-- ============================================= -->
+
+            <div class="alert alert-light border mb-0">
+
+                <div class="fw-bold mb-1">
+                    Reporting Period
+                </div>
+
+                <div>
+                    {{ period_label }}
+                </div>
+
+                <small class="text-muted">
+
+                    {{ report_start|date:"d/m/Y" }}
+
+                    -
+
+                    {{ report_end|date:"d/m/Y" }}
+
+                </small>
+
+            </div>
+
+        </div>
+
+        <!-- ============================================= -->
+        <!-- EXPORT BUTTONS -->
+        <!-- ============================================= -->
+
+        <div class="d-flex gap-2
+                    flex-wrap
+                    mt-3
+                    mt-md-0">
+
+             <a href="{% url 'members_admin:treasurer_analytics_pdf' %}?{{ request.GET.urlencode }}"
+               class="btn btn-danger shadow-sm">
+
+                <i class="fas fa-file-pdf"></i>
+                PDF
+
+            </a>
+
+            <a href="{% url 'members_admin:treasurer_analytics_excel' %}?{{ request.GET.urlencode }}"
+               class="btn btn-success shadow-sm">
+
+                <i class="fas fa-file-excel"></i>
+                Excel
+
+            </a>
+
+        </div>
+
     </div>
+
+
+    <!-- ===================================================== -->
+    <!-- REPORTING PERIOD FILTER -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-body">
+
+            <form method="get">
+
+                <div class="row g-3 align-items-end">
+
+                    <!-- ===================================== -->
+                    <!-- PERIOD -->
+                    <!-- ===================================== -->
+
+                    <div class="col-12 col-md-4 col-lg-3">
+
+                        <label class="form-label fw-semibold">
+
+                            Reporting Period
+
+                        </label>
+
+                        <select name="period"
+                                class="form-select"
+                                id="periodSelect">
+
+                            <option value="today"
+                                {% if period == "today" %}
+                                    selected
+                                {% endif %}>
+
+                                Today
+
+                            </option>
+
+
+                            <option value="this_month"
+                                {% if period == "this_month" %}
+                                    selected
+                                {% endif %}>
+
+                                This Month
+
+                            </option>
+
+
+                            <option value="last_month"
+                                {% if period == "last_month" %}
+                                    selected
+                                {% endif %}>
+
+                                Last Month
+
+                            </option>
+
+
+                            <option value="this_year"
+                                {% if period == "this_year" %}
+                                    selected
+                                {% endif %}>
+
+                                Current Financial Year
+
+                            </option>
+
+
+                            <option value="last_year"
+                                {% if period == "last_year" %}
+                                    selected
+                                {% endif %}>
+
+                                Previous Financial Year
+
+                            </option>
+
+
+                            <option value="custom"
+                                {% if period == "custom" %}
+                                    selected
+                                {% endif %}>
+
+                                Custom Range
+
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- ===================================== -->
+                    <!-- CUSTOM DATES -->
+                    <!-- ===================================== -->
+
+                    <div id="customDateFields"
+                         class="
+                            {% if period != 'custom' %}
+                                d-none
+                            {% endif %}
+                            col-12
+                            col-md-6
+                         ">
+
+                        <div class="row g-2">
+
+                            <!-- START DATE -->
+
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+
+                                    Start Date
+
+                                </label>
+
+                                <input type="date"
+                                       name="start_date"
+                                       value="{{ start_date }}"
+                                       class="form-control">
+
+                            </div>
+
+
+                            <!-- END DATE -->
+
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+
+                                    End Date
+
+                                </label>
+
+                                <input type="date"
+                                       name="end_date"
+                                       value="{{ end_date }}"
+                                       class="form-control">
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ===================================== -->
+                    <!-- APPLY -->
+                    <!-- ===================================== -->
+
+                    <div class="col-12 col-md-2">
+
+                        <button type="submit"
+                                class="btn btn-primary w-100">
+
+                            Apply
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
 
     <!-- ===================================================== -->
     <!-- CHARTS GRID -->
     <!-- ===================================================== -->
+
     <div class="row g-4">
+
 
         <!-- ================================================= -->
         <!-- MONTHLY INCOME -->
         <!-- ================================================= -->
+
         <div class="col-12 col-xl-6">
 
-            <div class="card shadow-sm border-0 analytics-card">
+            <div class="card shadow-sm
+                        border-0
+                        analytics-card
+                        h-100">
 
                 <div class="card-body">
 
-                    <h5 class="mb-4 fw-semibold">
-                        Monthly Income
-                    </h5>
+                    <div class="mb-4">
+
+                        <h5 class="fw-semibold mb-1">
+
+                            Monthly Income
+                            — {{ period_label }}
+
+                        </h5>
+
+                        <small class="text-muted">
+
+                            {{ report_start|date:"d/m/Y" }}
+
+                            -
+
+                            {{ report_end|date:"d/m/Y" }}
+
+                        </small>
+
+                    </div>
+
 
                     <div class="chart-wrapper">
+
                         <canvas id="incomeChart"></canvas>
+
                     </div>
 
                 </div>
@@ -40,22 +301,43 @@
             </div>
 
         </div>
+
 
         <!-- ================================================= -->
         <!-- CLAIMS PAID -->
         <!-- ================================================= -->
+
         <div class="col-12 col-xl-6">
 
-            <div class="card shadow-sm border-0 analytics-card">
+            <div class="card shadow-sm
+                        border-0
+                        analytics-card
+                        h-100">
 
                 <div class="card-body">
 
-                    <h5 class="mb-4 fw-semibold">
-                        Claims Paid Per Month
-                    </h5>
+                    <div class="mb-4">
+
+                        <h5 class="fw-semibold mb-1">
+
+                            Claims Paid Per Month
+                            — {{ period_label }}
+
+                        </h5>
+
+                        <small class="text-muted">
+
+                            Approved claim settlements.
+
+                        </small>
+
+                    </div>
+
 
                     <div class="chart-wrapper">
+
                         <canvas id="claimsChart"></canvas>
+
                     </div>
 
                 </div>
@@ -63,22 +345,47 @@
             </div>
 
         </div>
+
 
         <!-- ================================================= -->
         <!-- PAYMENT REQUESTS -->
         <!-- ================================================= -->
+
         <div class="col-12">
 
-            <div class="card shadow-sm border-0 analytics-card">
+            <div class="card shadow-sm
+                        border-0
+                        analytics-card">
 
                 <div class="card-body">
 
-                    <h5 class="mb-4 fw-semibold">
-                        Payment Requests Created
-                    </h5>
+                    <div class="mb-4">
 
-                    <div class="chart-wrapper chart-wrapper-large">
+                        <h5 class="fw-semibold mb-1">
+
+                            Payment Requests Created
+                            — {{ period_label }}
+
+                        </h5>
+
+                        <small class="text-muted">
+
+                            {{ report_start|date:"d/m/Y" }}
+
+                            -
+
+                            {{ report_end|date:"d/m/Y" }}
+
+                        </small>
+
+                    </div>
+
+
+                    <div class="chart-wrapper
+                                chart-wrapper-large">
+
                         <canvas id="requestsChart"></canvas>
+
                     </div>
 
                 </div>
@@ -86,248 +393,497 @@
             </div>
 
         </div>
+
 
     </div>
 
 </div>
 
+
 <!-- ===================================================== -->
 <!-- RESPONSIVE STYLES -->
 <!-- ===================================================== -->
+
 <style>
 
 .analytics-page {
     padding-bottom: 40px;
 }
 
+
 .analytics-card {
     border-radius: 14px;
 }
 
+
 .chart-wrapper {
+
     position: relative;
+
     width: 100%;
+
     min-height: 320px;
+
 }
 
+
 .chart-wrapper-large {
+
     min-height: 380px;
+
 }
+
 
 /* ===================================================== */
 /* MOBILE */
 /* ===================================================== */
+
 @media (max-width: 768px) {
 
     .chart-wrapper {
+
         min-height: 260px;
+
     }
+
 
     .chart-wrapper-large {
+
         min-height: 300px;
+
     }
+
 
     h3 {
+
         font-size: 1.4rem;
+
     }
 
+
     h5 {
+
         font-size: 1rem;
+
     }
 
 }
 
+
 /* ===================================================== */
 /* SMALL DEVICES */
 /* ===================================================== */
+
 @media (max-width: 480px) {
 
     .container-fluid {
+
         padding-left: 10px;
+
         padding-right: 10px;
+
     }
+
 
     .card-body {
+
         padding: 1rem;
+
     }
+
 
     .chart-wrapper {
+
         min-height: 240px;
+
     }
 
+
     .chart-wrapper-large {
+
         min-height: 260px;
+
     }
 
 }
 
 </style>
 
+
 <!-- ===================================================== -->
 <!-- CHART JS -->
 <!-- ===================================================== -->
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 
 <script>
 
-const incomeData = JSON.parse('{{ income_trend|escapejs }}');
-const claimsData = JSON.parse('{{ claims_trend|escapejs }}');
-const requestData = JSON.parse('{{ request_trend|escapejs }}');
+
+// =====================================================
+// DATA
+// =====================================================
+
+const incomeData =
+    JSON.parse('{{ income_trend|escapejs }}');
+
+
+const claimsData =
+    JSON.parse('{{ claims_trend|escapejs }}');
+
+
+const requestData =
+    JSON.parse('{{ request_trend|escapejs }}');
+
+
+// =====================================================
+// FORMAT MONTH LABELS
+// =====================================================
 
 function formatMonths(data) {
 
     return data.map(item => {
 
-        const date = new Date(item.month);
+        const date =
+            new Date(item.month);
+
 
         return date.toLocaleDateString(
+
             'en-GB',
+
             {
+
                 month: 'short',
+
                 year: 'numeric'
+
             }
+
         );
 
     });
 
 }
 
-//
+
 // =====================================================
 // COMMON RESPONSIVE OPTIONS
 // =====================================================
-//
+
 const responsiveOptions = {
 
     responsive: true,
 
     maintainAspectRatio: false,
 
+
     plugins: {
 
         legend: {
+
             labels: {
+
                 boxWidth: 14,
+
                 font: {
+
                     size: 12
+
                 }
+
             }
+
         }
 
     },
 
+
     scales: {
 
         x: {
+
             ticks: {
+
                 maxRotation: 45,
+
                 minRotation: 30
+
             }
+
         }
 
     }
 
 };
 
-//
+
 // =====================================================
 // INCOME CHART
 // =====================================================
-//
-new Chart(document.getElementById("incomeChart"), {
 
-    type: "line",
+new Chart(
 
-    data: {
+    document.getElementById("incomeChart"),
 
-        labels: formatMonths(incomeData),
+    {
 
-        datasets: [{
+        type: "line",
 
-            label: "Income (£)",
 
-            data: incomeData.map(d => d.total),
+        data: {
 
-            borderColor: "green",
+            labels:
+                formatMonths(incomeData),
 
-            backgroundColor: "rgba(0,128,0,0.08)",
 
-            fill: true,
+            datasets: [
 
-            tension: 0.3
+                {
 
-        }]
+                    label: "Income (£)",
 
-    },
 
-    options: responsiveOptions
+                    data:
 
-});
+                        incomeData.map(
 
-//
+                            item => item.total
+
+                        ),
+
+
+                    borderColor: "green",
+
+
+                    backgroundColor:
+
+                        "rgba(0,128,0,0.08)",
+
+
+                    fill: true,
+
+
+                    tension: 0.3
+
+                }
+
+            ]
+
+        },
+
+
+        options: responsiveOptions
+
+    }
+
+);
+
+
 // =====================================================
 // CLAIMS CHART
 // =====================================================
-//
-new Chart(document.getElementById("claimsChart"), {
 
-    type: "bar",
+new Chart(
 
-    data: {
+    document.getElementById("claimsChart"),
 
-        labels: formatMonths(claimsData),
+    {
 
-        datasets: [{
+        type: "bar",
 
-            label: "Claims Paid",
 
-            data: claimsData.map(d => d.total),
+        data: {
 
-            backgroundColor: "rgba(220,53,69,0.75)"
+            labels:
+                formatMonths(claimsData),
 
-        }]
 
-    },
+            datasets: [
 
-    options: responsiveOptions
+                {
 
-});
+                    label: "Claims Paid",
 
-//
+
+                    data:
+
+                        claimsData.map(
+
+                            item => item.total
+
+                        ),
+
+
+                    backgroundColor:
+
+                        "rgba(220,53,69,0.75)"
+
+                }
+
+            ]
+
+        },
+
+
+        options: responsiveOptions
+
+    }
+
+);
+
+
 // =====================================================
-// REQUESTS CHART
+// PAYMENT REQUESTS CHART
 // =====================================================
-//
-new Chart(document.getElementById("requestsChart"), {
 
-    type: "line",
+new Chart(
 
-    data: {
+    document.getElementById("requestsChart"),
 
-        labels: formatMonths(requestData),
+    {
 
-        datasets: [{
+        type: "line",
 
-            label: "Requests Created",
 
-            data: requestData.map(d => d.total),
+        data: {
 
-            borderColor: "blue",
+            labels:
+                formatMonths(requestData),
 
-            backgroundColor: "rgba(0,0,255,0.08)",
 
-            fill: true,
+            datasets: [
 
-            tension: 0.3
+                {
 
-        }]
+                    label:
+                        "Requests Created",
 
-    },
 
-    options: responsiveOptions
+                    data:
 
-});
+                        requestData.map(
+
+                            item => item.total
+
+                        ),
+
+
+                    borderColor: "blue",
+
+
+                    backgroundColor:
+
+                        "rgba(0,0,255,0.08)",
+
+
+                    fill: true,
+
+
+                    tension: 0.3
+
+                }
+
+            ]
+
+        },
+
+
+        options: responsiveOptions
+
+    }
+
+);
+
+
+// =====================================================
+// CUSTOM DATE RANGE
+// =====================================================
+
+document.addEventListener(
+
+    "DOMContentLoaded",
+
+    function () {
+
+        const periodSelect =
+
+            document.getElementById(
+                "periodSelect"
+            );
+
+
+        const customFields =
+
+            document.getElementById(
+                "customDateFields"
+            );
+
+
+        const startDateInput =
+
+            document.querySelector(
+                'input[name="start_date"]'
+            );
+
+
+        const endDateInput =
+
+            document.querySelector(
+                'input[name="end_date"]'
+            );
+
+
+        // =============================================
+        // TOGGLE CUSTOM DATE FIELDS
+        // =============================================
+
+        function toggleCustomFields() {
+
+            if (
+                periodSelect.value ===
+                "custom"
+            ) {
+
+                customFields.classList.remove(
+                    "d-none"
+                );
+
+            } else {
+
+                customFields.classList.add(
+                    "d-none"
+                );
+
+
+                // Clear stale custom dates.
+
+                startDateInput.value = "";
+
+                endDateInput.value = "";
+
+            }
+
+        }
+
+
+        toggleCustomFields();
+
+
+        periodSelect.addEventListener(
+
+            "change",
+
+            toggleCustomFields
+
+        );
+
+    }
+
+);
+
 
 </script>
+
 
 {% endblock %}
