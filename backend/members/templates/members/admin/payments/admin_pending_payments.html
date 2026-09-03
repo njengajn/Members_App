@@ -5,88 +5,328 @@
 
 <div class="container mt-3">
 
+  <!-- ===================================================== -->
+  <!-- PAGE HEADER -->
+  <!-- ===================================================== -->
+
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">Payments Awaiting Confirmation</h4>
+
+    <h4 class="mb-0">
+      Payments Awaiting Confirmation
+    </h4>
 
     <a href="{% url 'members_admin:admin_payments_list' %}"
        class="btn btn-outline-dark btn-sm">
       ← Back
     </a>
+
   </div>
 
-  <div class="table-responsive">
-    <table class="table table-hover align-middle">
 
-      <thead class="table-dark">
-        <tr>
-          <th>#</th>
-          <th>Member</th>
-          <th>Amount</th>
-          <th>Request</th>
-          <th>Proof</th>
-          <th class="text-end">Actions</th>
-        </tr>
-      </thead>
+  <!-- ===================================================== -->
+  <!-- DESKTOP / TABLET TABLE -->
+  <!-- ===================================================== -->
 
-      <tbody>
-        {% for p in payments %}
-        <tr>
-          <td>#{{ p.id }}</td>
+  <div class="d-none d-md-block">
 
-          <td>
+    <div class="table-responsive">
+
+      <table class="table table-hover align-middle">
+
+        <thead class="table-dark">
+
+          <tr>
+
+            <th>#</th>
+
+            <th>Member</th>
+
+            <th>Amount</th>
+
+            <th>Request</th>
+
+            <th>Proof</th>
+
+            <th class="text-end">
+              Actions
+            </th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          {% for p in payments %}
+
+          <tr>
+
+            <td>
+              #{{ p.id }}
+            </td>
+
+
+            <!-- MEMBER -->
+
+            <td>
+
+              {{ p.member.first_name|default:"-" }}
+              {{ p.member.surname|default:"-" }}
+
+            </td>
+
+
+            <!-- AMOUNT -->
+
+            <td>
+
+              <strong>
+                £{{ p.amount }}
+              </strong>
+
+            </td>
+
+
+            <!-- REQUEST -->
+
+            <td>
+
+              {{ p.payment_request.title|default:"No request" }}
+
+            </td>
+
+
+            <!-- PROOF -->
+
+            <td>
+
+              {% if p.proof %}
+
+                <a href="{{ p.proof.url }}"
+                   target="_blank"
+                   class="btn btn-outline-secondary btn-sm">
+
+                  View
+
+                </a>
+
+              {% else %}
+
+                <span class="text-muted small">
+                  No proof
+                </span>
+
+              {% endif %}
+
+            </td>
+
+
+            <!-- ACTIONS -->
+
+            <td class="text-end">
+
+              <button
+                type="button"
+                class="btn btn-success btn-sm fw-bold"
+                onclick="openApproveModal({{ p.id }});">
+
+                ✔ Approve
+
+              </button>
+
+
+              <button
+                type="button"
+                class="btn btn-danger btn-sm fw-bold"
+                onclick="openRejectModal({{ p.id }});">
+
+                ✖ Reject
+
+              </button>
+
+            </td>
+
+          </tr>
+
+
+          {% empty %}
+
+          <tr>
+
+            <td colspan="6"
+                class="text-center text-muted">
+
+              No pending payments
+
+            </td>
+
+          </tr>
+
+          {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- MOBILE PAYMENT CARDS -->
+  <!-- ===================================================== -->
+
+  <div class="d-md-none">
+
+    {% for p in payments %}
+
+    <div class="card shadow-sm border-0 mb-3">
+
+      <div class="card-body">
+
+
+        <!-- HEADER -->
+
+        <div class="d-flex justify-content-between
+                    align-items-start mb-3">
+
+          <div>
+
+            <div class="fw-bold">
+
+              Payment #{{ p.id }}
+
+            </div>
+
+            <small class="text-muted">
+
+              Awaiting Confirmation
+
+            </small>
+
+          </div>
+
+
+          <div class="fw-bold text-success">
+
+            £{{ p.amount }}
+
+          </div>
+
+        </div>
+
+
+        <!-- MEMBER -->
+
+        <div class="mb-2">
+
+          <small class="text-muted d-block">
+            Member
+          </small>
+
+          <span>
+
             {{ p.member.first_name|default:"-" }}
             {{ p.member.surname|default:"-" }}
-          </td>
 
-          <td><strong>£{{ p.amount }}</strong></td>
+          </span>
 
-          <td>{{ p.payment_request.title|default:"No request" }}</td>
+        </div>
 
-          <td>
-            {% if p.proof %}
-              <a href="{{ p.proof.url }}" target="_blank"
-                 class="btn btn-outline-secondary btn-sm">
-                 View
-              </a>
-            {% else %}
-              <span class="text-muted small">No proof</span>
-            {% endif %}
-          </td>
 
-          <!-- ===================================================== -->
-          <!-- ACTION BUTTONS (FIXED UX) -->
-          <!-- ===================================================== -->
-          <td class="text-end">
+        <!-- REQUEST -->
 
-            <!-- APPROVE -->
-            <button
-              type="button"
-              class="btn btn-success btn-sm fw-bold"
-              onclick="openApproveModal({{ p.id }});">
-              ✔ Approve
-            </button>
+        <div class="mb-3">
 
-            <!-- REJECT -->
-            <button
-              type="button"
-              class="btn btn-danger btn-sm fw-bold"
-              onclick="openRejectModal({{ p.id }});">
-              ✖ Reject
-            </button>
+          <small class="text-muted d-block">
+            Payment Request
+          </small>
 
-          </td>
-        </tr>
+          <span>
 
-        {% empty %}
-        <tr>
-          <td colspan="6" class="text-center text-muted">
-            No pending payments
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
+            {{ p.payment_request.title|default:"No request" }}
 
-    </table>
+          </span>
+
+        </div>
+
+
+        <!-- PROOF -->
+
+        <div class="mb-3">
+
+          <small class="text-muted d-block mb-1">
+            Proof
+          </small>
+
+          {% if p.proof %}
+
+            <a href="{{ p.proof.url }}"
+               target="_blank"
+               class="btn btn-outline-secondary btn-sm">
+
+              View Proof
+
+            </a>
+
+          {% else %}
+
+            <span class="text-muted small">
+
+              No proof uploaded
+
+            </span>
+
+          {% endif %}
+
+        </div>
+
+
+        <!-- ACTIONS -->
+
+        <div class="d-grid gap-2">
+
+          <button
+            type="button"
+            class="btn btn-success fw-bold"
+            onclick="openApproveModal({{ p.id }});">
+
+            ✔ Approve Payment
+
+          </button>
+
+
+          <button
+            type="button"
+            class="btn btn-danger fw-bold"
+            onclick="openRejectModal({{ p.id }});">
+
+            ✖ Reject Payment
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    {% empty %}
+
+    <div class="card border-0 shadow-sm">
+
+      <div class="card-body text-center text-muted">
+
+        No pending payments
+
+      </div>
+
+    </div>
+
+    {% endfor %}
+
   </div>
 
 </div>
@@ -95,158 +335,287 @@
 <!-- ===================================================== -->
 <!-- REJECT MODAL -->
 <!-- ===================================================== -->
-<div class="modal fade" id="rejectModal" tabindex="-1">
+
+<div class="modal fade"
+     id="rejectModal"
+     tabindex="-1">
+
   <div class="modal-dialog">
+
     <div class="modal-content">
 
+
       <div class="modal-header bg-danger text-white">
-        <h5 class="modal-title">Reject Payment</h5>
-        <button type="button" class="btn-close btn-close-white"
-                data-bs-dismiss="modal"></button>
+
+        <h5 class="modal-title">
+
+          Reject Payment
+
+        </h5>
+
+        <button type="button"
+                class="btn-close btn-close-white"
+                data-bs-dismiss="modal">
+        </button>
+
       </div>
 
+
       <div class="modal-body">
-        <label class="form-label fw-bold">Reason for rejection</label>
+
+        <label class="form-label fw-bold">
+
+          Reason for rejection
+
+        </label>
+
 
         <textarea id="rejectReason"
                   class="form-control"
                   rows="3"
-                  placeholder="Enter reason..."></textarea>
+                  placeholder="Enter reason...">
+        </textarea>
+
 
         <small class="text-muted">
+
           This will be recorded in audit logs.
+
         </small>
+
       </div>
 
+
       <div class="modal-footer">
+
         <button class="btn btn-secondary"
                 data-bs-dismiss="modal">
+
           Cancel
+
         </button>
+
 
         <button class="btn btn-danger fw-bold"
                 onclick="submitReject()">
+
           Confirm Reject
+
         </button>
+
       </div>
 
     </div>
+
   </div>
+
 </div>
+
 
 <!-- ===================================================== -->
 <!-- APPROVE MODAL -->
 <!-- ===================================================== -->
-<div class="modal fade" id="approveModal" tabindex="-1">
+
+<div class="modal fade"
+     id="approveModal"
+     tabindex="-1">
+
   <div class="modal-dialog">
+
     <div class="modal-content">
 
+
       <div class="modal-header bg-success text-white">
-        <h5 class="modal-title">Confirm Approval</h5>
-        <button type="button" class="btn-close btn-close-white"
-                data-bs-dismiss="modal"></button>
+
+        <h5 class="modal-title">
+
+          Confirm Approval
+
+        </h5>
+
+        <button type="button"
+                class="btn-close btn-close-white"
+                data-bs-dismiss="modal">
+        </button>
+
       </div>
+
 
       <div class="modal-body">
 
         <p class="fw-bold text-danger">
+
           ⚠ Please verify before approving:
+
         </p>
 
+
         <ul>
-          <li>Check bank account for payment receipt</li>
-          <li>Confirm uploaded proof is valid</li>
-          <li>Ensure amount matches request</li>
+
+          <li>
+            Check bank account for payment receipt
+          </li>
+
+          <li>
+            Confirm uploaded proof is valid
+          </li>
+
+          <li>
+            Ensure amount matches request
+          </li>
+
         </ul>
 
+
         <p class="mb-0">
+
           Are you sure you want to approve this payment?
+
         </p>
 
       </div>
+
 
       <div class="modal-footer">
 
         <button class="btn btn-secondary"
                 data-bs-dismiss="modal">
+
           Cancel
+
         </button>
+
 
         <button class="btn btn-success fw-bold"
                 onclick="submitApprove()">
+
           Yes, Approve
+
         </button>
 
       </div>
 
     </div>
+
   </div>
+
 </div>
 
 
 <!-- ===================================================== -->
-<!-- SCRIPT (FIXED) -->
+<!-- SCRIPTS -->
 <!-- ===================================================== -->
+
 <script>
+
 let currentPaymentId = null;
 
 function openRejectModal(paymentId) {
+
     currentPaymentId = paymentId;
 
-    const modalEl = document.getElementById("rejectModal");
+    const modalEl =
+        document.getElementById("rejectModal");
 
     if (!modalEl) {
+
         alert("Modal not found.");
+
         return;
     }
 
-    const modal = new bootstrap.Modal(modalEl);
+    const modal =
+        new bootstrap.Modal(modalEl);
+
     modal.show();
+
 }
+
 
 function submitReject() {
 
-    const reason = document.getElementById("rejectReason").value.trim();
+    const reason =
+        document
+        .getElementById("rejectReason")
+        .value
+        .trim();
+
 
     if (!reason) {
-        alert("Rejection reason is required.");
+
+        alert(
+            "Rejection reason is required."
+        );
+
         return;
+
     }
 
+
     if (!currentPaymentId) {
-        alert("Payment ID missing.");
+
+        alert(
+            "Payment ID missing."
+        );
+
         return;
+
     }
+
 
     window.location.href =
         `/admin-panel/payments/${currentPaymentId}/reject/?reason=` +
         encodeURIComponent(reason);
+
 }
+
 </script>
 
+
 <script>
+
 let currentApproveId = null;
 
+
 function openApproveModal(paymentId) {
+
     currentApproveId = paymentId;
 
-    const modal = new bootstrap.Modal(
-        document.getElementById("approveModal")
-    );
+
+    const modal =
+        new bootstrap.Modal(
+
+            document.getElementById(
+                "approveModal"
+            )
+
+        );
+
 
     modal.show();
+
 }
+
 
 function submitApprove() {
 
     if (!currentApproveId) {
-        alert("Payment ID missing.");
+
+        alert(
+            "Payment ID missing."
+        );
+
         return;
+
     }
+
 
     window.location.href =
         `/admin-panel/payments/${currentApproveId}/approve/`;
+
 }
+
 </script>
+
 
 {% endblock %}
