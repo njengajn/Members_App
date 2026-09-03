@@ -403,6 +403,12 @@ body {
     color: #212529;
 }
 
+.members-approved-card {
+
+    background: #7d0dfd;
+    color: white;
+}
+
 .members-retired-card {
 
     background: #6c757d;
@@ -412,6 +418,7 @@ body {
 .members-total-card .card-header,
 .members-active-card .card-header,
 .members-pending-card .card-header,
+.members-approved-card .card-header,
 .members-retired-card .card-header {
 
     background: transparent;
@@ -424,8 +431,8 @@ body {
 .members-total-card .card-body,
 .members-active-card .card-body,
 .members-pending-card .card-body,
-.members-retired-card .card-body {
-
+.members-retired-card .card-body,
+.members-approved-card .card-body{
     color: inherit;
 }
 
@@ -1103,4 +1110,41 @@ body {
         padding: 0.75rem !important;
     }
 
+}
+
+
+/* ===================================================== */
+/* CLICKABLE DASHBOARD CARDS */
+/* ===================================================== */
+
+.dashboard-card-link {
+    display: block;
+    height: 100%;
+    color: inherit;
+    text-decoration: none;
+}
+
+.dashboard-card-link:hover {
+    color: inherit;
+    text-decoration: none;
+}
+
+.dashboard-card-link .card {
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+    cursor: pointer;
+}
+
+.dashboard-card-link:hover .card {
+    transform: translateY(-2px);
+}
+
+.dashboard-card-link:focus {
+    outline: none;
+}
+
+.dashboard-card-link:focus .card {
+    box-shadow:
+        0 0 0 0.2rem rgba(13, 110, 253, 0.25);
 }

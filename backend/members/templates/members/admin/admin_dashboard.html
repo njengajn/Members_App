@@ -12,7 +12,6 @@
     Admin Dashboard
   </h3>
 
-
   <!-- ===================================================== -->
   <!-- MEMBERS -->
   <!-- ===================================================== -->
@@ -25,97 +24,144 @@
 
     <!-- TOTAL MEMBERS -->
 
-    <div class="col-lg-3 col-md-6 col-6">
+    <div class="col-lg col-md-4 col-6">
 
-      <div class="card members-total-card text-center">
+      <a href="{% url 'members_admin:admin_members_list' %}"
+        class="dashboard-card-link">
 
-        <div class="card-header">
-          Total Members
+        <div class="card members-total-card text-center h-100">
+
+          <div class="card-header">
+            Total Members
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ members_total_members }}
+            </h3>
+
+          </div>
+
         </div>
 
-        <div class="card-body">
-
-          <h3>
-            {{ members_total_members }}
-          </h3>
-
-        </div>
-
-      </div>
+      </a>
 
     </div>
 
 
     <!-- ACTIVE -->
 
-    <div class="col-lg-3 col-md-6 col-6">
+    <div class="col-lg col-md-4 col-6">
 
-      <div class="card members-active-card text-center">
+      <a href="{% url 'members_admin:admin_members_list' %}"
+        class="dashboard-card-link">
 
-        <div class="card-header">
-          Active
+        <div class="card members-active-card text-center h-100">
+
+          <div class="card-header">
+            Active
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ members_active }}
+            </h3>
+
+          </div>
+
         </div>
 
-        <div class="card-body">
-
-          <h3>
-            {{ members_active }}
-          </h3>
-
-        </div>
-
-      </div>
+      </a>
 
     </div>
 
 
     <!-- PENDING -->
 
-    <div class="col-lg-3 col-md-6 col-6">
+    <div class="col-lg col-md-4 col-6">
 
-      <div class="card members-pending-card text-center">
+      <a href="{% url 'members_admin:admin_members_list' %}"
+        class="dashboard-card-link">
 
-        <div class="card-header">
-          Pending
+        <div class="card members-pending-card text-center h-100">
+
+          <div class="card-header">
+            Pending
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ members_pending }}
+            </h3>
+
+          </div>
+
         </div>
 
-        <div class="card-body">
+      </a>
 
-          <h3>
-            {{ members_pending }}
-          </h3>
+    </div>
+
+
+    <!-- APPROVED -->
+
+    <div class="col-lg col-md-6 col-6">
+
+      <a href="{% url 'members_admin:admin_members_list' %}"
+        class="dashboard-card-link">
+
+        <div class="card members-approved-card text-center h-100">
+
+          <div class="card-header">
+            Approved
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ members_approved }}
+            </h3>
+
+          </div>
 
         </div>
 
-      </div>
+      </a>
 
     </div>
 
 
     <!-- RETIRED -->
 
-    <div class="col-lg-3 col-md-6 col-6">
+    <div class="col-lg col-md-6 col-6">
 
-      <div class="card members-retired-card text-center">
+      <a href="{% url 'members_admin:admin_members_list' %}"
+        class="dashboard-card-link">
 
-        <div class="card-header">
-          Retired
+        <div class="card members-retired-card text-center h-100">
+
+          <div class="card-header">
+            Retired
+          </div>
+
+          <div class="card-body">
+
+            <h3>
+              {{ members_retired }}
+            </h3>
+
+          </div>
+
         </div>
 
-        <div class="card-body">
-
-          <h3>
-            {{ members_retired }}
-          </h3>
-
-        </div>
-
-      </div>
+      </a>
 
     </div>
 
   </div>
-
 
   <!-- ===================================================== -->
   <!-- CLAIMS -->

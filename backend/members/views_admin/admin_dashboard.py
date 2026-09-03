@@ -40,10 +40,14 @@ def admin_dashboard(request):
     # ======================================================
     # MEMBERS
     # ======================================================
+
+
     members_total_members = Member.objects.count()
-    members_active = Member.objects.filter(status="active").count()
-    members_pending = Member.objects.filter(status="pending").count()
-    members_retired = Member.objects.filter(status="retired").count()
+
+    members_active = Member.objects.filter(status=Member.STATUS_ACTIVE).count()
+    members_pending = Member.objects.filter(status=Member.STATUS_PENDING).count()
+    members_approved = Member.objects.filter(status=Member.STATUS_APPROVED).count()
+    members_retired = Member.objects.filter(status=Member.STATUS_RETIRED).count()
 
     # ======================================================
     # CLAIMS
@@ -122,9 +126,14 @@ def admin_dashboard(request):
     # CONTEXT
     # ======================================================
     context = {
+        # ======================================================
+        # MEMBERS
+        # ======================================================
+
         "members_total_members": members_total_members,
         "members_active": members_active,
         "members_pending": members_pending,
+        "members_approved": members_approved,
         "members_retired": members_retired,
 
         "received_claims": received_claims,
