@@ -128,41 +128,29 @@
 
             <td>
 
+                {% if claim.status == "received" %}
 
-              <!-- VIEW -->
+                    <a
+                        href="{% url 'members_admin:claim_detail' claim.id %}"
+                        class="btn btn-sm btn-warning"
+                    >
 
-              <a href="{% url 'members_admin:claim_detail' claim.id %}"
-                 class="btn btn-info btn-sm">
+                        Review Claim
 
-                View
+                    </a>
 
-              </a>
+                {% else %}
 
+                    <a
+                        href="{% url 'members_admin:claim_detail' claim.id %}"
+                        class="btn btn-sm btn-outline-primary"
+                    >
 
-              {% if claim.status == "received" %}
+                        View Claim
 
+                    </a>
 
-                <!-- APPROVE -->
-
-                <a href="{% url 'members_admin:approve_claim' claim.id %}"
-                   class="btn btn-success btn-sm">
-
-                  Approve
-
-                </a>
-
-
-                <!-- REJECT -->
-
-                <a href="{% url 'members_admin:reject_claim' claim.id %}"
-                   class="btn btn-danger btn-sm">
-
-                  Reject
-
-                </a>
-
-
-              {% endif %}
+                {% endif %}
 
             </td>
 

@@ -1,17 +1,37 @@
-from pyexpat.errors import messages
-
 from django.shortcuts import render, get_object_or_404, redirect
+from pathlib import Path
 
+from backend.members.services.document_files import (
+    prepare_document_file,
+    generate_document_thumbnail,
+    DocumentUploadValidationError,
+)
+from backend.members.forms import ClaimApprovalVerificationForm
 from backend.members.services.claim_lifecycle import can_transition
+from django.contrib.auth.decorators import login_required
 from .admin_auth import admin_required
-from backend.members.models import Claim, Member, PaymentRequest, Payment
 from django.contrib.admin.views.decorators import staff_member_required
 from backend.members.services.business_rules import approve_claim
 from backend.members.services.event_engine import trigger_event
 from django.utils import timezone
 from backend.members.services.payment_service import create_payment_request
 from backend.members.utils.payments import validate_due_date
-
+from django.db import transaction
+from django.contrib import messages
+from django.http import HttpResponseNotAllowed
+from backend.members.forms import (ClaimForm, ClaimBankDetailsForm, ClaimSubmissionDeclarationForm,
+    ClaimApprovalVerificationForm,)
+from backend.members.models import (
+    Claim,
+    ClaimDecisionHistory,
+    Member,
+    MemberDocument,
+    PaymentRequest,
+    Payment,
+    ClaimBankDetails,
+    ClaimSubmissionDeclaration,
+    ClaimApprovalVerification,
+)
 
 @admin_required
 def claim_list(request):
@@ -53,7 +73,337 @@ def claims_list_admin(request):
 
 
 @admin_required
-def approve_claim(request, claim_id):
+@login_required
+def approve_claim(request, claim_uid):
+    """
+    Approve a claim.
+
+    Before approval, the administrator must:
+
+    1. Complete the verification form.
+    2. Explicitly answer all verification questions.
+    3. Select at least one confirmation method.
+    4. Confirm that all three verification answers
+       are "Yes".
+    5. Confirm the approval action.
+
+    A claim cannot be approved when any required
+    verification answer is "No".
+    """
+
+    # ==================================================
+    # GET CLAIM
+    # ==================================================
+
+    claim = get_object_or_404(
+
+        Claim,
+
+        uid=claim_uid,
+    )
+
+
+    # ==================================================
+    # ONLY REVIEWABLE CLAIMS MAY BE APPROVED
+    # ==================================================
+
+    if claim.status not in [
+
+        Claim.STATUS_RECEIVED,
+
+        Claim.STATUS_OPEN,
+
+    ]:
+
+        messages.error(
+
+            request,
+
+            (
+                "This claim cannot be approved in its "
+                "current status."
+            ),
+        )
+
+        return redirect(
+
+            "claim_detail_admin",
+
+            claim_uid=claim.uid,
+        )
+
+
+    # ==================================================
+    # POST ONLY
+    # ==================================================
+
+    if request.method != "POST":
+
+        return redirect(
+
+            "claim_detail_admin",
+
+            claim_uid=claim.uid,
+        )
+
+
+    # ==================================================
+    # CONFIRMATION PROTECTION
+    # ==================================================
+
+    approval_confirmed = request.POST.get(
+        "approval_confirmed"
+    )
+
+
+    if approval_confirmed != "yes":
+
+        messages.error(
+
+            request,
+
+            (
+                "Please confirm that you want to approve "
+                "this claim."
+            ),
+        )
+
+        return redirect(
+
+            "claim_detail_admin",
+
+            claim_uid=claim.uid,
+        )
+
+
+    # ==================================================
+    # VALIDATE VERIFICATION FORM
+    # ==================================================
+
+    verification_form = (
+        ClaimApprovalVerificationForm(
+            request.POST
+        )
+    )
+
+
+    if not verification_form.is_valid():
+
+        messages.error(
+
+            request,
+
+            (
+                "The claim could not be approved. "
+                "Please correct the verification errors."
+            ),
+        )
+
+
+        return render(
+
+            request,
+
+            "members/admin/claims/admin_claims_detail.html",
+
+            {
+                "claim": claim,
+
+                "verification_form":
+                    verification_form,
+            },
+        )
+
+
+    # ==================================================
+    # GET VERIFICATION ANSWERS
+    # ==================================================
+
+    details_match = (
+
+        verification_form.cleaned_data.get(
+            "details_match_welfare_record"
+        )
+
+    )
+
+
+    telephone_matches = (
+
+        verification_form.cleaned_data.get(
+            "telephone_matches_record"
+        )
+
+    )
+
+
+    information_correct = (
+
+        verification_form.cleaned_data.get(
+            "information_correct_declaration"
+        )
+
+    )
+
+
+    # ==================================================
+    # ALL THREE ANSWERS MUST BE YES
+    #
+    # The exact value assumes:
+    #
+    # ClaimApprovalVerification.VERIFICATION_YES
+    #
+    # If your implemented constant has a different
+    # name, use that existing constant.
+    # ==================================================
+
+    verification_yes = (
+        ClaimApprovalVerification.VERIFICATION_YES
+    )
+
+
+    if (
+
+        details_match != verification_yes
+
+        or telephone_matches != verification_yes
+
+        or information_correct != verification_yes
+
+    ):
+
+        messages.error(
+
+            request,
+
+            (
+                "The claim cannot be approved because "
+                "all required verification statements "
+                "must be answered Yes."
+            ),
+        )
+
+
+        return render(
+
+            request,
+
+            "members/admin/claims/admin_claims_detail.html",
+
+            {
+                "claim": claim,
+
+                "verification_form":
+                    verification_form,
+            },
+        )
+
+
+    # ==================================================
+    # SAVE VERIFICATION
+    # ==================================================
+
+    verification = (
+        verification_form.save(
+            commit=False
+        )
+    )
+
+
+    verification.claim = claim
+
+    verification.verified_by = request.user
+
+    verification.save()
+
+
+    # ==================================================
+    # TRANSITION TO OPEN FIRST
+    #
+    # A received claim may need to move through OPEN
+    # depending on the existing lifecycle.
+    # ==================================================
+
+    if claim.status == Claim.STATUS_RECEIVED:
+
+        claim.transition_to(
+
+            Claim.STATUS_OPEN,
+
+            by_user=request.user,
+        )
+
+
+    # ==================================================
+    # APPROVE CLAIM
+    # ==================================================
+
+    claim.transition_to(
+
+        Claim.STATUS_APPROVED,
+
+        by_user=request.user,
+    )
+
+
+    # ==================================================
+    # CLEAR CURRENT REJECTION REASON
+    #
+    # A reopened claim may previously have been rejected.
+    # The historical rejection remains in decision history.
+    # ==================================================
+
+    claim.rejection_reason = ""
+
+    claim.save(
+        update_fields=[
+            "rejection_reason",
+        ]
+    )
+
+
+    # ==================================================
+    # CREATE DECISION HISTORY
+    # ==================================================
+
+    ClaimDecisionHistory.objects.create(
+
+        claim=claim,
+
+        action=(
+            ClaimDecisionHistory.ACTION_APPROVED
+        ),
+
+        reason=(
+
+            "Claim approved after verification."
+        ),
+
+        performed_by=request.user,
+    )
+
+
+    # ==================================================
+    # SUCCESS
+    # ==================================================
+
+    messages.success(
+
+        request,
+
+        "The claim has been approved successfully.",
+    )
+
+
+    return redirect(
+
+        "claim_detail_admin",
+
+        claim_uid=claim.uid,
+    )
+
+@admin_required
+def approve_claimReplaced(request, claim_id):
     """
     Approve claim and trigger lifecycle event.
 
@@ -251,23 +601,6 @@ def claims_list_admin(request):
         "members/admin/claims/admin_claims_list.html",
         context,
     )
-    
-
-@admin_required
-def approve_claim(request, claim_id):
-
-    claim = Claim.objects.get(id=claim_id)
-
-    if not can_transition(claim.status, "approved"):
-        messages.error(request, "Invalid claim lifecycle change.")
-        return redirect("members_admin:claims")
-
-    claim.status = "approved"
-    claim.save()
-
-    messages.success(request, "Claim approved.")
-
-    return redirect("members_admin:claims")
 
 
 @admin_required
@@ -279,41 +612,414 @@ def approve_claim_view(request, claim_id):
 
     return redirect("members_admin:claims")
 
-
-
+@login_required
 @admin_required
 def reject_claim(request, claim_id):
     """
-    Reject claim
+    Reject a received claim.
+
+    IMPORTANT
+    ==========================================================
+    The existing URL uses:
+
+        claims/<int:claim_id>/reject/
+
+    Therefore this function MUST accept `claim_id`.
+
+    Do not change this function to `claim_uid` unless the URL
+    configuration is deliberately changed as well.
+
+    Rejection is not a dead end. The rejected claim can later
+    be reopened through the review-rejection workflow.
     """
 
-    from django.contrib import messages
-    from django.shortcuts import redirect, get_object_or_404
+    # ==========================================================
+    # POST ONLY
+    # ==========================================================
 
-    claim = get_object_or_404(Claim, id=claim_id)
+    if request.method != "POST":
 
-    if claim.status != "received":
-        messages.warning(request, "Only received claims can be rejected.")
-        return redirect("members_admin:admin_claims_list")
+        messages.error(
+            request,
+            "Claim rejection must use POST.",
+        )
 
-    claim.status = "rejected"
-    claim.save()
+        return redirect(
+            "members_admin:claim_detail",
+            claim_id=claim_id,
+        )
 
-    messages.success(request, "Claim rejected.")
+    # ==========================================================
+    # CLAIM
+    # ==========================================================
 
-    return redirect("members_admin:admin_claims_list")
- 
+    claim = get_object_or_404(
+        Claim,
+        id=claim_id,
+    )
+
+    # ==========================================================
+    # STATUS CHECK
+    # ==========================================================
+
+    if claim.status != Claim.STATUS_RECEIVED:
+
+        messages.warning(
+            request,
+            "Only received claims can be rejected.",
+        )
+
+        return redirect(
+            "members_admin:claim_detail",
+            claim_id=claim.id,
+        )
+
+    # ==========================================================
+    # REJECTION REASON
+    # ==========================================================
+
+    rejection_reason = (
+        request.POST.get(
+            "rejection_reason",
+            "",
+        ).strip()
+    )
+
+    if not rejection_reason:
+
+        messages.error(
+            request,
+            "Please provide a reason for rejecting the claim.",
+        )
+
+        return redirect(
+            "members_admin:claim_detail",
+            claim_id=claim.id,
+        )
+
+    # ==========================================================
+    # CONFIRMATION
+    # ==========================================================
+
+    rejection_confirmed = (
+        request.POST.get(
+            "rejection_confirmed"
+        )
+        == "yes"
+    )
+
+    if not rejection_confirmed:
+
+        messages.error(
+            request,
+            (
+                "Please confirm the rejection before "
+                "continuing."
+            ),
+        )
+
+        return redirect(
+            "members_admin:claim_detail",
+            claim_id=claim.id,
+        )
+
+    # ==========================================================
+    # SAVE CLAIM
+    # ==========================================================
+
+    claim.status = Claim.STATUS_REJECTED
+
+    claim.rejection_reason = (
+        rejection_reason
+    )
+
+    claim.save(
+        update_fields=[
+            "status",
+            "rejection_reason",
+            "updated_at",
+        ]
+    )
+
+    # ==========================================================
+    # SUCCESS
+    # ==========================================================
+
+    messages.success(
+        request,
+        (
+            "Claim rejected successfully. "
+            "The rejection reason has been recorded."
+        ),
+    )
+
+    return redirect(
+        "members_admin:claim_detail",
+        claim_id=claim.id,
+    )
+
+@login_required
+@admin_required
+def review_rejection(request, claim_id):
+    """
+    Reopen a rejected claim for further review.
+
+    This does not delete:
+
+    - the rejection;
+    - the rejection reason;
+    - previous verification records;
+    - decision history.
+
+    The claim returns to OPEN and may subsequently
+    be approved or rejected again.
+    """
+
+    # ==================================================
+    # GET CLAIM
+    # ==================================================
+
+    claim = get_object_or_404(
+
+        Claim,
+
+        uid=claim_id,
+    )
+
+
+    # ==================================================
+    # ONLY REJECTED CLAIMS MAY BE REOPENED
+    # ==================================================
+
+    if claim.status != Claim.STATUS_REJECTED:
+
+        messages.error(
+
+            request,
+
+            (
+                "Only a rejected claim can be reopened "
+                "for review."
+            ),
+        )
+
+        return redirect(
+
+            "claim_detail_admin",
+
+            claim_uid=claim.id,
+        )
+
+
+    # ==================================================
+    # POST ONLY
+    # ==================================================
+
+    if request.method != "POST":
+
+        return redirect(
+
+            "claim_detail_admin",
+
+            claim_uid=claim.uid,
+        )
+
+
+    # ==================================================
+    # CONFIRM REVIEW ACTION
+    # ==================================================
+
+    review_confirmed = request.POST.get(
+        "review_confirmed"
+    )
+
+
+    if review_confirmed != "yes":
+
+        messages.error(
+
+            request,
+
+            (
+                "Please confirm that you want to reopen "
+                "this claim for review."
+            ),
+        )
+
+        return redirect(
+
+            "claim_detail_admin",
+
+            claim_uid=claim.uid,
+        )
+
+
+    # ==================================================
+    # OPTIONAL REVIEW NOTE
+    #
+    # This can explain why the rejection is being
+    # reviewed, for example:
+    #
+    # "Applicant provided additional documents."
+    # ==================================================
+
+    review_reason = (
+
+        request.POST.get(
+            "review_reason",
+            ""
+        ).strip()
+
+    )
+
+
+    # ==================================================
+    # REQUIRE A REASON FOR REOPENING
+    #
+    # Recommended for audit purposes.
+    # ==================================================
+
+    if not review_reason:
+
+        messages.error(
+
+            request,
+
+            (
+                "Please provide a reason for reopening "
+                "the rejected claim."
+            ),
+        )
+
+        return redirect(
+
+            "claim_detail_admin",
+
+            claim_uid=claim.uid,
+        )
+
+
+    # ==================================================
+    # REOPEN CLAIM
+    # ==================================================
+
+    claim.transition_to(
+
+        Claim.STATUS_OPEN,
+
+        by_user=request.user,
+    )
+
+
+    # ==================================================
+    # CREATE DECISION HISTORY
+    #
+    # Do NOT erase the previous rejection.
+    # ==================================================
+
+    ClaimDecisionHistory.objects.create(
+
+        claim=claim,
+
+        action=(
+            ClaimDecisionHistory.ACTION_REOPENED
+        ),
+
+        reason=review_reason,
+
+        performed_by=request.user,
+    )
+
+
+    # ==================================================
+    # SUCCESS
+    # ==================================================
+
+    messages.success(
+
+        request,
+
+        (
+            "The rejected claim has been reopened for "
+            "review."
+        ),
+    )
+
+
+    return redirect(
+
+        "claim_detail_admin",
+
+        claim_uid=claim.uid,
+    )
  
  # CLAIM DETAIL VIEW
 
-@admin_required
-def claim_detail_admin(request, claim_id):
+def _get_claim_detail_context(
+    claim,
+    verification_form=None,
+):
     """
-    Claim detail with analytics
-    """
-    claim = get_object_or_404(Claim, id=claim_id)
+    Build the context required by the admin claim detail page.
 
-    payment_request = getattr(claim, "payment_request", None)
+    Keeping this in one place prevents GET and invalid POST
+    requests from drifting apart.
+    """
+
+    # ==========================================================
+    # BANK DETAILS
+    # ==========================================================
+
+    bank_details = (
+        ClaimBankDetails.objects
+        .filter(claim=claim)
+        .first()
+    )
+
+    # ==========================================================
+    # CLAIM SUBMISSION DECLARATION
+    # ==========================================================
+
+    submission_declaration = (
+        ClaimSubmissionDeclaration.objects
+        .filter(claim=claim)
+        .first()
+    )
+
+    # ==========================================================
+    # APPROVAL VERIFICATION
+    # ==========================================================
+
+    approval_verification = (
+        ClaimApprovalVerification.objects
+        .filter(claim=claim)
+        .first()
+    )
+
+    # ==========================================================
+    # SUPPORTING DOCUMENTS
+    # ==========================================================
+
+    documents = (
+        MemberDocument.objects
+        .filter(
+            claim=claim,
+            is_archived=False,
+        )
+        .order_by(
+            "-uploaded_at"
+        )
+    )
+
+    # ==========================================================
+    # PAYMENT REQUEST
+    # ==========================================================
+
+    payment_request = (
+        PaymentRequest.objects
+        .filter(claim=claim)
+        .first()
+    )
 
     paid_members = []
     unpaid_members = []
@@ -321,42 +1027,350 @@ def claim_detail_admin(request, claim_id):
     paid_count = 0
     total_paid_amount = 0
 
+    # ==========================================================
+    # PAYMENT INFORMATION
+    # ==========================================================
+
     if payment_request:
 
         if payment_request.viewable_by_all:
-            members = Member.objects.filter(status="active")
-        else:
-            members = payment_request.selected_members.all()
 
-        paid_members = payment_request.paid_members.all()
-        unpaid_members = members.exclude(id__in=paid_members.values_list("id", flat=True))
+            members = (
+                Member.objects
+                .filter(
+                    status="active"
+                )
+            )
+
+        else:
+
+            members = (
+                payment_request
+                .selected_members
+                .all()
+            )
+
+        paid_members = (
+            payment_request
+            .paid_members
+            .all()
+        )
+
+        unpaid_members = (
+            members.exclude(
+                id__in=paid_members.values_list(
+                    "id",
+                    flat=True,
+                )
+            )
+        )
 
         total = members.count()
-        paid_count = paid_members.count()
 
-        total_paid_amount = payment_request.total_paid
+        paid_count = (
+            paid_members.count()
+        )
+
+        total_paid_amount = (
+            payment_request.total_paid
+        )
+
+    # ==========================================================
+    # DEFAULT VERIFICATION FORM
+    # ==========================================================
+
+    if (
+        verification_form is None
+        and claim.status == Claim.STATUS_RECEIVED
+        and not approval_verification
+    ):
+
+        verification_form = (
+            ClaimApprovalVerificationForm()
+        )
+
+    return {
+
+        "claim": claim,
+
+        "bank_details": bank_details,
+
+        "submission_declaration": (
+            submission_declaration
+        ),
+
+        "approval_verification": (
+            approval_verification
+        ),
+
+        "documents": documents,
+
+        "verification_form": (
+            verification_form
+        ),
+
+        "payment_request": (
+            payment_request
+        ),
+
+        "paid_members": (
+            paid_members
+        ),
+
+        "unpaid_members": (
+            unpaid_members
+        ),
+
+        "total": total,
+
+        "paid_count": paid_count,
+
+        "total_paid_amount": (
+            total_paid_amount
+        ),
+    }
+
+def claim_detail_admin(request, claim_id):
+    """
+    Display complete claim details.
+
+    Includes:
+
+    - Claim information
+    - Claim bank details
+    - Claimant declaration
+    - Supporting documents
+    - Approval verification
+    - Payment request information
+    - Paid and unpaid member information
+
+    This view does not approve or reject the claim.
+    """
+
+    # ==========================================================
+    # CLAIM
+    # ==========================================================
+
+    claim = get_object_or_404(
+        Claim,
+        id=claim_id,
+    )
+
+    # ==========================================================
+    # BANK DETAILS
+    # ==========================================================
+
+    bank_details = (
+        ClaimBankDetails.objects
+        .filter(
+            claim=claim
+        )
+        .first()
+    )
+
+    # ==========================================================
+    # CLAIM SUBMISSION DECLARATION
+    # ==========================================================
+
+    submission_declaration = (
+        ClaimSubmissionDeclaration.objects
+        .filter(
+            claim=claim
+        )
+        .first()
+    )
+
+    # ==========================================================
+    # APPROVAL VERIFICATION
+    # ==========================================================
+
+    approval_verification = (
+        ClaimApprovalVerification.objects
+        .filter(
+            claim=claim
+        )
+        .first()
+    )
+
+    # ==========================================================
+    # SUPPORTING DOCUMENTS
+    # ==========================================================
+    #
+    # IMPORTANT:
+    # This is a queryset, not a single document. Every
+    # MemberDocument linked to this claim is returned.
+    #
+    # Do not use .first() or [:1] here: claims can have
+    # multiple supporting documents.
+    #
+
+    documents = (
+        MemberDocument.objects
+        .filter(
+            claim=claim
+        )
+        .order_by(
+            "uploaded_at"
+        )
+    )
+
+    # ==========================================================
+    # PAYMENT REQUEST
+    # ==========================================================
+
+    payment_request = (
+        PaymentRequest.objects
+        .filter(
+            claim=claim
+        )
+        .first()
+    )
+
+    # ==========================================================
+    # DEFAULT PAYMENT VALUES
+    # ==========================================================
+
+    paid_members = []
+
+    unpaid_members = []
+
+    total = 0
+
+    paid_count = 0
+
+    total_paid_amount = 0
+
+    # ==========================================================
+    # PAYMENT INFORMATION
+    # ==========================================================
+
+    if payment_request:
+
+        # ------------------------------------------------------
+        # MEMBERS INCLUDED IN PAYMENT REQUEST
+        # ------------------------------------------------------
+
+        if payment_request.viewable_by_all:
+
+            members = (
+                Member.objects
+                .filter(
+                    status="active"
+                )
+            )
+
+        else:
+
+            members = (
+                payment_request
+                .selected_members
+                .all()
+            )
+
+        # ------------------------------------------------------
+        # PAID MEMBERS
+        # ------------------------------------------------------
+
+        paid_members = (
+            payment_request
+            .paid_members
+            .all()
+        )
+
+        # ------------------------------------------------------
+        # UNPAID MEMBERS
+        # ------------------------------------------------------
+
+        unpaid_members = (
+            members.exclude(
+                id__in=paid_members.values_list(
+                    "id",
+                    flat=True,
+                )
+            )
+        )
+
+        # ------------------------------------------------------
+        # PAYMENT TOTALS
+        # ------------------------------------------------------
+
+        total = members.count()
+
+        paid_count = (
+            paid_members.count()
+        )
+
+        total_paid_amount = (
+            payment_request.total_paid
+        )
+
+    # ==========================================================
+    # APPROVAL VERIFICATION FORM
+    # ==========================================================
+
+    verification_form = None
+
+    if (
+        claim.status
+        == Claim.STATUS_RECEIVED
+        and not approval_verification
+    ):
+
+        verification_form = (
+            ClaimApprovalVerificationForm()
+        )
+
+    # ==========================================================
+    # RENDER
+    # ==========================================================
 
     return render(
         request,
-        "members/admin/claims/admin_claims_detail.html",
+        (
+            "members/admin/claims/"
+            "admin_claims_detail.html"
+        ),
         {
             "claim": claim,
-            "payment_request": payment_request,
-            "paid_members": paid_members,
-            "unpaid_members": unpaid_members,
+
+            "bank_details": (
+                bank_details
+            ),
+
+            "submission_declaration": (
+                submission_declaration
+            ),
+
+            "documents": documents,
+
+            "approval_verification": (
+                approval_verification
+            ),
+
+            "verification_form": (
+                verification_form
+            ),
+
+            "payment_request": (
+                payment_request
+            ),
+
+            "paid_members": (
+                paid_members
+            ),
+
+            "unpaid_members": (
+                unpaid_members
+            ),
+
             "total": total,
-            "paid_count": paid_count,
-            "total_paid_amount": total_paid_amount,
+
+            "paid_count": (
+                paid_count
+            ),
+
+            "total_paid_amount": (
+                total_paid_amount
+            ),
         },
     )
-
-
-
-
-
-
-    
-
-
-
-    

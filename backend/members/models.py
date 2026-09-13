@@ -663,12 +663,56 @@ class Claim(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="claims_created", on_delete=models.SET_NULL, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+    rejection_reason = models.TextField(blank=True,)
     
     VALID_TRANSITIONS = {
-        STATUS_RECEIVED: [STATUS_OPEN, STATUS_REJECTED],
-        STATUS_OPEN: [STATUS_SETTLED],
+
+        # --------------------------------------------------
+        # A newly submitted claim.
+        # --------------------------------------------------
+
+        STATUS_RECEIVED: [
+            STATUS_OPEN,
+            STATUS_REJECTED,
+        ],
+
+
+        # --------------------------------------------------
+        # A claim being reviewed.
+        # --------------------------------------------------
+
+        STATUS_OPEN: [
+            STATUS_APPROVED,
+            STATUS_REJECTED,
+            STATUS_SETTLED,
+        ],
+
+
+        # --------------------------------------------------
+        # An approved claim may proceed to settlement.
+        # --------------------------------------------------
+
+        STATUS_APPROVED: [
+            STATUS_SETTLED,
+        ],
+
+
+        # --------------------------------------------------
+        # A settled claim is final.
+        # --------------------------------------------------
+
         STATUS_SETTLED: [],
-        STATUS_REJECTED: [],
+
+
+        # --------------------------------------------------
+        # A rejection is NOT a dead end.
+        #
+        # The claim can be reopened for further review.
+        # --------------------------------------------------
+
+        STATUS_REJECTED: [
+            STATUS_OPEN,
+        ],
     }
     settled = models.BooleanField(default=False)
     
@@ -752,6 +796,78 @@ class ClaimRecord(models.Model):
     def __str__(self):
         return f"ClaimRecord for {self.claim.uid}"
     
+class ClaimDecisionHistory(models.Model):
+    """
+    Records significant claim decision events.
+
+    This preserves the history of approvals, rejections,
+    and rejection reviews.
+    """
+
+    ACTION_APPROVED = "approved"
+
+    ACTION_REJECTED = "rejected"
+
+    ACTION_REOPENED = "reopened"
+
+
+    ACTION_CHOICES = [
+
+        (
+            ACTION_APPROVED,
+            "Approved",
+        ),
+
+        (
+            ACTION_REJECTED,
+            "Rejected",
+        ),
+
+        (
+            ACTION_REOPENED,
+            "Reopened for Review",
+        ),
+
+    ]
+
+
+    claim = models.ForeignKey(
+        Claim,
+        on_delete=models.CASCADE,
+        related_name="decision_history",
+    )
+
+
+    action = models.CharField(
+        max_length=20,
+        choices=ACTION_CHOICES,
+    )
+
+
+    reason = models.TextField(
+        blank=True,
+    )
+
+
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="claim_decision_history",
+    )
+
+
+    performed_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+
+    class Meta:
+
+        ordering = [
+            "-performed_at",
+        ]
+
 class PaymentRequest(models.Model):
 
     REQUEST_TYPES = [
@@ -1935,6 +2051,175 @@ class ClaimSettlement(models.Model):
 
 
 User = get_user_model()
+
+class ClaimBankDetails(models.Model):
+
+    claim = models.OneToOneField(
+        Claim,
+        related_name="bank_details",
+        on_delete=models.CASCADE,
+    )
+
+    bank_name = models.CharField(max_length=150)
+
+    account_name = models.CharField(max_length=200)
+
+    sort_code = models.CharField(max_length=20)
+
+    account_number = models.CharField(max_length=34)
+
+    account_opened_date = models.DateField()
+
+
+# ==============================================================
+# CLAIM SUBMISSION DECLARATION
+# ==============================================================
+
+class ClaimSubmissionDeclaration(models.Model):
+    """
+    Declaration made when a claim is submitted.
+
+    The claimant must confirm:
+
+    1. The confirmation statement has been read and understood.
+    2. The claim details have been checked and confirmed as true.
+
+    For MEMBER-causer claims, the administrator must additionally
+    confirm that the selected member's next of kin has been
+    contacted and is aware of and agrees with the claim details.
+    """
+
+    claim = models.OneToOneField(
+        Claim,
+        related_name="submission_declaration",
+        on_delete=models.CASCADE,
+    )
+
+    # ----------------------------------------------------------
+    # CLAIMANT CONFIRMATIONS
+    # ----------------------------------------------------------
+
+    confirmation_understood = models.BooleanField(
+        default=False
+    )
+
+    details_confirmed = models.BooleanField(
+        default=False
+    )
+
+    # ----------------------------------------------------------
+    # MEMBER-CLAIM NEXT-OF-KIN CONFIRMATION
+    # ----------------------------------------------------------
+    #
+    # This applies only when the causer is a member.
+    #
+    # It records that the administrator has contacted the
+    # selected member's next of kin and confirmed that the
+    # next of kin is aware of and agrees with the claim details.
+    #
+    # It remains False for dependant-causer claims.
+    # ----------------------------------------------------------
+
+    next_of_kin_contacted = models.BooleanField(
+        default=False
+    )
+
+    # ----------------------------------------------------------
+    # AUDIT TIMESTAMP
+    # ----------------------------------------------------------
+
+    declared_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+class ClaimApprovalVerification(models.Model):
+
+    # ==========================================================
+    # CONFIRMATION METHODS
+    # ==========================================================
+
+    METHOD_PHONE = "phone"
+    METHOD_EMAIL = "email"
+    METHOD_FACE_TO_FACE = "face_to_face"
+    METHOD_OTHER = "other"
+
+    METHOD_CHOICES = [
+        (METHOD_PHONE, "Phone"),
+        (METHOD_EMAIL, "Email"),
+        (METHOD_FACE_TO_FACE, "Face-to-face"),
+        (METHOD_OTHER, "Other"),
+    ]
+
+    VERIFICATION_YES = "yes"
+    VERIFICATION_NO = "no"
+
+    VERIFICATION_CHOICES = [
+        (VERIFICATION_YES, "Yes"),
+        (VERIFICATION_NO, "No"),
+    ]
+
+    # ==========================================================
+    # CLAIM
+    # ==========================================================
+
+    claim = models.ForeignKey(
+        Claim,
+        related_name="approval_verifications",
+        on_delete=models.CASCADE,
+    )
+
+    # ==========================================================
+    # ADMIN VERIFICATION CHECKS
+    # ==========================================================
+
+    details_match_welfare_record = models.CharField(
+        max_length=3,
+        choices=VERIFICATION_CHOICES,
+    )
+
+    telephone_matches_record = models.CharField(
+        max_length=3,
+        choices=VERIFICATION_CHOICES,
+    )
+
+    # ==========================================================
+    # CONFIRMATION METHOD
+    # ==========================================================
+
+    confirmation_method = models.CharField(
+        max_length=30,
+        choices=METHOD_CHOICES,
+    )
+
+    confirmation_method_other = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    # ==========================================================
+    # ADMIN DECLARATION
+    # ==========================================================
+
+    information_correct_declaration = models.CharField(
+        max_length=3,
+        choices=VERIFICATION_CHOICES,
+    )
+
+    # ==========================================================
+    # AUDIT
+    # ==========================================================
+
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="claim_verifications",
+    )
+
+    verified_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
 
 class ClaimSettlementDeduction(models.Model):
     settlement = models.ForeignKey(

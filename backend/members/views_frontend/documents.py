@@ -1,5 +1,4 @@
 from pathlib import Path
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import FileResponse, JsonResponse, Http404
 from django.contrib.auth.decorators import login_required
@@ -69,6 +68,45 @@ def upload_document(request):
         original_filename = uploaded_file.name
 
         # =================================================
+        # VALIDATE OPTIONAL DOCUMENT REQUEST FIRST
+        # =================================================
+        #
+        # If a request_id is supplied, it must belong to the
+        # signed-in member before any document is processed or
+        # created.  This prevents an orphan document when an
+        # invalid or foreign request ID is submitted.
+        # =================================================
+        request_id = request.POST.get("request_id")
+        doc_request = None
+
+        if request_id:
+
+            try:
+
+                doc_request = DocumentRequest.objects.get(
+                    id=request_id,
+                    member=member,
+                )
+
+            except DocumentRequest.DoesNotExist:
+
+                message = "The selected document request is not valid."
+
+                if request.headers.get("x-requested-with") == "XMLHttpRequest":
+
+                    return JsonResponse(
+                        {"error": message},
+                        status=400,
+                    )
+
+                messages.error(
+                    request,
+                    message,
+                )
+
+                return redirect("members:member_requests")
+
+        # =================================================
         # STEP 7 - CENTRAL VALIDATION + PROCESSING
         # =================================================
         #
@@ -112,7 +150,7 @@ def upload_document(request):
         # =================================================
         # CREATE DOCUMENT
         # =================================================
-        doc = MemberDocument.objects.create(
+        doc = MemberDocument(
             member=member,
             title=request.POST.get(
                 "title",
@@ -124,59 +162,31 @@ def upload_document(request):
             ),
             file=uploaded_file,
             original_filename=original_filename,
+            document_request=doc_request,
         )
+
+        doc.full_clean()
+        doc.save()
 
         generate_document_thumbnail(doc)
 
         # =================================================
-        # LINK TO DOCUMENT REQUEST
+        # MARK REQUEST COMPLETE
         # =================================================
-        request_id = request.POST.get("request_id")
+        if doc_request:
 
-        if request_id:
+            if hasattr(doc_request, "completed"):
+                doc_request.completed = True
 
-            try:
+            if hasattr(doc_request, "status"):
+                try:
+                    doc_request.status = (
+                        DocumentRequest.STATUS_COMPLETED
+                    )
+                except Exception:
+                    pass
 
-                # =========================================
-                # SECURITY FIX:
-                # Request MUST belong to member
-                # =========================================
-                doc_request = DocumentRequest.objects.get(
-                    id=request_id,
-                    member=member,
-                )
-
-                # =========================================
-                # LINK REQUEST
-                # =========================================
-                if hasattr(doc, "document_request"):
-
-                    doc.document_request = doc_request
-                    doc.save()
-
-                # =========================================
-                # MARK COMPLETED
-                # =========================================
-                if hasattr(doc_request, "completed"):
-                    doc_request.completed = True
-
-                if hasattr(doc_request, "status"):
-                    try:
-                        doc_request.status = (
-                            DocumentRequest.STATUS_COMPLETED
-                        )
-                    except Exception:
-                        pass
-
-                doc_request.save()
-
-            except DocumentRequest.DoesNotExist:
-
-                # =========================================
-                # SECURITY:
-                # Ignore invalid/foreign request IDs
-                # =========================================
-                pass
+            doc_request.save()
 
         # =================================================
         # AJAX RESPONSE
@@ -620,14 +630,12 @@ def download_zip(request):
 
             try:
 
-                if doc.file and os.path.exists(doc.file.path):
-
-                    z.write(
-                        doc.file.path,
-                        arcname=os.path.basename(
-                            doc.file.name
+                if doc.file:
+                    with doc.file.open("rb") as file_handle:
+                        z.writestr(
+                            os.path.basename(doc.file.name),
+                            file_handle.read(),
                         )
-                    )
 
             except Exception:
                 # Skip broken files safely
@@ -736,13 +744,16 @@ def upload_requested_document(request, request_id):
                 request_id=request_id
             )
 
-        doc = MemberDocument.objects.create(
+        doc = MemberDocument(
             member=member,
             file=uploaded_file,
             original_filename=original_filename,
             title=doc_request.title,
             document_request=doc_request,
         )
+
+        doc.full_clean()
+        doc.save()
 
         generate_document_thumbnail(doc)
 
@@ -887,14 +898,6 @@ def resubmit_document(request, document_id,):
                     document_id=document.id,
                 )
 
-            document.file = uploaded_file
-
-            document.original_filename = original_filename
-
-            document.status = (
-                MemberDocument.STATUS_PENDING
-            )
-
             # =================================================
             # REMOVE OLD THUMBNAIL
             # =================================================
@@ -926,6 +929,7 @@ def resubmit_document(request, document_id,):
 
             document.can_resubmit = False
 
+            document.full_clean()
             document.save()
 
             # =================================================

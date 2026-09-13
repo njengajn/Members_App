@@ -9,13 +9,49 @@
 
         <div class="col-12 col-lg-9 col-xl-7">
 
-            <!-- MAIN CARD -->
             <div class="card border-0 shadow-sm admin-claim-card">
 
                 <div class="card-body p-3 p-md-4">
 
+
+                    <!-- ========================================================= -->
+                    <!-- DJANGO MESSAGES -->
+                    <!-- ========================================================= -->
+                    <!--
+                        Validation/storage errors are rendered here.
+                        Successful submissions redirect to the claim
+                        detail page, which also renders Django messages.
+                    -->
+                    {% if messages %}
+
+                        {% for message in messages %}
+
+                            <div
+                                class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show"
+                                role="alert"
+                            >
+
+                                {{ message }}
+
+                                <button
+                                    type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="alert"
+                                    aria-label="Close"
+                                ></button>
+
+                            </div>
+
+                        {% endfor %}
+
+                    {% endif %}
+
+
+                    <!-- ========================================= -->
                     <!-- HEADER -->
-                    <div class="mb-3">
+                    <!-- ========================================= -->
+
+                    <div class="mb-4">
 
                         <div class="admin-claim-badge">
                             Admin Claims
@@ -31,114 +67,517 @@
 
                     </div>
 
-                    <!-- FORM -->
-                    <form method="post"
-                          enctype="multipart/form-data">
+
+                    <!-- ========================================= -->
+                    <!-- CLAIM FORM -->
+                    <!-- ========================================= -->
+
+                    <form
+                        method="post"
+                        enctype="multipart/form-data"
+                        id="claimCreateForm"
+                    >
 
                         {% csrf_token %}
 
-                        <!-- ================================= -->
+
+                        <!-- ===================================== -->
+                        <!-- GENERAL CLAIM ERRORS -->
+                        <!-- ===================================== -->
+
+                        {% if form.non_field_errors %}
+
+                            <div class="alert alert-danger">
+
+                                {{ form.non_field_errors }}
+
+                            </div>
+
+                        {% endif %}
+
+
+                        <!-- ===================================== -->
                         <!-- CLAIM TYPE -->
-                        <!-- ================================= -->
+                        <!-- ===================================== -->
 
                         <div class="admin-section">
 
-                            <label class="form-label">
+                            <label
+                                for="id_cause_type"
+                                class="form-label"
+                            >
                                 Claim Type
                             </label>
+
 
                             <select
                                 name="cause_type"
                                 id="id_cause_type"
-                                class="form-select">
+                                class="form-select"
+                            >
 
-                                <option value="dependant">
+                                <option
+                                    value="dependant"
+                                    {% if request.POST.cause_type|default:"dependant" == "dependant" %}
+                                        selected
+                                    {% endif %}
+                                >
                                     Dependant
                                 </option>
 
-                                <option value="member">
+                                <option
+                                    value="member"
+                                    {% if request.POST.cause_type == "member" %}
+                                        selected
+                                    {% endif %}
+                                >
                                     Member
                                 </option>
 
                             </select>
 
+
+                            {% if form.cause_type.errors %}
+
+                                <div class="text-danger small mt-1">
+
+                                    {{ form.cause_type.errors }}
+
+                                </div>
+
+                            {% endif %}
+
                         </div>
 
-                        <!-- ================================= -->
+
+                        <!-- ===================================== -->
                         <!-- MEMBER SEARCH -->
-                        <!-- ================================= -->
+                        <!-- ===================================== -->
 
-                        <div id="member-search-wrapper"
-                             class="admin-section"
-                             style="display:none;">
+                        <div
+                            id="member-search-wrapper"
+                            class="admin-section"
+                            style="display:none;"
+                        >
 
-                            <label class="form-label">
+                            <label
+                                for="member-search"
+                                class="form-label"
+                            >
                                 Select Member
                             </label>
 
+
                             <p class="small text-muted mb-2">
-                                Search by UID, name or email
+                                Search by UID, name or email.
                             </p>
+
 
                             <input
                                 type="text"
                                 id="member-search"
                                 class="form-control"
                                 placeholder="Search member..."
+                                autocomplete="off"
                             >
 
-                            <div id="search-results"
-                                 class="list-group mt-2">
-                            </div>
+
+                            <div
+                                id="search-results"
+                                class="list-group mt-2"
+                            ></div>
 
                         </div>
 
-                        <!-- ================================= -->
+
+                        <!-- ===================================== -->
                         <!-- DEPENDANT -->
-                        <!-- ================================= -->
+                        <!-- ===================================== -->
 
-                        <div id="dependant-wrapper"
-                             class="admin-section">
+                        <div
+                            id="dependant-wrapper"
+                            class="admin-section"
+                        >
 
-                            <label class="form-label">
+                            <label
+                                for="{{ form.causer_dependant.id_for_label }}"
+                                class="form-label"
+                            >
                                 Select Dependant
                             </label>
 
+
                             {{ form.causer_dependant }}
+
+
+                            {% if form.causer_dependant.errors %}
+
+                                <div class="text-danger small mt-1">
+
+                                    {{ form.causer_dependant.errors }}
+
+                                </div>
+
+                            {% endif %}
 
                         </div>
 
-                        <!-- ================================= -->
+
+                        <!-- ===================================== -->
                         <!-- AFFECTED PERSON -->
-                        <!-- ================================= -->
+                        <!-- ===================================== -->
 
                         <div class="admin-section">
 
-                            <label class="form-label">
+                            <label
+                                for="affected-person"
+                                class="form-label"
+                            >
                                 Affected Person
                             </label>
+
 
                             <textarea
                                 id="affected-person"
                                 class="form-control affected-textarea"
-                                readonly>
-                            </textarea>
+                                readonly
+                                placeholder="The affected person will appear here."
+                            ></textarea>
 
                         </div>
 
-                        <!-- ================================= -->
+
+                        <!-- ===================================== -->
+                        <!-- NEXT OF KIN -->
+                        <!-- ===================================== -->
+
+                        <div
+                            id="next-of-kin-section"
+                            class="admin-section"
+                            style="display:none;"
+                        >
+
+                            <div class="card border-0 bg-light">
+
+                                <div class="card-body">
+
+                                    <h6 class="mb-3">
+                                        Claimant — Next of Kin
+                                    </h6>
+
+
+                                    <div class="row">
+
+                                        <div class="col-md-6 mb-3">
+
+                                            <small class="text-muted d-block">
+                                                Name
+                                            </small>
+
+                                            <strong
+                                                id="next-of-kin-name"
+                                            ></strong>
+
+                                        </div>
+
+
+                                        <div class="col-md-6 mb-3">
+
+                                            <small class="text-muted d-block">
+                                                Relationship
+                                            </small>
+
+                                            <span
+                                                id="next-of-kin-relationship"
+                                            ></span>
+
+                                        </div>
+
+
+                                        <div class="col-md-6 mb-3">
+
+                                            <small class="text-muted d-block">
+                                                Telephone
+                                            </small>
+
+                                            <span
+                                                id="next-of-kin-phone"
+                                            ></span>
+
+                                        </div>
+
+
+                                        <div class="col-md-6 mb-3">
+
+                                            <small class="text-muted d-block">
+                                                Email
+                                            </small>
+
+                                            <span
+                                                id="next-of-kin-email"
+                                            ></span>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ===================================== -->
+                        <!-- BANK DETAILS -->
+                        <!-- ===================================== -->
+
+                        <div class="admin-section">
+
+                            <div class="card border-0 shadow-sm">
+
+                                <div class="card-header bg-white">
+
+                                    <strong>
+                                        Bank Details
+                                    </strong>
+
+                                </div>
+
+
+                                <div class="card-body">
+
+
+                                    <!-- BANK NAME -->
+
+                                    <div class="mb-3">
+
+                                        <label
+                                            for="{{ bank_form.bank_name.id_for_label }}"
+                                            class="form-label"
+                                        >
+                                            Bank Name
+                                        </label>
+
+
+                                        {{ bank_form.bank_name }}
+
+
+                                        {% if bank_form.bank_name.errors %}
+
+                                            <div class="text-danger small mt-1">
+
+                                                {{ bank_form.bank_name.errors }}
+
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- ACCOUNT NAME -->
+
+                                    <div class="mb-3">
+
+                                        <label
+                                            for="{{ bank_form.account_name.id_for_label }}"
+                                            class="form-label"
+                                        >
+                                            Account Name
+                                        </label>
+
+
+                                        {{ bank_form.account_name }}
+
+
+                                        {% if bank_form.account_name.errors %}
+
+                                            <div class="text-danger small mt-1">
+
+                                                {{ bank_form.account_name.errors }}
+
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- SORT CODE -->
+
+                                    <div class="mb-3">
+
+                                        <label
+                                            for="{{ bank_form.sort_code.id_for_label }}"
+                                            class="form-label"
+                                        >
+                                            Sort Code
+                                        </label>
+
+
+                                        {{ bank_form.sort_code }}
+
+
+                                        <div
+                                            id="sort-code-help"
+                                            class="form-text"
+                                        >
+                                            Six digits. Hyphens are
+                                            inserted automatically:
+                                            00-00-00.
+                                        </div>
+
+
+                                        <div
+                                            id="sort-code-client-error"
+                                            class="text-danger small mt-1"
+                                            style="display:none;"
+                                        ></div>
+
+
+                                        {% if bank_form.sort_code.errors %}
+
+                                            <div class="text-danger small mt-1">
+
+                                                {{ bank_form.sort_code.errors }}
+
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- ACCOUNT NUMBER -->
+
+                                    <div class="mb-3">
+
+                                        <label
+                                            for="{{ bank_form.account_number.id_for_label }}"
+                                            class="form-label"
+                                        >
+                                            Account Number
+                                        </label>
+
+
+                                        {{ bank_form.account_number }}
+
+
+                                        <div
+                                            id="account-number-help"
+                                            class="form-text"
+                                        >
+                                            Exactly eight digits.
+                                            Spaces and letters are
+                                            not permitted.
+                                        </div>
+
+
+                                        <div
+                                            id="account-number-client-error"
+                                            class="text-danger small mt-1"
+                                            style="display:none;"
+                                        ></div>
+
+
+                                        {% if bank_form.account_number.errors %}
+
+                                            <div class="text-danger small mt-1">
+
+                                                {{ bank_form.account_number.errors }}
+
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- ACCOUNT OPENED DATE -->
+
+                                    <div class="mb-0">
+
+                                        <label
+                                            for="{{ bank_form.account_opened_date.id_for_label }}"
+                                            class="form-label"
+                                        >
+                                            Date Account Opened
+                                        </label>
+
+
+                                        {{ bank_form.account_opened_date }}
+
+
+                                        <div
+                                            id="account-opened-help"
+                                            class="form-text"
+                                        >
+                                            The account must have been
+                                            open for at least six months.
+                                        </div>
+
+
+                                        <div
+                                            id="account-opened-client-error"
+                                            class="text-danger small mt-1"
+                                            style="display:none;"
+                                        ></div>
+
+
+                                        {% if bank_form.account_opened_date.errors %}
+
+                                            <div class="text-danger small mt-1">
+
+                                                {{ bank_form.account_opened_date.errors }}
+
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ===================================== -->
                         <!-- DOCUMENTS -->
-                        <!-- ================================= -->
+                        <!-- ===================================== -->
+                        <!--
+                            Supporting documents.
+
+                            The single real file input remains named
+                            "documents" and remains multiple.
+
+                            JavaScript maintains an accumulated collection
+                            of selected files and per-file metadata so the
+                            existing backend receives:
+
+                                documents[]
+                                doc_title[]
+                                doc_description[]
+
+                            with matching indexes.
+
+                            Do not change the input name or remove the
+                            DataTransfer rebuild mechanism.
+                        -->
 
                         <div class="admin-upload-section">
 
                             <label class="form-label">
-                                Documents
+                                Supporting Documents
                             </label>
 
-                            <!-- DROP ZONE -->
-                            <div id="drop-zone"
-                                 class="admin-drop-zone">
+
+                            <div
+                                id="drop-zone"
+                                class="admin-drop-zone"
+                            >
 
                                 <div class="fw-bold text-success mb-1">
                                     Drag & drop files here
@@ -150,7 +589,7 @@
 
                             </div>
 
-                            <!-- FILE INPUT -->
+
                             <input
                                 type="file"
                                 id="file-input"
@@ -161,37 +600,263 @@
                                 hidden
                             >
 
-                            <!-- PREVIEW -->
-                            <div id="file-list"
-                                 class="mt-2">
-                            </div>
 
-                            <!-- BUTTON -->
+                            <div
+                                id="file-list"
+                                class="mt-2"
+                            ></div>
+
+
                             <button
                                 type="button"
+                                id="add-documents-button"
                                 class="btn btn-outline-secondary mt-2 upload-btn"
-                                onclick="document.getElementById('file-input').click()">
-
+                            >
                                 Add Documents
-
                             </button>
 
                         </div>
 
-                        <!-- HIDDEN -->
+
+                        <!-- ===================================== -->
+                        <!-- CLAIMANT CONFIRMATION -->
+                        <!-- ===================================== -->
+
+                        <div
+                            id="claimant-confirmation-section"
+                            class="admin-section"
+                            style="display:{% if request.POST.cause_type == "member" %}none{% else %}block{% endif %};"
+                        >
+
+                            <div class="card border-0 shadow-sm">
+
+                                <div class="card-header bg-white">
+
+                                    <strong>
+                                        Claimant Confirmation
+                                    </strong>
+
+                                </div>
+
+                                <div class="card-body">
+
+                                    <p class="mb-3">
+                                        Please read the confirmation
+                                        statement before completing
+                                        the declarations.
+                                    </p>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-success"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#confirmationStatementModal"
+                                    >
+                                        View Confirmation Statement
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ===================================== -->
+                        <!-- CLAIMANT DECLARATION -->
+                        <!-- ===================================== -->
+
+                        <div
+                            id="claimant-declaration-section"
+                            class="admin-section"
+                        >
+
+                            <div class="card border-0 shadow-sm">
+
+                                <div class="card-header bg-white">
+
+                                    <strong>
+                                        Claimant Declaration
+                                    </strong>
+
+                                </div>
+
+
+                                <div class="card-body">
+
+                                    <!-- ================================= -->
+                                    <!-- DEPENDANT CLAIM DECLARATION 1 -->
+                                    <!-- ================================= -->
+
+                                    <div
+                                        id="confirmation-understood-item"
+                                        class="declaration-item mb-4"
+                                        style="display:{% if request.POST.cause_type == "member" %}none{% else %}block{% endif %};"
+                                    >
+
+                                        <div class="declaration-text">
+
+                                            1. I have read and understood
+                                            the content and meaning of the
+                                            confirmation statement in this
+                                            form and so declare.
+
+                                        </div>
+
+                                        <div class="admin-native-checkbox mt-2">
+
+                                            <input
+                                                type="checkbox"
+                                                id="id_confirmation_understood"
+                                                name="confirmation_understood"
+                                                value="1"
+                                                {% if declaration_form.confirmation_understood.value %}
+                                                    checked
+                                                {% endif %}
+                                            >
+
+                                            <label
+                                                for="id_confirmation_understood"
+                                            >
+                                                I confirm.
+                                            </label>
+
+                                        </div>
+
+                                        {% if declaration_form.confirmation_understood.errors %}
+
+                                            <div class="text-danger small mt-1">
+                                                {{ declaration_form.confirmation_understood.errors }}
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- ================================= -->
+                                    <!-- MEMBER CLAIM DECLARATION 1 -->
+                                    <!-- ================================= -->
+
+                                    <div
+                                        id="next-of-kin-contacted-section"
+                                        class="declaration-item mb-4"
+                                        style="display:{% if request.POST.cause_type == "member" %}block{% else %}none{% endif %};"
+                                    >
+
+                                        <div class="declaration-text">
+
+                                            1. I have contacted the next of
+                                            Kin, and this confirms next of
+                                            Kin is aware of and in agreement
+                                            with the details in this claim.
+
+                                        </div>
+
+                                        <div class="admin-native-checkbox mt-2">
+
+                                            <input
+                                                type="checkbox"
+                                                id="id_next_of_kin_contacted"
+                                                name="next_of_kin_contacted"
+                                                value="1"
+                                                {% if declaration_form.next_of_kin_contacted.value %}
+                                                    checked
+                                                {% endif %}
+                                            >
+
+                                            <label
+                                                for="id_next_of_kin_contacted"
+                                            >
+                                                I confirm this statement.
+                                            </label>
+
+                                        </div>
+
+                                        {% if declaration_form.next_of_kin_contacted.errors %}
+
+                                            <div class="text-danger small mt-1">
+                                                {{ declaration_form.next_of_kin_contacted.errors }}
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- ================================= -->
+                                    <!-- DECLARATION 2 — BOTH CLAIM TYPES -->
+                                    <!-- ================================= -->
+
+                                    <div
+                                        id="details-confirmed-item"
+                                        class="declaration-item"
+                                    >
+
+                                        <div class="declaration-text">
+
+                                            2. I have checked the details
+                                            herein and confirmed the same
+                                            to be true.
+
+                                        </div>
+
+                                        <div class="admin-native-checkbox mt-2">
+
+                                            <input
+                                                type="checkbox"
+                                                id="id_details_confirmed"
+                                                name="details_confirmed"
+                                                value="1"
+                                                {% if declaration_form.details_confirmed.value %}
+                                                    checked
+                                                {% endif %}
+                                            >
+
+                                            <label
+                                                for="id_details_confirmed"
+                                            >
+                                                I confirm this declaration.
+                                            </label>
+
+                                        </div>
+
+                                        {% if declaration_form.details_confirmed.errors %}
+
+                                            <div class="text-danger small mt-1">
+                                                {{ declaration_form.details_confirmed.errors }}
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- SELECTED MEMBER -->
+                        <!-- ===================================== -->
+
                         <input
                             type="hidden"
                             name="selected_member_id"
                             id="selected_member_id"
                         >
 
+
+                        <!-- ===================================== -->
                         <!-- SUBMIT -->
+                        <!-- ===================================== -->
+
                         <button
                             type="submit"
-                            class="btn btn-success submit-btn mt-3">
-
+                            class="btn btn-success submit-btn mt-3"
+                        >
                             Submit Claim
-
                         </button>
 
                     </form>
@@ -206,188 +871,1617 @@
 
 </div>
 
+
+<!-- ========================================================= -->
+<!-- CONFIRMATION STATEMENT MODAL -->
+<!-- ========================================================= -->
+
+<div
+    class="modal fade"
+    id="confirmationStatementModal"
+    tabindex="-1"
+    aria-labelledby="confirmationStatementModalLabel"
+    aria-hidden="true"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h5
+                    class="modal-title"
+                    id="confirmationStatementModalLabel"
+                >
+                    Confirmation Statement
+                </h5>
+
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <p class="mb-0">
+
+                    I hereby report to you that I have been bereaved,
+                    and I would like to request support from the Kenya
+                    Reading Organisation Welfare group (KROWG). I am
+                    fully aware that any support accorded to me by
+                    members is contingent upon my continued membership,
+                    and if my membership ceases, I will be required to
+                    return all the funds given to me.
+
+                </p>
+
+            </div>
+
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Close
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- STYLING -->
+<!-- ========================================================= -->
+
 <style>
 
-/* ========================================= */
-/* CARD */
-/* ========================================= */
-
 .admin-claim-card {
-    border-radius: 20px;
-    background: linear-gradient(180deg, #edf5f0, #f7fbf8);
-    border: 1px solid #d5e3db;
+    border-radius: 16px;
 }
-
-/* ========================================= */
-/* HEADER */
-/* ========================================= */
 
 .admin-claim-badge {
     display: inline-block;
-    background: linear-gradient(135deg, #198754, #157347);
-    color: white;
-    padding: 0.35rem 0.8rem;
+    padding: 5px 10px;
     border-radius: 999px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    margin-bottom: 0.45rem;
+    background: #e8f5e9;
+    color: #198754;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 8px;
 }
 
 .admin-claim-title {
-    color: #157347;
+    margin-bottom: 4px;
     font-weight: 700;
-    margin-bottom: 0.15rem;
 }
 
 .admin-claim-subtitle {
-    color: #5f6f66;
-    font-size: 0.88rem;
+    color: #6c757d;
 }
-
-/* ========================================= */
-/* FORM SECTIONS */
-/* ========================================= */
 
 .admin-section {
-    background: rgba(255,255,255,0.92);
-    border: 1px solid #d6e3da;
-    border-radius: 16px;
-    padding: 0.9rem;
-    margin-bottom: 0.9rem;
+    margin-bottom: 1.25rem;
 }
-
-/* ========================================= */
-/* LABELS */
-/* ========================================= */
-
-.form-label {
-    font-weight: 600;
-    margin-bottom: 0.35rem;
-    color: #2f4f3e;
-}
-
-/* ========================================= */
-/* INPUTS */
-/* ========================================= */
-
-.form-control,
-.form-select,
-select {
-    border-radius: 12px;
-    border: 1px solid #c8d8cf;
-    min-height: 46px;
-    padding: 0.7rem 0.9rem;
-}
-
-/* ========================================= */
-/* TEXTAREA */
-/* ========================================= */
-
-.affected-textarea {
-    min-height: 110px;
-    resize: vertical;
-    background: linear-gradient(180deg, #ffffff, #f9fcfa);
-}
-
-/* ========================================= */
-/* UPLOAD SECTION */
-/* ========================================= */
 
 .admin-upload-section {
-    background: linear-gradient(180deg, #dceee3, #edf7f1);
-    border: 1px solid #c4dacb;
-    border-radius: 16px;
-    padding: 1rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1.25rem;
 }
-
-/* ========================================= */
-/* DROP ZONE */
-/* ========================================= */
 
 .admin-drop-zone {
-    border: 2px dashed #98bea6;
-    border-radius: 14px;
-    background: rgba(255,255,255,0.9);
-    padding: 1.2rem;
+    border: 2px dashed #198754;
+    border-radius: 12px;
+    padding: 24px 16px;
     text-align: center;
+    background: #f8fffa;
 }
 
-/* ========================================= */
-/* BUTTONS */
-/* ========================================= */
+.affected-textarea {
+    min-height: 76px;
+    resize: vertical;
+}
 
-.upload-btn {
-    border-radius: 11px;
-    padding: 0.65rem 1rem;
+.declaration-item {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 1rem;
+}
+
+.declaration-item:last-child {
+    border-bottom: 0;
+}
+
+.declaration-text {
+    line-height: 1.55;
+}
+
+/* =========================================================
+   CLAIM DECLARATION CHECKBOX VISIBILITY
+   UI ONLY — does not change form behaviour
+   ========================================================= */
+
+/*
+   Keep the checkbox in normal document flow.
+   Bootstrap normally positions .form-check-input absolutely;
+   that can leave the visible checkbox underneath another element.
+   Normal-flow positioning gives the native checkbox its own
+   reliable click target.
+*/
+.declaration-item .form-check {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 1.75rem;
+    padding-left: 0;
+}
+
+.declaration-item .form-check-input {
+    position: static !important;
+    width: 1.35rem;
+    height: 1.35rem;
+    flex: 0 0 auto;
+    margin: 0 !important;
+    border: 2px solid #495057;
+    background-color: #ffffff;
+    cursor: pointer;
+    accent-color: #198754;
+}
+
+.declaration-item .form-check-label {
+    margin: 0;
+    cursor: pointer;
+}
+
+.declaration-item .form-check-input:focus {
+    outline: 3px solid rgba(25, 135, 84, 0.30);
+    outline-offset: 2px;
+}
+
+.declaration-item .form-check-input:checked {
+    border-color: #198754;
+}
+
+.declaration-item .form-check-label {
+    cursor: pointer;
 }
 
 .submit-btn {
     width: 100%;
-    border-radius: 12px;
-    padding: 0.85rem;
-    font-weight: 700;
+    padding: 11px 18px;
+    font-weight: 600;
 }
 
-/* ========================================= */
-/* MOBILE */
-/* ========================================= */
+.upload-btn {
+    width: 100%;
+}
 
-@media (max-width: 768px) {
+#next-of-kin-section {
+    border-left: 4px solid #198754;
+}
 
-    .admin-section {
-        padding: 0.75rem;
-        margin-bottom: 0.75rem;
-    }
+#sort-code-client-error,
+#account-number-client-error,
+#account-opened-client-error {
+    font-weight: 600;
+}
 
-    .admin-upload-section {
-        padding: 0.75rem;
+.bank-invalid {
+    border-color: #dc3545 !important;
+}
+
+.bank-valid {
+    border-color: #198754 !important;
+}
+
+@media (max-width: 576px) {
+
+    .admin-claim-card {
+        border-radius: 10px;
     }
 
     .admin-drop-zone {
-        padding: 1rem 0.8rem;
-    }
-
-    .submit-btn,
-    .upload-btn {
-        width: 100%;
+        padding: 20px 12px;
     }
 
     .admin-claim-title {
-        font-size: 1.2rem;
-    }
-}
-
-/* ========================================= */
-/* EXTRA SMALL */
-/* ========================================= */
-
-@media (max-width: 480px) {
-
-    .card-body {
-        padding: 0.8rem !important;
+        font-size: 1.5rem;
     }
 
-    .admin-section {
-        padding: 0.65rem;
-    }
-
-    .admin-upload-section {
-        padding: 0.65rem;
-    }
-
-    .admin-drop-zone {
-        padding: 0.9rem 0.7rem;
-    }
-
-    .admin-claim-title {
-        font-size: 1.08rem;
-    }
 }
 
 </style>
 
-<!-- JS -->
-<script src="{% static 'js/claim_form.js' %}"></script>
+
+<!-- ========================================================= -->
+<!-- EXISTING CLAIM JAVASCRIPT -->
+<!-- ========================================================= -->
+
 <script src="{% static 'js/claim_search.js' %}"></script>
+
+<!-- ========================================================= -->
+<!-- DOCUMENT UPLOAD UX -->
+<!-- ========================================================= -->
+<!--
+    STEP B — MULTIPLE DOCUMENTS + PER-DOCUMENT METADATA
+
+    This block deliberately preserves the working accumulated
+    multi-document upload mechanism.
+
+    Each selected document is represented by one object containing:
+
+        file
+        title
+        description
+
+    The real file input remains:
+
+        name="documents"
+        multiple
+
+    The backend already reads:
+
+        request.FILES.getlist("documents")
+        request.POST.getlist("doc_title")
+        request.POST.getlist("doc_description")
+
+    The three collections therefore remain aligned by index.
+
+    No claim validation, declaration logic, bank validation,
+    member/dependant selection, claim search, or form submission
+    behaviour is changed.
+-->
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        // =====================================================
+        // ELEMENTS
+        // =====================================================
+
+        const fileInput =
+            document.getElementById(
+                "file-input"
+            );
+
+        const addDocumentsButton =
+            document.getElementById(
+                "add-documents-button"
+            );
+
+        const dropZone =
+            document.getElementById(
+                "drop-zone"
+            );
+
+        const fileList =
+            document.getElementById(
+                "file-list"
+            );
+
+
+        if (
+            !fileInput
+            || !fileList
+        ) {
+
+            return;
+
+        }
+
+
+        // =====================================================
+        // ACCUMULATED DOCUMENTS
+        // =====================================================
+        //
+        // Each entry contains the actual File plus its metadata.
+        //
+        // Keeping the metadata here is important because the
+        // visible list may be rebuilt when another file is added
+        // or a file is removed.
+        // =====================================================
+
+        let selectedFiles = [];
+
+
+        // =====================================================
+        // FILE IDENTITY
+        // =====================================================
+
+        function fileKey(file) {
+
+            return (
+                file.name
+                + "|"
+                + file.size
+                + "|"
+                + file.lastModified
+            );
+
+        }
+
+
+        // =====================================================
+        // ADD FILES
+        // =====================================================
+
+        function addFiles(files) {
+
+            Array.from(
+                files || []
+            ).forEach(
+                function (file) {
+
+                    const key =
+                        fileKey(file);
+
+                    const alreadySelected =
+                        selectedFiles.some(
+                            function (documentItem) {
+
+                                return (
+                                    fileKey(
+                                        documentItem.file
+                                    )
+                                    === key
+                                );
+
+                            }
+                        );
+
+
+                    if (!alreadySelected) {
+
+                        selectedFiles.push(
+                            {
+                                file: file,
+                                title:
+                                    "Claim Supporting "
+                                    + "Document "
+                                    + (
+                                        selectedFiles.length
+                                        + 1
+                                    ),
+                                description: ""
+                            }
+                        );
+
+                    }
+
+                }
+            );
+
+
+            rebuildFileInput();
+
+            renderFileList();
+
+        }
+
+
+        // =====================================================
+        // REBUILD THE REAL FILE INPUT
+        // =====================================================
+        //
+        // The browser FileList is reconstructed from the
+        // accumulated files.
+        //
+        // IMPORTANT:
+        // Do not clear fileInput.value after this operation.
+        // =====================================================
+
+        function rebuildFileInput() {
+
+            const dataTransfer =
+                new DataTransfer();
+
+
+            selectedFiles.forEach(
+                function (documentItem) {
+
+                    dataTransfer.items.add(
+                        documentItem.file
+                    );
+
+                }
+            );
+
+
+            fileInput.files =
+                dataTransfer.files;
+
+        }
+
+
+        // =====================================================
+        // RENDER DOCUMENT LIST
+        // =====================================================
+
+        function renderFileList() {
+
+            fileList.innerHTML = "";
+
+
+            selectedFiles.forEach(
+                function (documentItem, index) {
+
+                    const row =
+                        document.createElement(
+                            "div"
+                        );
+
+                    row.className =
+                        "border rounded p-3 mb-3";
+
+                    row.setAttribute(
+                        "data-document-index",
+                        index
+                    );
+
+
+                    // -----------------------------------------
+                    // DOCUMENT HEADER
+                    // -----------------------------------------
+
+                    const header =
+                        document.createElement(
+                            "div"
+                        );
+
+                    header.className =
+                        "d-flex "
+                        + "justify-content-between "
+                        + "align-items-center "
+                        + "mb-3";
+
+
+                    const details =
+                        document.createElement(
+                            "div"
+                        );
+
+
+                    const name =
+                        document.createElement(
+                            "div"
+                        );
+
+                    name.className =
+                        "fw-semibold text-break";
+
+                    name.textContent =
+                        documentItem.file.name;
+
+
+                    const size =
+                        document.createElement(
+                            "div"
+                        );
+
+                    size.className =
+                        "small text-muted";
+
+                    size.textContent =
+                        (
+                            documentItem.file.size
+                            / 1024
+                        ).toFixed(1)
+                        + " KB";
+
+
+                    details.appendChild(
+                        name
+                    );
+
+                    details.appendChild(
+                        size
+                    );
+
+
+                    const removeButton =
+                        document.createElement(
+                            "button"
+                        );
+
+                    removeButton.type =
+                        "button";
+
+                    removeButton.className =
+                        "btn btn-sm "
+                        + "btn-outline-danger";
+
+                    removeButton.textContent =
+                        "Remove";
+
+                    removeButton.setAttribute(
+                        "data-document-remove",
+                        index
+                    );
+
+
+                    header.appendChild(
+                        details
+                    );
+
+                    header.appendChild(
+                        removeButton
+                    );
+
+
+                    // -----------------------------------------
+                    // DOCUMENT TITLE
+                    // -----------------------------------------
+
+                    const titleWrapper =
+                        document.createElement(
+                            "div"
+                        );
+
+                    titleWrapper.className =
+                        "mb-3";
+
+
+                    const titleLabel =
+                        document.createElement(
+                            "label"
+                        );
+
+                    titleLabel.className =
+                        "form-label";
+
+                    titleLabel.textContent =
+                        "Document Title";
+
+                    titleLabel.setAttribute(
+                        "for",
+                        "doc-title-" + index
+                    );
+
+
+                    const titleInput =
+                        document.createElement(
+                            "input"
+                        );
+
+                    titleInput.type =
+                        "text";
+
+                    titleInput.id =
+                        "doc-title-" + index;
+
+                    titleInput.name =
+                        "doc_title";
+
+                    titleInput.className =
+                        "form-control";
+
+                    titleInput.value =
+                        documentItem.title;
+
+                    titleInput.required =
+                        true;
+
+                    titleInput.maxLength =
+                        255;
+
+                    titleInput.setAttribute(
+                        "data-document-title",
+                        index
+                    );
+
+
+                    titleWrapper.appendChild(
+                        titleLabel
+                    );
+
+                    titleWrapper.appendChild(
+                        titleInput
+                    );
+
+
+                    // -----------------------------------------
+                    // DESCRIPTION
+                    // -----------------------------------------
+
+                    const descriptionWrapper =
+                        document.createElement(
+                            "div"
+                        );
+
+                    descriptionWrapper.className =
+                        "mb-0";
+
+
+                    const descriptionLabel =
+                        document.createElement(
+                            "label"
+                        );
+
+                    descriptionLabel.className =
+                        "form-label";
+
+                    descriptionLabel.textContent =
+                        "Description";
+
+                    descriptionLabel.setAttribute(
+                        "for",
+                        "doc-description-" + index
+                    );
+
+
+                    const descriptionInput =
+                        document.createElement(
+                            "textarea"
+                        );
+
+                    descriptionInput.id =
+                        "doc-description-" + index;
+
+                    descriptionInput.name =
+                        "doc_description";
+
+                    descriptionInput.className =
+                        "form-control";
+
+                    descriptionInput.rows =
+                        2;
+
+                    descriptionInput.value =
+                        documentItem.description;
+
+                    descriptionInput.setAttribute(
+                        "data-document-description",
+                        index
+                    );
+
+
+                    descriptionWrapper.appendChild(
+                        descriptionLabel
+                    );
+
+                    descriptionWrapper.appendChild(
+                        descriptionInput
+                    );
+
+
+                    // -----------------------------------------
+                    // COMPLETE ROW
+                    // -----------------------------------------
+
+                    row.appendChild(
+                        header
+                    );
+
+                    row.appendChild(
+                        titleWrapper
+                    );
+
+                    row.appendChild(
+                        descriptionWrapper
+                    );
+
+                    fileList.appendChild(
+                        row
+                    );
+
+                }
+            );
+
+        }
+
+
+        // =====================================================
+        // ADD DOCUMENTS BUTTON
+        // =====================================================
+
+        if (
+            addDocumentsButton
+        ) {
+
+            addDocumentsButton.addEventListener(
+                "click",
+                function () {
+
+                    fileInput.click();
+
+                }
+            );
+
+        }
+
+
+        // =====================================================
+        // FILE INPUT CHANGE
+        // =====================================================
+
+        fileInput.addEventListener(
+            "change",
+            function () {
+
+                /*
+                    IMPORTANT:
+
+                    Do not clear this.value here.
+
+                    The accumulated FileList is rebuilt and
+                    assigned to this input. Clearing the input
+                    immediately afterwards can discard the
+                    accumulated files.
+                */
+
+                addFiles(
+                    this.files
+                );
+
+            }
+        );
+
+
+        // =====================================================
+        // DRAG AND DROP
+        // =====================================================
+
+        if (
+            dropZone
+        ) {
+
+            dropZone.addEventListener(
+                "dragover",
+                function (event) {
+
+                    event.preventDefault();
+
+                    dropZone.classList.add(
+                        "border-success"
+                    );
+
+                }
+            );
+
+
+            dropZone.addEventListener(
+                "dragleave",
+                function () {
+
+                    dropZone.classList.remove(
+                        "border-success"
+                    );
+
+                }
+            );
+
+
+            dropZone.addEventListener(
+                "drop",
+                function (event) {
+
+                    event.preventDefault();
+
+                    dropZone.classList.remove(
+                        "border-success"
+                    );
+
+                    addFiles(
+                        event.dataTransfer.files
+                    );
+
+                }
+            );
+
+        }
+
+
+        // =====================================================
+        // DOCUMENT LIST ACTIONS
+        // =====================================================
+
+        fileList.addEventListener(
+            "click",
+            function (event) {
+
+                const removeButton =
+                    event.target.closest(
+                        "[data-document-remove]"
+                    );
+
+
+                if (!removeButton) {
+
+                    return;
+
+                }
+
+
+                const index =
+                    Number(
+                        removeButton.getAttribute(
+                            "data-document-remove"
+                        )
+                    );
+
+
+                if (
+                    Number.isNaN(index)
+                ) {
+
+                    return;
+
+                }
+
+
+                selectedFiles.splice(
+                    index,
+                    1
+                );
+
+
+                rebuildFileInput();
+
+                renderFileList();
+
+            }
+        );
+
+
+        // =====================================================
+        // DOCUMENT TITLE CHANGES
+        // =====================================================
+
+        fileList.addEventListener(
+            "input",
+            function (event) {
+
+                const titleInput =
+                    event.target.closest(
+                        "[data-document-title]"
+                    );
+
+
+                if (!titleInput) {
+
+                    return;
+
+                }
+
+
+                const index =
+                    Number(
+                        titleInput.getAttribute(
+                            "data-document-title"
+                        )
+                    );
+
+
+                if (
+                    Number.isNaN(index)
+                    || !selectedFiles[index]
+                ) {
+
+                    return;
+
+                }
+
+
+                selectedFiles[index].title =
+                    titleInput.value;
+
+            }
+        );
+
+
+        // =====================================================
+        // DOCUMENT DESCRIPTION CHANGES
+        // =====================================================
+
+        fileList.addEventListener(
+            "input",
+            function (event) {
+
+                const descriptionInput =
+                    event.target.closest(
+                        "[data-document-description]"
+                    );
+
+
+                if (!descriptionInput) {
+
+                    return;
+
+                }
+
+
+                const index =
+                    Number(
+                        descriptionInput.getAttribute(
+                            "data-document-description"
+                        )
+                    );
+
+
+                if (
+                    Number.isNaN(index)
+                    || !selectedFiles[index]
+                ) {
+
+                    return;
+
+                }
+
+
+                selectedFiles[index].description =
+                    descriptionInput.value;
+
+            }
+        );
+
+
+        // =====================================================
+        // INITIAL DISPLAY
+        // =====================================================
+
+        renderFileList();
+
+    }
+);
+
+</script>
+
+
+
+<!-- ========================================================= -->
+<!-- BANK + DECLARATION UX
+========================================================== -->
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        // ======================================================
+        // ELEMENTS
+        // ======================================================
+
+        const form =
+            document.getElementById(
+                "claimCreateForm"
+            );
+
+        const causeType =
+            document.getElementById(
+                "id_cause_type"
+            );
+
+        const sortCode =
+            document.getElementById(
+                "id_sort_code"
+            );
+
+        const accountNumber =
+            document.getElementById(
+                "id_account_number"
+            );
+
+        const accountOpenedDate =
+            document.getElementById(
+                "id_account_opened_date"
+            );
+
+        const sortCodeError =
+            document.getElementById(
+                "sort-code-client-error"
+            );
+
+        const accountNumberError =
+            document.getElementById(
+                "account-number-client-error"
+            );
+
+        const accountOpenedError =
+            document.getElementById(
+                "account-opened-client-error"
+            );
+
+
+        // ======================================================
+        // ERROR MESSAGE HELPERS
+        // ======================================================
+
+        function showError(
+            field,
+            errorElement,
+            message
+        ) {
+
+            if (errorElement) {
+
+                errorElement.textContent =
+                    message;
+
+                errorElement.style.display =
+                    "block";
+            }
+
+            if (field) {
+
+                field.classList.add(
+                    "bank-invalid"
+                );
+
+                field.classList.remove(
+                    "bank-valid"
+                );
+            }
+        }
+
+
+        function clearError(
+            field,
+            errorElement
+        ) {
+
+            if (errorElement) {
+
+                errorElement.textContent =
+                    "";
+
+                errorElement.style.display =
+                    "none";
+            }
+
+            if (field) {
+
+                field.classList.remove(
+                    "bank-invalid"
+                );
+            }
+        }
+
+
+        // ======================================================
+        // SORT CODE
+        // ======================================================
+        //
+        // User enters:
+        //
+        // 123456
+        //
+        // Browser displays:
+        //
+        // 12-34-56
+        //
+        // Letters are NEVER retained in the field.
+        // ======================================================
+
+        if (sortCode) {
+
+            sortCode.addEventListener(
+                "input",
+                function () {
+
+                    let digits =
+                        this.value.replace(
+                            /[^0-9]/g,
+                            ""
+                        );
+
+                    digits =
+                        digits.substring(
+                            0,
+                            6
+                        );
+
+                    let formatted =
+                        "";
+
+                    if (
+                        digits.length <= 2
+                    ) {
+
+                        formatted =
+                            digits;
+
+                    } else if (
+                        digits.length <= 4
+                    ) {
+
+                        formatted =
+                            digits.substring(
+                                0,
+                                2
+                            )
+                            + "-"
+                            + digits.substring(
+                                2,
+                                4
+                            );
+
+                    } else {
+
+                        formatted =
+                            digits.substring(
+                                0,
+                                2
+                            )
+                            + "-"
+                            + digits.substring(
+                                2,
+                                4
+                            )
+                            + "-"
+                            + digits.substring(
+                                4,
+                                6
+                            );
+                    }
+
+                    this.value =
+                        formatted;
+
+
+                    // ------------------------------------------
+                    // Immediate validation.
+                    // ------------------------------------------
+
+                    if (
+                        digits.length === 0
+                    ) {
+
+                        clearError(
+                            this,
+                            sortCodeError
+                        );
+
+                    } else if (
+                        digits.length < 6
+                    ) {
+
+                        showError(
+                            this,
+                            sortCodeError,
+                            "Sort code must contain six digits."
+                        );
+
+                    } else {
+
+                        clearError(
+                            this,
+                            sortCodeError
+                        );
+
+                        this.classList.add(
+                            "bank-valid"
+                        );
+                    }
+                }
+            );
+
+
+            // ----------------------------------------------
+            // Prevent non-numeric keyboard input where the
+            // browser supports beforeinput.
+            // ----------------------------------------------
+
+            sortCode.addEventListener(
+                "beforeinput",
+                function (event) {
+
+                    if (
+                        event.data
+                        && /[^0-9-]/.test(
+                            event.data
+                        )
+                    ) {
+
+                        event.preventDefault();
+                    }
+                }
+            );
+        }
+
+
+        // ======================================================
+        // ACCOUNT NUMBER
+        // ======================================================
+
+        if (accountNumber) {
+
+            accountNumber.addEventListener(
+                "input",
+                function () {
+
+                    // ------------------------------------------
+                    // Remove EVERYTHING except digits.
+                    // ------------------------------------------
+
+                    this.value =
+                        this.value.replace(
+                            /[^0-9]/g,
+                            ""
+                        );
+
+                    // ------------------------------------------
+                    // Maximum eight digits.
+                    // ------------------------------------------
+
+                    this.value =
+                        this.value.substring(
+                            0,
+                            8
+                        );
+
+                    // ------------------------------------------
+                    // Immediate validation.
+                    // ------------------------------------------
+
+                    if (
+                        this.value.length === 0
+                    ) {
+
+                        clearError(
+                            this,
+                            accountNumberError
+                        );
+
+                    } else if (
+                        this.value.length < 8
+                    ) {
+
+                        showError(
+                            this,
+                            accountNumberError,
+                            "Account number must contain exactly eight digits."
+                        );
+
+                    } else {
+
+                        clearError(
+                            this,
+                            accountNumberError
+                        );
+
+                        this.classList.add(
+                            "bank-valid"
+                        );
+                    }
+                }
+            );
+
+
+            accountNumber.addEventListener(
+                "beforeinput",
+                function (event) {
+
+                    if (
+                        event.data
+                        && /[^0-9]/.test(
+                            event.data
+                        )
+                    ) {
+
+                        event.preventDefault();
+                    }
+                }
+            );
+        }
+
+
+        // ======================================================
+        // DATE ACCOUNT OPENED
+        // ======================================================
+
+        function validateAccountOpenedDate() {
+
+            if (
+                !accountOpenedDate
+            ) {
+                return true;
+            }
+
+            const value =
+                accountOpenedDate.value;
+
+            if (!value) {
+
+                clearError(
+                    accountOpenedDate,
+                    accountOpenedError
+                );
+
+                return true;
+            }
+
+            const selectedDate =
+                new Date(
+                    value
+                    + "T00:00:00"
+                );
+
+            const minimumDate =
+                new Date();
+
+            minimumDate.setHours(
+                0,
+                0,
+                0,
+                0
+            );
+
+            minimumDate.setMonth(
+                minimumDate.getMonth()
+                - 6
+            );
+
+            if (
+                selectedDate
+                > minimumDate
+            ) {
+
+                showError(
+                    accountOpenedDate,
+                    accountOpenedError,
+                    "The bank account must have been open for at least six months."
+                );
+
+                accountOpenedDate.setCustomValidity(
+                    "The bank account must have been open for at least six months."
+                );
+
+                return false;
+
+            }
+
+
+            clearError(
+                accountOpenedDate,
+                accountOpenedError
+            );
+
+            accountOpenedDate.setCustomValidity(
+                ""
+            );
+
+            accountOpenedDate.classList.add(
+                "bank-valid"
+            );
+
+            return true;
+        }
+
+
+        if (accountOpenedDate) {
+
+            accountOpenedDate.addEventListener(
+                "change",
+                validateAccountOpenedDate
+            );
+        }
+
+
+        // ======================================================
+        // FINAL CLIENT-SIDE SUBMISSION CHECK
+        // ======================================================
+        //
+        // This prevents the browser from submitting known-invalid
+        // bank details.
+        //
+        // Server-side validation remains authoritative.
+        // ======================================================
+
+        if (form) {
+
+            form.addEventListener(
+                "submit",
+                function (event) {
+
+                    let valid =
+                        true;
+
+
+                    // ------------------------------------------
+                    // SORT CODE
+                    // ------------------------------------------
+
+                    if (sortCode) {
+
+                        const value =
+                            sortCode.value;
+
+                        if (
+                            !/^[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(
+                                value
+                            )
+                        ) {
+
+                            showError(
+                                sortCode,
+                                sortCodeError,
+                                "Sort code must contain six digits in the format 00-00-00."
+                            );
+
+                            valid =
+                                false;
+                        }
+                    }
+
+
+                    // ------------------------------------------
+                    // ACCOUNT NUMBER
+                    // ------------------------------------------
+
+                    if (accountNumber) {
+
+                        const value =
+                            accountNumber.value;
+
+                        if (
+                            !/^[0-9]{8}$/.test(
+                                value
+                            )
+                        ) {
+
+                            showError(
+                                accountNumber,
+                                accountNumberError,
+                                "Account number must contain exactly eight digits with no spaces or letters."
+                            );
+
+                            valid =
+                                false;
+                        }
+                    }
+
+
+                    // ------------------------------------------
+                    // ACCOUNT OPENED DATE
+                    // ------------------------------------------
+
+                    if (
+                        !validateAccountOpenedDate()
+                    ) {
+
+                        valid =
+                            false;
+                    }
+
+
+                    // ------------------------------------------
+                    // Stop submission if bank details are invalid.
+                    // ------------------------------------------
+
+                    if (!valid) {
+
+                        event.preventDefault();
+
+                        const firstInvalid =
+                            form.querySelector(
+                                ".bank-invalid"
+                            );
+
+                        if (
+                            firstInvalid
+                        ) {
+
+                            firstInvalid.focus();
+                        }
+                    }
+                }
+            );
+        }
+
+
+        // ======================================================
+        // CLAIMANT CONFIRMATION / DECLARATION VISIBILITY
+        // ======================================================
+
+        const claimantConfirmation =
+            document.getElementById(
+                "claimant-confirmation-section"
+            );
+
+        const confirmationUnderstoodItem =
+            document.getElementById(
+                "confirmation-understood-item"
+            );
+
+        const detailsConfirmedItem =
+            document.getElementById(
+                "details-confirmed-item"
+            );
+
+        const nextOfKinDeclaration =
+            document.getElementById(
+                "next-of-kin-contacted-section"
+            );
+
+
+        function updateClaimantDeclarationUI() {
+
+            if (!causeType) {
+                return;
+            }
+
+            const isMemberClaim =
+                causeType.value === "member";
+
+            // ----------------------------------------------
+            // CLAIMANT CONFIRMATION
+            // Dependant only.
+            // ----------------------------------------------
+
+            if (claimantConfirmation) {
+
+                claimantConfirmation.style.display =
+                    isMemberClaim
+                    ? "none"
+                    : "block";
+            }
+
+            // ----------------------------------------------
+            // DECLARATION 1 — DEPENDANT
+            // ----------------------------------------------
+
+            if (confirmationUnderstoodItem) {
+
+                confirmationUnderstoodItem.style.display =
+                    isMemberClaim
+                    ? "none"
+                    : "block";
+            }
+
+            // ----------------------------------------------
+            // DECLARATION 1 — MEMBER / NEXT OF KIN
+            // ----------------------------------------------
+
+            if (nextOfKinDeclaration) {
+
+                nextOfKinDeclaration.style.display =
+                    isMemberClaim
+                    ? "block"
+                    : "none";
+            }
+
+            // ----------------------------------------------
+            // DECLARATION 2 — BOTH CLAIM TYPES
+            // ----------------------------------------------
+
+            if (detailsConfirmedItem) {
+
+                detailsConfirmedItem.style.display =
+                    "block";
+            }
+        }
+
+
+        if (causeType) {
+
+            causeType.addEventListener(
+                "change",
+                updateClaimantDeclarationUI
+            );
+
+            updateClaimantDeclarationUI();
+        }
+
+    }
+);
+
+</script>
 
 {% endblock %}

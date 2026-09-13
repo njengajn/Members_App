@@ -3,7 +3,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from backend.members.decorators import member_required
 from backend.members.models import Claim, Member, MemberDocument
-from backend.members.forms import ClaimForm
+from backend.members.forms import ClaimForm, ClaimBankDetailsForm, ClaimSubmissionDeclarationForm
+from backend.members.services.document_files import (
+    DocumentUploadValidationError,
+    generate_document_thumbnail,
+    prepare_document_file,
+)
+from django.db import transaction
 
 # ======================================================
 # ✅ HELPER: ACTIVE MEMBER CHECK (REUSABLE)
@@ -42,62 +48,66 @@ def create_claim_entry(request):
 @member_required
 def member_create_claim(request):
     """
-    MEMBER CLAIM VIEW
+    Allow a member to create a claim for one of their own
+    eligible dependants.
 
-    Business Rules
-    --------------------------------------------------------------------
-    1. User must have a Member record.
-    2. Member must be ACTIVE.
-    3. Member must have completed the 180-day cooling-off period.
-    4. Claims are submitted only for registered dependants.
-    5. Multiple supporting documents may be uploaded.
+    Member claim rules:
+
+    - A member can only create a dependant claim.
+    - The member cannot choose the claim type.
+    - The dependant must belong to the signed-in member.
+    - ClaimForm restricts the dependant queryset accordingly.
+    - The signed-in member is the claimer.
+    - The selected dependant is the causer.
+    - Bank details are captured for this claim.
+    - The member must complete the submission declaration.
+
+    A successful submission redirects to the newly created
+    member claim detail page so the success message is visible
+    and the member can immediately confirm the claim was sent.
     """
 
-    # ------------------------------------------------------------------
-    # Get the logged-in member
-    # ------------------------------------------------------------------
-    member = getattr(request.user, "member", None)
+    # ==========================================================
+    # MEMBER
+    # ==========================================================
 
-    # ------------------------------------------------------------------
-    # Safety check
-    # ------------------------------------------------------------------
-    if not member:
-        messages.error(
-            request,
-            "Member account not found."
-        )
-        return redirect("members:dashboard")
+    try:
 
-    # ------------------------------------------------------------------
-    # Only ACTIVE members can submit claims
-    # ------------------------------------------------------------------
-    if member.status != Member.STATUS_ACTIVE:
+        member = request.user.member
+
+    except AttributeError:
+
         messages.error(
             request,
             (
-                "Your membership is not yet active. "
-                "Please wait for approval or contact KRO."
-            )
+                "You must have a member profile "
+                "to create a claim."
+            ),
         )
-        return redirect("members:dashboard")
 
-    # ------------------------------------------------------------------
-    # Enforce 180-day cooling-off period
-    # Uses Member.can_make_claim property.
-    # ------------------------------------------------------------------
-    if not member.can_make_claim:
+        return redirect(
+            "members:dashboard"
+        )
+
+    # ==========================================================
+    # ACTIVE MEMBER CHECK
+    # ==========================================================
+
+    if member.status != "active":
+
         messages.error(
             request,
-            (
-                "Claims can only be submitted after "
-                "180 days of active membership."
-            )
+            "Only active members can create claims.",
         )
-        return redirect("members:dashboard")
 
-    # ------------------------------------------------------------------
-    # Handle form submission
-    # ------------------------------------------------------------------
+        return redirect(
+            "members:dashboard"
+        )
+
+    # ==========================================================
+    # POST
+    # ==========================================================
+
     if request.method == "POST":
 
         form = ClaimForm(
@@ -106,82 +116,268 @@ def member_create_claim(request):
             user=request.user,
         )
 
-        if form.is_valid():
-
-            claim = form.save(commit=False)
-
-            dependant = claim.causer_dependant
-
-            # ----------------------------------------------------------
-            # Populate claim fields automatically
-            # ----------------------------------------------------------
-            claim.member = member
-            claim.created_by = request.user
-
-            # Claims are currently dependant-only
-            #claim.cause_type = "dependant" ***hard coding
-            claim.cause_type = Claim.CLAIM_CAUSER_DEPENDANT
-
-            claim.causer_full_name = (
-                f"{dependant.first_name} "
-                f"{dependant.surname}"
+        bank_details_form = (
+            ClaimBankDetailsForm(
+                request.POST,
             )
+        )
 
-            claim.claimer = (
-                f"{member.first_name} "
-                f"{member.surname}"
+        declaration_form = (
+            ClaimSubmissionDeclarationForm(
+                request.POST,
             )
+        )
 
-            claim.save()
+        # ======================================================
+        # VALIDATE ALL FORMS
+        # ======================================================
 
-            # ----------------------------------------------------------
-            # Save uploaded supporting documents
-            # ----------------------------------------------------------
-            files = request.FILES.getlist("documents")
-            titles = request.POST.getlist("doc_title")
-            descriptions = request.POST.getlist("doc_description")
+        if (
+            form.is_valid()
+            and bank_details_form.is_valid()
+            and declaration_form.is_valid()
+        ):
 
-            for i, file in enumerate(files):
+            try:
 
-                MemberDocument.objects.create(
-                    member=member,
-                    dependant=dependant,
-                    claim=claim,
-                    title=(
-                        titles[i]
-                        if i < len(titles)
-                        else "Untitled"
+                with transaction.atomic():
+
+                    # --------------------------------------------------
+                    # CLAIM
+                    # --------------------------------------------------
+
+                    claim = form.save(
+                        commit=False
+                    )
+
+                    dependant = (
+                        form.cleaned_data.get(
+                            "causer_dependant"
+                        )
+                    )
+
+                    # --------------------------------------------------
+                    # MEMBER OWNERSHIP
+                    # --------------------------------------------------
+
+                    claim.member = member
+
+                    claim.created_by = (
+                        request.user
+                    )
+
+                    # Member portal currently permits only
+                    # dependant-causer claims.
+                    claim.cause_type = (
+                        Claim.CLAIM_CAUSER_DEPENDANT
+                    )
+
+                    claim.causer_dependant = (
+                        dependant
+                    )
+
+                    claim.causer_full_name = (
+                        f"{dependant.first_name} "
+                        f"{dependant.surname}"
+                    )
+
+                    claim.claimer = (
+                        f"{member.first_name} "
+                        f"{member.surname}"
+                    )
+
+                    claim.claimer_is_next_of_kin = (
+                        False
+                    )
+
+                    claim.save()
+
+                    # --------------------------------------------------
+                    # BANK DETAILS
+                    # --------------------------------------------------
+
+                    bank_details = (
+                        bank_details_form.save(
+                            commit=False
+                        )
+                    )
+
+                    bank_details.claim = claim
+
+                    bank_details.save()
+
+                    # --------------------------------------------------
+                    # SUBMISSION DECLARATION
+                    # --------------------------------------------------
+
+                    declaration = (
+                        declaration_form.save(
+                            commit=False
+                        )
+                    )
+
+                    declaration.claim = claim
+
+                    declaration.save()
+
+                    # ==================================================
+                    # SUPPORTING DOCUMENTS
+                    # ==================================================
+
+                    files = request.FILES.getlist(
+                        "documents"
+                    )
+
+                    titles = request.POST.getlist(
+                        "doc_title"
+                    )
+
+                    descriptions = request.POST.getlist(
+                        "doc_description"
+                    )
+
+                    for i, uploaded_file in enumerate(
+                        files
+                    ):
+
+                        original_filename = (
+                            uploaded_file.name
+                        )
+
+                        title = (
+                            titles[i].strip()
+                            if (
+                                i < len(titles)
+                                and titles[i].strip()
+                            )
+                            else (
+                                "Claim Supporting "
+                                f"Document {i + 1}"
+                            )
+                        )
+
+                        description = (
+                            descriptions[i].strip()
+                            if (
+                                i < len(descriptions)
+                                and descriptions[i].strip()
+                            )
+                            else ""
+                        )
+
+                        # --------------------------------------------------
+                        # CENTRAL VALIDATION + PROCESSING
+                        # --------------------------------------------------
+
+                        processed_file = (
+                            prepare_document_file(
+                                uploaded_file=uploaded_file,
+                                member=member,
+                                document_title=title,
+                            )
+                        )
+
+                        # --------------------------------------------------
+                        # CREATE DOCUMENT
+                        # --------------------------------------------------
+
+                        document = MemberDocument(
+                            member=member,
+                            dependant=dependant,
+                            claim=claim,
+                            title=title,
+                            description=description,
+                            file=processed_file,
+                            original_filename=original_filename,
+                        )
+
+                        document.full_clean()
+                        document.save()
+
+                        # --------------------------------------------------
+                        # THUMBNAIL
+                        # --------------------------------------------------
+
+                        generate_document_thumbnail(
+                            document
+                        )
+
+            except DocumentUploadValidationError as exc:
+
+                messages.error(
+                    request,
+                    (
+                        "The claim could not be submitted. "
+                        f"{exc}"
                     ),
-                    description=(
-                        descriptions[i]
-                        if i < len(descriptions)
-                        else ""
-                    ),
-                    file=file,
                 )
 
-            messages.success(
-                request,
-                "Claim submitted successfully."
-            )
+            except Exception as exc:
 
-            return redirect("members:dashboard")
+                messages.error(
+                    request,
+                    (
+                        "The claim could not be submitted. "
+                        f"{exc}"
+                    ),
+                )
 
-    # ------------------------------------------------------------------
-    # Display empty form
-    # ------------------------------------------------------------------
+            else:
+
+                # ==================================================
+                # SUCCESS
+                # ==================================================
+
+                messages.success(
+                    request,
+                    (
+                        "Your claim has been submitted "
+                        "successfully."
+                    ),
+                )
+
+                # --------------------------------------------------
+                # IMPORTANT:
+                # ``members:claims`` does not exist.
+                #
+                # Use the existing member claim-detail URL and
+                # pass the newly created claim primary key.
+                # --------------------------------------------------
+
+                return redirect(
+                    "members:member_claims",
+                    pk=claim.pk,
+                )
+
+    # ==========================================================
+    # GET
+    # ==========================================================
+
     else:
 
-        form = ClaimForm(user=request.user)
+        form = ClaimForm(
+            user=request.user,
+        )
 
-    # ------------------------------------------------------------------
-    # Render page
-    # ------------------------------------------------------------------
+        bank_details_form = (
+            ClaimBankDetailsForm()
+        )
+
+        declaration_form = (
+            ClaimSubmissionDeclarationForm()
+        )
+
+    # ==========================================================
+    # RENDER
+    # ==========================================================
+
     return render(
         request,
         "members/claims/members_create_claim.html",
         {
             "form": form,
+            "bank_details_form": bank_details_form,
+            "declaration_form": declaration_form,
         },
     )
 
@@ -249,6 +445,6 @@ def members_claim_detail(request, pk):
         request,
         "members/claims/members_claims_detail.html",
         {
-            "claim": claim  # ✅ CORRECT DICT
+            "claim": claim
         },
     )

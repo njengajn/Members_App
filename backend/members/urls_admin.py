@@ -38,7 +38,7 @@ from backend.members.views_admin.admin_members import (
 )
 
 # CLAIMS
-from backend.members.views_admin.admin_claims import approve_claim, claim_detail_admin, claim_lifecycle_view, claims_list_admin, reject_claim
+from backend.members.views_admin.admin_claims import approve_claim, claim_detail_admin, claim_lifecycle_view, claims_list_admin, reject_claim, review_rejection
 from backend.members.views_admin.admin_claims import (
     approve_claim_view,
 )
@@ -117,7 +117,6 @@ from backend.members.views_admin.admin_audit import admin_audit_logs, export_aud
 from backend.members.views_admin.admin_security import admin_security_dashboard
 from backend.members.views_admin.member_actions import restore_member, restore_member_view, retire_member_view
 from backend.members.views_admin import claim_settlement
-from django.urls import path
 
 
 from backend.members.views_admin.admin_treasurer_dashboard import (
@@ -194,11 +193,9 @@ urlpatterns = [
     path("claims/", claims_list_admin, name="admin_claims_list"),
     path("claims/<int:claim_id>/approve/", approve_claim, name="approve_claim"),
     
-    
-    path("claims/", claims_list_admin, name="admin_claims_list"),
     path("claims/<int:claim_id>/", claim_detail_admin, name="claim_detail"),
-    path("claims/<int:claim_id>/approve/", approve_claim, name="approve_claim"),
     path("claims/<int:claim_id>/reject/", reject_claim, name="reject_claim"),
+    path("claims/<int:claim_id>/rejectionReview/", review_rejection, name="review_rejection"),
     #path("claims/create-admin/", create_payment_request_from_claim, name="admin_create_claim"),
     path("claims/create/", member_create_claim, name="member_create_claim"),
     path("claims/settle/<int:request_id>/", claim_settlement.start_claim_settlement, name="start_claim_settlement",),
@@ -223,7 +220,6 @@ urlpatterns = [
     path("payments/", admin_payments_list, name="payments"),
     path("payments/create/", create_payment_request, name="create_payment_request", ),
     path("payments/<int:pk>/", admin_view_payment_request, name="payment_detail", ),
-    path("payments/create/", create_payment_request, name="create_payment_request"),
     path("payments/", admin_payments_list, name="admin_payments_list"),
     
     path("analytics/", admin_analytics_dashboard, name="admin_analytics_dashboard",),
@@ -236,7 +232,6 @@ urlpatterns = [
 
     path("payments/<int:request_id>/update-status/", update_payment_request_status, name="update_payment_request_status",),
     path("payments/<int:pk>/compliance/", payment_compliance_tracker, name="payment_compliance_tracker",),
-    path("payments/<int:pk>/", admin_view_payment_request, name="payment_detail",),
     
     path("payments/pending/", payments_awaiting_confirmation, name="payments_awaiting_confirmation"),
 
@@ -246,7 +241,6 @@ urlpatterns = [
     path("payments/<int:pk>/confirm/", confirm_manual_payment, name="confirm_manual_payment"),
     path("admin-panel/payments/<int:pk>/approve/", approve_payment, name="approve_payment"),
     path("admin-panel/payments/<int:pk>/reject/", reject_payment, name="reject_payment"),    
-    path("payments/", admin_payments_list, name="admin_payments_list"),
     path("payments/<int:pk>/", admin_payment_request_detail, name="payment_request_detail"),
     path("payments/<int:pk>/edit/", update_payment_request, name="update_payment_request",),
     path("payments/<int:pk>/mark-paid/<int:member_id>/", admin_mark_payment_paid, name="admin_mark_payment_paid",),     
@@ -271,7 +265,6 @@ urlpatterns = [
     path("payments/<int:request_id>/confirm/", confirm_claim_payment, name="confirm_claim_payment",),
     path("payments/<int:pk>/export/", export_payment_members, name="export_payment_members"),
 
-    path("payments/<int:pk>/", admin_view_payment_request, name="payment_detail",),
     path("payments/<int:pk>/export/", export_payment_compliance_csv, name="export_payment_compliance_csv",),
     path("treasurer/", treasurer_dashboard, name="treasurer_dashboard"),
     path("treasurer/risk-monitor/", financial_risk_monitor,name="financial_risk_monitor"),
@@ -315,7 +308,6 @@ urlpatterns = [
     path("documents/<int:pk>/approve/", approve_document, name="approve_document"),
     path("documents/<int:pk>/reject/", reject_document, name="reject_document"),
     
-    path("admin/documents/", document_dashboard, name="admin_documents"),
 
     path("admin/documents/member/<int:member_id>/", admin_documents_list, name="admin_documents_list"),
     
@@ -345,7 +337,6 @@ urlpatterns = [
     # DOCUMENT DASHBOARD
     # =====================================================
 
-    path("admin/documents/", document_dashboard, name="admin_documents",),
 
     # =====================================================
     # MEMBER DOCUMENTS PAGE
@@ -381,13 +372,11 @@ urlpatterns = [
     # DOCUMENT DASHBOARD
     # =====================================================
 
-    path("admin/documents/", document_dashboard, name="admin_documents",),
 
     # =====================================================
     # MEMBER DOCUMENTS PAGE
     # =====================================================
 
-    path("admin/documents/member/<int:member_id>/", admin_documents_list, name="admin_documents_list",),
 
     # =====================================================
     # DOCUMENT REVIEW
@@ -407,7 +396,6 @@ urlpatterns = [
     # REQUEST DOCUMENT
     # =====================================================
 
-    path("admin/documents/request/<int:member_id>/", request_document, name="request_document",),
     
     path("documents/<int:document_id>/archive/", archive_document,name="archive_document",),
     path("documents/<int:document_id>/restore/",restore_document, name="restore_document",),
@@ -424,8 +412,6 @@ urlpatterns = [
     # SECURE DOCUMENT PREVIEW
     # =========================================================
 
-    path("documents/<int:document_id>/preview/", admin_document_preview,
-        name="admin_document_preview",),
     # =========================================================
     # SECURE ADMIN DOCUMENT FILE
     # =========================================================

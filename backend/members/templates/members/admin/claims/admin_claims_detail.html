@@ -1,121 +1,3219 @@
 {% extends "members/admin/admin_base.html" %}
+{% load static %}
+
+{% block title %}
+Claim Details
+{% endblock %}
+
+
 {% block content %}
-<div class="container mt-4">
-  <h3>Claim Details</h3>
-  <!-- ============================= -->
-  <!-- BASIC INFO -->
-  <!-- ============================= -->
-  <div class="card p-3 mb-3">
-    <p><strong>Claim ID:</strong> {{ claim.id }}</p>
-    <p>
-      <strong>Member:</strong>
-      {{ claim.member.first_name }} {{ claim.member.surname }}
-    </p>
-    <p>
-      <strong>Causer (Affected Person):</strong>
-      {% if claim.causer_dependant %}
-        {{ claim.causer_dependant.first_name }} {{ claim.causer_dependant.surname }}
-      {% else %}
-        {{ claim.member.first_name }} {{ claim.member.surname }}
-      {% endif %}
-    </p>
-    <p>
-      <strong>Type:</strong>
-      {% if claim.causer_dependant %}
-        Dependant Claim
-      {% else %}
-        Member Claim
-      {% endif %}
-    </p>
-    <p>
-      <strong>Status:</strong>
-      <span class="badge bg-info">{{ claim.status }}</span>
-    </p>
-    <p>
-      <strong>Submitted On:</strong>
-      {{ claim.created_at }}
-    </p>
-  </div>
-  <!-- ============================= -->
-  <!-- DESCRIPTION -->
-  <!-- ============================= -->
-  {% if claim.description %}
-  <div class="card p-3 mb-3">
-    <h5>Description</h5>
-    <p>{{ claim.description }}</p>
-  </div>
-  {% endif %}
-  <!-- ============================= -->
-  <!-- DOCUMENTS (IF ANY) -->
-  <!-- ============================= -->
-  {% if claim.documents.all %}
-  <div class="card p-3 mb-3">
-    <h5>Documents</h5>
 
-    <ul class="list-group">
-      {% for doc in claim.documents.all %}
-      <li class="list-group-item">
-        <a
-            href="{% url 'members_admin:admin_document_file' doc.id %}"
-            target="_blank"
-        >
-            View Document
-        </a>
-      </li>
-      {% endfor %}
-    </ul>
-  </div>
-  {% endif %}
-  <!-- ============================= -->
-  <!-- ACTIONS -->
-  <!-- ============================= -->
-  <div class="card p-3">
+<div class="container-fluid py-4">
 
-    <h5>Actions</h5>
-    <!-- APPROVE / REJECT -->
-    {% if claim.status == "received" %}
-      <a href="{% url 'members_admin:approve_claim' claim.id %}"
-         class="btn btn-success">
-         Approve Claim
-      </a>
-      <a href="{% url 'members_admin:reject_claim' claim.id %}"
-         class="btn btn-danger">
-         Reject Claim
-      </a>
+
+    <!-- ===================================================== -->
+    <!-- PAGE HEADER -->
+    <!-- ===================================================== -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+
+        <div>
+
+            <h2 class="mb-1">
+
+                Claim Details
+
+            </h2>
+
+
+            <p class="text-muted mb-0">
+
+                Review claim information and supporting
+                documentation.
+
+            </p>
+
+        </div>
+
+
+        <div>
+
+            <a
+                href="{% url 'members_admin:admin_claims_list' %}"
+                class="btn btn-outline-secondary"
+            >
+
+                Back to Claims
+
+            </a>
+
+        </div>
+
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- DJANGO MESSAGES -->
+    <!-- ===================================================== -->
+
+    {% if messages %}
+
+        {% for message in messages %}
+
+            <div
+                class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show"
+                role="alert"
+            >
+
+                {{ message }}
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                ></button>
+
+            </div>
+
+        {% endfor %}
+
     {% endif %}
-    <!-- CREATE PAYMENT -->
-    {% if claim.status == "approved" %}
-      <a href="{% url 'members_admin:create_payment_request' %}?claim={{ claim.id }}"
-         class="btn btn-primary">
-         Create Payment Request
-      </a>
-    {% endif %}
-    {% if payment_request %}
 
-<div class="card p-3 mt-4">
 
-  <h5>Payment Analytics</h5>
+    <!-- ===================================================== -->
+    <!-- CLAIM STATUS -->
+    <!-- ===================================================== -->
 
-  <p><strong>Members Paid:</strong> {{ paid_count }} / {{ total }}</p>
+    <!-- ===================================================== -->
+    <!-- CLAIM STATUS -->
+    <!-- ===================================================== -->
 
-  <p><strong>Total Collected:</strong> {{ total_paid_amount }}</p>
+    <div class="card mb-4">
 
-  <!-- CLICKABLE -->
-  <a href="{% url 'members_admin:payment_request_detail' payment_request.id %}"
-     class="btn btn-info btn-sm">
-     View Members Breakdown
-  </a>
+        <div class="card-body">
+
+
+            <div class="row align-items-center">
+
+
+                <div class="col-md-8">
+
+                    <h4 class="mb-1">
+
+                        Claim ID:
+
+                        {{ claim.id }}
+
+                    </h4>
+
+
+                    <p class="text-muted mb-0">
+
+                        Submitted:
+
+                        {{ claim.created_at|date:"d M Y H:i" }}
+
+                    </p>
+
+                </div>
+
+
+                <div
+                    class="col-md-4 text-md-end mt-3 mt-md-0"
+                >
+
+
+                    {% if claim.status == "received" %}
+
+                        <span class="badge bg-secondary fs-6">
+
+                            Received
+
+                        </span>
+
+
+                    {% elif claim.status == "open" %}
+
+                        <span class="badge bg-primary fs-6">
+
+                            Open
+
+                        </span>
+
+
+                    {% elif claim.status == "approved" %}
+
+                        <span class="badge bg-success fs-6">
+
+                            Approved
+
+                        </span>
+
+
+                    {% elif claim.status == "rejected" %}
+
+                        <span class="badge bg-danger fs-6">
+
+                            Rejected
+
+                        </span>
+
+
+                    {% elif claim.status == "settled" %}
+
+                        <span class="badge bg-dark fs-6">
+
+                            Settled
+
+                        </span>
+
+
+                    {% else %}
+
+                        <span class="badge bg-secondary fs-6">
+
+                            {{ claim.get_status_display }}
+
+                        </span>
+
+                    {% endif %}
+
+
+                </div>
+
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+
+    <div class="row">
+
+
+        <!-- ================================================= -->
+        <!-- LEFT COLUMN -->
+        <!-- ================================================= -->
+
+        <div class="col-lg-7">
+
+
+            <!-- ============================================= -->
+            <!-- CLAIM INFORMATION -->
+            <!-- ============================================= -->
+
+            <div class="card mb-4">
+
+
+                <div class="card-header">
+
+                    <h5 class="mb-0">
+
+                        Claim Information
+
+                    </h5>
+
+                </div>
+
+
+                <div class="card-body">
+
+
+                    <div class="row mb-3">
+
+
+                        <div class="col-md-6">
+
+                            <strong>
+
+                                Member
+
+                            </strong>
+
+
+                            <div>
+
+                                {% if claim.member %}
+
+                                    {{ claim.member.full_name }}
+
+                                {% else %}
+
+                                    -
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <strong>
+
+                                Member UID
+
+                            </strong>
+
+
+                            <div>
+
+                                {% if claim.member %}
+
+                                    {{ claim.member.member_uid }}
+
+                                {% else %}
+
+                                    -
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+
+                    </div>
+
+
+                    <hr>
+
+
+                    <div class="row mb-3">
+
+
+                        <div class="col-md-6">
+
+                            <strong>
+
+                                Causer Type
+
+                            </strong>
+
+
+                            <div>
+
+                                {{ claim.get_cause_type_display }}
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ===================================================== -->
+                        <!-- CAUSER -->
+                        <!-- ===================================================== -->
+                        <div class="col-md-6">
+
+                            <strong>
+                                Causer
+                            </strong>
+
+                            <div>
+                                {% if claim.cause_type == "dependant" and claim.causer_dependant %}
+
+                                    <!-- Dependant causer: show name and relationship to member. -->
+                                    Dependant:
+                                    {{ claim.causer_dependant.first_name }}
+                                    {{ claim.causer_dependant.surname }}
+
+                                    {% if claim.causer_dependant.relationship %}
+                                        ({{ claim.causer_dependant.get_relationship_display|default:claim.causer_dependant.relationship }})
+                                    {% endif %}
+
+                                {% else %}
+
+                                    <!-- Member causer: the relationship is always Member. -->
+                                    Member:
+                                    {% if claim.member %}
+                                        {{ claim.member.first_name }}
+                                        {{ claim.member.surname }}
+                                    {% else %}
+                                        {{ claim.causer_full_name|default:"-" }}
+                                    {% endif %}
+                                    (Member)
+
+                                {% endif %}
+                            </div>
+
+                        </div>
+
+                    <hr>
+
+
+                    <div class="row mb-3">
+
+
+                        <div class="col-md-6">
+
+                            <strong>
+
+                                Claimer
+
+                            </strong>
+
+
+                            <div>
+
+                                {{ claim.claimer|default:"-" }}
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <strong>
+
+                                Created By
+
+                            </strong>
+
+
+                            <div>
+
+                                {% if claim.created_by %}
+
+                                    {{ claim.created_by }}
+
+                                {% else %}
+
+                                    -
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+
+                    </div>
+
+
+                    {% if claim.causer_dependant %}
+
+                        <hr>
+
+
+                        <div class="row">
+
+
+                            <div class="col-md-6">
+
+                                <strong>
+
+                                    Dependant
+
+                                </strong>
+
+
+                                <div>
+
+                                    {{ claim.causer_dependant.full_name }}
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <strong>
+
+                                    Dependant Status
+
+                                </strong>
+
+
+                                <div>
+
+                                    {{ claim.causer_dependant.status }}
+
+                                </div>
+
+                            </div>
+
+
+                        </div>
+
+
+                    {% endif %}
+
+
+                </div>
+
+            </div>
+
+
+            <!-- ============================================= -->
+            <!-- BANK DETAILS -->
+            <!-- ============================================= -->
+
+            <div class="card mb-4">
+
+
+                <div class="card-header d-flex justify-content-between align-items-center">
+
+
+                    <h5 class="mb-0">
+
+                        Bank Details
+
+                    </h5>
+
+
+                    {% if bank_details %}
+
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary"
+                            id="toggleAccountNumber"
+                        >
+
+                            Show Account Number
+
+                        </button>
+
+                    {% endif %}
+
+
+                </div>
+
+
+                <div class="card-body">
+
+
+                    {% if bank_details %}
+
+
+                        <div class="row mb-3">
+
+
+                            <div class="col-md-6">
+
+                                <strong>
+
+                                    Bank Name
+
+                                </strong>
+
+
+                                <div>
+
+                                    {{ bank_details.bank_name }}
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <strong>
+
+                                    Account Name
+
+                                </strong>
+
+
+                                <div>
+
+                                    {{ bank_details.account_name }}
+
+                                </div>
+
+                            </div>
+
+
+                        </div>
+
+
+                        <hr>
+
+
+                        <div class="row mb-3">
+
+
+                            <div class="col-md-6">
+
+                                <strong>
+
+                                    Sort Code
+
+                                </strong>
+
+
+                                <div>
+
+                                    {{ bank_details.sort_code }}
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <strong>
+
+                                    Account Number
+
+                                </strong>
+
+
+                                <div>
+
+
+                                    <!-- ===================== -->
+                                    <!-- MASKED VALUE -->
+                                    <!-- ===================== -->
+
+                                    <span
+                                        id="maskedAccountNumber"
+                                    >
+
+                                        ********
+
+                                    </span>
+
+
+                                    <!-- ===================== -->
+                                    <!-- REAL VALUE -->
+                                    <!-- Hidden by default -->
+                                    <!-- ===================== -->
+
+                                    <span
+                                        id="actualAccountNumber"
+                                        style="display: none;"
+                                    >
+
+                                        {{ bank_details.account_number }}
+
+                                    </span>
+
+
+                                </div>
+
+                            </div>
+
+
+                        </div>
+
+
+                        <hr>
+
+
+                        <div class="row">
+
+
+                            <div class="col-md-6">
+
+                                <strong>
+
+                                    Date Account Opened
+
+                                </strong>
+
+
+                                <div>
+
+                                    {{ bank_details.account_opened_date|date:"d M Y" }}
+
+                                </div>
+
+                            </div>
+
+
+                        </div>
+
+
+                    {% else %}
+
+
+                        <div class="text-muted">
+
+                            No bank details have been provided.
+
+                        </div>
+
+
+                    {% endif %}
+
+
+                </div>
+
+            </div>
+
+
+            <!-- ============================================= -->
+            <!-- CLAIMANT DECLARATION -->
+            <!-- ============================================= -->
+
+            <div class="card mb-4">
+
+                <div class="card-header">
+
+                    <h5 class="mb-0">
+
+                        Claimant Declaration
+
+                    </h5>
+
+                </div>
+
+
+                <div class="card-body">
+
+
+                    {% if submission_declaration %}
+
+
+                        <!-- ========================================= -->
+                        <!-- DEPENDANT-CAUSER CLAIM -->
+                        <!-- ========================================= -->
+
+                        {% if claim.cause_type == "dependant" %}
+
+
+                            <!-- ===================================== -->
+                            <!-- CONFIRMATION STATEMENT -->
+                            <!-- ===================================== -->
+
+                            <div class="mb-4">
+
+
+                                <h6>
+
+                                    Confirmation Statement
+
+                                </h6>
+
+
+                                <p class="mb-0">
+
+                                    I hereby report to you that
+                                    I have been bereaved, and I
+                                    would like to request support
+                                    from the Kenya Reading
+                                    Organisation Welfare group
+                                    (KROWG). I am fully aware
+                                    that any support accorded to
+                                    me by members is contingent
+                                    upon my continued membership,
+                                    and if my membership ceases,
+                                    I will be required to return
+                                    all the funds given to me.
+
+                                </p>
+
+
+                            </div>
+
+
+                            <hr>
+
+
+                            <!-- ===================================== -->
+                            <!-- DEPENDANT DECLARATION 1 -->
+                            <!-- ===================================== -->
+
+                            <div class="mb-3">
+
+
+                                <strong>
+
+                                    1.
+
+                                </strong>
+
+
+                                I have read and understood the
+                                content and meaning of the
+                                confirmation statement in this
+                                form and so declare.
+
+
+                                <div class="mt-2">
+
+
+                                    {% if submission_declaration.confirmation_understood %}
+
+                                        <span class="badge bg-success">
+
+                                            Confirmed
+
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="badge bg-danger">
+
+                                            Not Confirmed
+
+                                        </span>
+
+                                    {% endif %}
+
+
+                                </div>
+
+
+                            </div>
+
+
+                            <!-- ===================================== -->
+                            <!-- DEPENDANT DECLARATION 2 -->
+                            <!-- ===================================== -->
+
+                            <div>
+
+
+                                <strong>
+
+                                    2.
+
+                                </strong>
+
+
+                                I have checked the details herein
+                                and confirmed the same to be true.
+
+
+                                <div class="mt-2">
+
+
+                                    {% if submission_declaration.details_confirmed %}
+
+                                        <span class="badge bg-success">
+
+                                            Confirmed
+
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="badge bg-danger">
+
+                                            Not Confirmed
+
+                                        </span>
+
+                                    {% endif %}
+
+
+                                </div>
+
+
+                            </div>
+
+
+                        <!-- ========================================= -->
+                        <!-- MEMBER-CAUSER CLAIM -->
+                        <!-- ========================================= -->
+
+                        {% elif claim.cause_type == "member" %}
+
+
+                            <!-- ===================================== -->
+                            <!-- MEMBER DECLARATION 1 -->
+                            <!-- ===================================== -->
+
+                            <div class="mb-3">
+
+
+                                <strong>
+
+                                    1.
+
+                                </strong>
+
+
+                                I have contacted the next of Kin,
+                                and this confirms next of Kin is
+                                aware of and in agreement with
+                                the details in this claim.
+
+
+                                <div class="mt-2">
+
+
+                                    {% if submission_declaration.next_of_kin_contacted %}
+
+                                        <span class="badge bg-success">
+
+                                            Confirmed
+
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="badge bg-danger">
+
+                                            Not Confirmed
+
+                                        </span>
+
+                                    {% endif %}
+
+
+                                </div>
+
+
+                            </div>
+
+
+                            <hr>
+
+
+                            <!-- ===================================== -->
+                            <!-- MEMBER DECLARATION 2 -->
+                            <!-- ===================================== -->
+
+                            <div>
+
+
+                                <strong>
+
+                                    2.
+
+                                </strong>
+
+
+                                I have checked the details herein
+                                and confirmed the same to be true.
+
+
+                                <div class="mt-2">
+
+
+                                    {% if submission_declaration.details_confirmed %}
+
+                                        <span class="badge bg-success">
+
+                                            Confirmed
+
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="badge bg-danger">
+
+                                            Not Confirmed
+
+                                        </span>
+
+                                    {% endif %}
+
+
+                                </div>
+
+
+                            </div>
+
+
+                        {% endif %}
+
+
+                    {% else %}
+
+
+                        <div class="text-muted">
+
+                            No claimant declaration was found.
+
+                        </div>
+
+
+                    {% endif %}
+
+
+                </div>
+
+            </div>
+
+            <!-- ============================================= -->
+            <!-- SUPPORTING DOCUMENTS -->
+            <!-- ============================================= -->
+
+            <div class="card mb-4">
+
+                <div class="card-header d-flex justify-content-between align-items-center">
+
+                    <h5 class="mb-0">
+
+                        Supporting Documents
+
+                    </h5>
+
+                    {% if documents %}
+
+                        <span class="badge bg-secondary">
+
+                            {{ documents|length }}
+
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+
+                <div class="card-body">
+
+
+                    {% if documents %}
+
+
+                        <div class="row g-3">
+
+
+                            {% for document in documents %}
+
+
+                                <div class="col-12 col-sm-6 col-lg-4">
+
+
+                                    <div
+                                        class="card h-100 border"
+                                    >
+
+
+                                        <!-- ========================= -->
+                                        <!-- DOCUMENT PREVIEW -->
+                                        <!-- ========================= -->
+
+                                        <div
+                                            class="border-bottom"
+                                        >
+
+
+                                            {% if document.thumbnail %}
+
+
+                                                <button
+                                                    type="button"
+                                                    class="btn p-0 w-100"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#documentPreviewModal"
+                                                    data-document-title="{{ document.title|default:'Supporting Document' }}"
+                                                    data-document-file="{% url 'members_admin:admin_document_file' document.id %}"
+                                                    data-document-preview="{% url 'members_admin:admin_document_preview' document.id %}"
+                                                    data-document-type="{% if document.file.name|lower|slice:'-4:' == '.pdf' %}pdf{% elif document.file.name|lower|slice:'-4:' == '.jpg' or document.file.name|lower|slice:'-5:' == '.jpeg' or document.file.name|lower|slice:'-4:' == '.png' or document.file.name|lower|slice:'-5:' == '.webp' %}image{% else %}file{% endif %}"
+                                                >
+
+
+                                                    <img
+                                                        src="{% url 'members_admin:admin_document_thumbnail' document.id %}"
+                                                        alt="{{ document.title|default:'Supporting document' }}"
+                                                        class="img-fluid w-100"
+                                                        style="
+                                                            height: 180px;
+                                                            object-fit: cover;
+                                                        "
+                                                    >
+
+
+                                                </button>
+
+
+                                            {% else %}
+
+
+                                                <!-- ===================== -->
+                                                <!-- NO THUMBNAIL / FILE ICON -->
+                                                <!-- ===================== -->
+
+                                                <div
+                                                    class="
+                                                        d-flex
+                                                        align-items-center
+                                                        justify-content-center
+                                                        bg-light
+                                                    "
+                                                    style="height: 180px;"
+                                                >
+
+
+                                                    {% if document.file.name|lower|slice:"-4:" == ".pdf" %}
+
+
+                                                        <div
+                                                            class="text-center"
+                                                        >
+
+                                                            <i
+                                                                class="
+                                                                    bi
+                                                                    bi-file-earmark-pdf
+                                                                    fs-1
+                                                                    text-danger
+                                                                "
+                                                            ></i>
+
+                                                            <div
+                                                                class="small mt-2"
+                                                            >
+
+                                                                PDF Document
+
+                                                            </div>
+
+                                                        </div>
+
+
+                                                    {% else %}
+
+
+                                                        <div
+                                                            class="text-center"
+                                                        >
+
+                                                            <i
+                                                                class="
+                                                                    bi
+                                                                    bi-file-earmark
+                                                                    fs-1
+                                                                    text-secondary
+                                                                "
+                                                            ></i>
+
+                                                            <div
+                                                                class="small mt-2"
+                                                            >
+
+                                                                Supporting Document
+
+                                                            </div>
+
+                                                        </div>
+
+
+                                                    {% endif %}
+
+
+                                                </div>
+
+
+                                            {% endif %}
+
+
+                                        </div>
+
+
+                                        <!-- ========================= -->
+                                        <!-- DOCUMENT INFORMATION -->
+                                        <!-- ========================= -->
+
+                                        <div
+                                            class="card-body"
+                                        >
+
+
+                                            <h6
+                                                class="
+                                                    card-title
+                                                    text-break
+                                                "
+                                            >
+
+
+                                                {% if document.title %}
+
+                                                    {{ document.title }}
+
+                                                {% elif document.original_filename %}
+
+                                                    {{ document.original_filename }}
+
+                                                {% else %}
+
+                                                    Supporting Document
+                                                    {{ forloop.counter }}
+
+                                                {% endif %}
+
+
+                                            </h6>
+
+
+                                            {% if document.original_filename %}
+
+
+                                                <div
+                                                    class="
+                                                        small
+                                                        text-muted
+                                                        text-break
+                                                        mb-2
+                                                    "
+                                                >
+
+                                                    {{ document.original_filename }}
+
+                                                </div>
+
+
+                                            {% endif %}
+
+
+                                            {% if document.description %}
+
+
+                                                <p
+                                                    class="
+                                                        small
+                                                        text-muted
+                                                        mb-2
+                                                    "
+                                                >
+
+                                                    {{ document.description }}
+
+                                                </p>
+
+
+                                            {% endif %}
+
+
+                                            {% if document.uploaded_at %}
+
+
+                                                <div
+                                                    class="
+                                                        small
+                                                        text-muted
+                                                    "
+                                                >
+
+                                                    Uploaded:
+
+                                                    {{ document.uploaded_at|date:"d M Y H:i" }}
+
+                                                </div>
+
+
+                                            {% endif %}
+
+
+                                        </div>
+
+
+                                        <!-- ========================= -->
+                                        <!-- DOCUMENT ACTIONS -->
+                                        <!-- ========================= -->
+
+                                        <div
+                                            class="
+                                                card-footer
+                                                bg-white
+                                            "
+                                        >
+
+
+                                            <div
+                                                class="
+                                                    d-grid
+                                                    gap-2
+                                                "
+                                            >
+
+
+                                                <!-- VIEW -->
+
+                                                <button
+                                                    type="button"
+                                                    class="
+                                                        btn
+                                                        btn-sm
+                                                        btn-outline-primary
+                                                    "
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#documentPreviewModal"
+                                                    data-document-title="{{ document.title|default:'Supporting Document' }}"
+                                                    data-document-file="{% url 'members_admin:admin_document_file' document.id %}"
+                                                    data-document-preview="{% url 'members_admin:admin_document_preview' document.id %}"
+                                                    data-document-type="{% if document.file.name|lower|slice:'-4:' == '.pdf' %}pdf{% elif document.file.name|lower|slice:'-4:' == '.jpg' or document.file.name|lower|slice:'-5:' == '.jpeg' or document.file.name|lower|slice:'-4:' == '.png' or document.file.name|lower|slice:'-5:' == '.webp' %}image{% else %}file{% endif %}"
+                                                >
+
+                                                    <i
+                                                        class="bi bi-eye"
+                                                    ></i>
+
+                                                    View Document
+
+                                                </button>
+
+
+                                                <!-- OPEN SECURE FILE -->
+
+                                                <a
+                                                    href="{% url 'members_admin:admin_document_file' document.id %}"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                    class="
+                                                        btn
+                                                        btn-sm
+                                                        btn-outline-secondary
+                                                    "
+                                                >
+
+                                                    <i
+                                                        class="bi bi-box-arrow-up-right"
+                                                    ></i>
+
+                                                    Open
+
+                                                </a>
+
+
+                                            </div>
+
+
+                                        </div>
+
+
+                                    </div>
+
+
+                                </div>
+
+
+                            {% endfor %}
+
+
+                        </div>
+
+
+                    {% else %}
+
+
+                        <div
+                            class="
+                                text-center
+                                text-muted
+                                py-4
+                            "
+                        >
+
+
+                            <i
+                                class="
+                                    bi
+                                    bi-file-earmark
+                                    fs-2
+                                "
+                            ></i>
+
+
+                            <p class="mb-0 mt-2">
+
+                                No supporting documents have been uploaded.
+
+                            </p>
+
+
+                        </div>
+
+
+                    {% endif %}
+
+
+                </div>
+
+
+            </div>
+
+
+        <!-- ================================================= -->
+        <!-- RIGHT COLUMN -->
+        <!-- ================================================= -->
+
+        <div class="col-lg-5">
+
+
+            <!-- ============================================= -->
+            <!-- REJECTION INFORMATION -->
+            <!-- ============================================= -->
+
+            {% if claim.status == "rejected" %}
+
+
+                <div class="card border-danger mb-4">
+
+
+                    <div class="card-header bg-danger text-white">
+
+                        <h5 class="mb-0">
+
+                            Claim Rejected
+
+                        </h5>
+
+                    </div>
+
+
+                    <div class="card-body">
+
+
+                        <h6>
+
+                            Rejection Reason
+
+                        </h6>
+
+
+                        {% if claim.rejection_reason %}
+
+                            <p>
+
+                                {{ claim.rejection_reason|linebreaksbr }}
+
+                            </p>
+
+                        {% else %}
+
+                            <p class="text-muted">
+
+                                No rejection reason was recorded.
+
+                            </p>
+
+                        {% endif %}
+
+
+                        <hr>
+
+
+                        <p class="mb-3">
+
+                            A rejection is not permanent.
+
+                            The claim can be reopened for
+                            review when additional documents
+                            or corrected information become
+                            available.
+
+                        </p>
+
+
+                        <button
+                            type="button"
+                            class="btn btn-warning"
+                            data-bs-toggle="modal"
+                            data-bs-target="#reviewRejectionModal"
+                        >
+
+                            Review Rejection
+
+                        </button>
+
+
+                    </div>
+
+                </div>
+
+
+            {% endif %}
+
+
+            <!-- ============================================= -->
+            <!-- EXISTING APPROVAL VERIFICATION -->
+            <!-- ============================================= -->
+
+            {% if approval_verification %}
+
+
+                <div class="card mb-4">
+
+
+                    <div class="card-header bg-light">
+
+                        <h5 class="mb-0">
+
+                            Approval Verification
+
+                        </h5>
+
+                    </div>
+
+
+                    <div class="card-body">
+
+
+                        <!-- ================================= -->
+                        <!-- DETAILS MATCH -->
+                        <!-- ================================= -->
+
+                        <div class="mb-3">
+
+
+                            <strong>
+
+                                Details match KRO welfare record
+
+                            </strong>
+
+
+                            <div class="mt-1">
+
+
+                                {% if approval_verification.details_match_welfare_record %}
+
+                                    <span class="badge bg-success">
+
+                                        Yes
+
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge bg-danger">
+
+                                        No
+
+                                    </span>
+
+                                {% endif %}
+
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ================================= -->
+                        <!-- TELEPHONE MATCH -->
+                        <!-- ================================= -->
+
+                        <div class="mb-3">
+
+
+                            <strong>
+
+                                Telephone matches record
+
+                            </strong>
+
+
+                            <div class="mt-1">
+
+
+                                {% if approval_verification.telephone_matches_record %}
+
+                                    <span class="badge bg-success">
+
+                                        Yes
+
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge bg-danger">
+
+                                        No
+
+                                    </span>
+
+                                {% endif %}
+
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ================================= -->
+                        <!-- CONFIRMATION METHOD -->
+                        <!-- ================================= -->
+
+                        <div class="mb-3">
+
+
+                            <strong>
+
+                                Details Confirmed Via
+
+                            </strong>
+
+
+                            <div class="mt-1">
+
+                                {{ approval_verification.get_confirmation_method_display }}
+
+                            </div>
+
+
+                            {% if approval_verification.confirmation_method_other %}
+
+                                <div class="mt-1 text-muted">
+
+                                    {{ approval_verification.confirmation_method_other }}
+
+                                </div>
+
+                            {% endif %}
+
+
+                        </div>
+
+
+                        <!-- ================================= -->
+                        <!-- FINAL DECLARATION -->
+                        <!-- ================================= -->
+
+                        <div class="mb-3">
+
+
+                            <strong>
+
+                                Information Correct
+
+                            </strong>
+
+
+                            <div class="mt-1">
+
+
+                                {% if approval_verification.information_correct_declaration %}
+
+                                    <span class="badge bg-success">
+
+                                        Yes
+
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge bg-danger">
+
+                                        No
+
+                                    </span>
+
+                                {% endif %}
+
+
+                            </div>
+
+                        </div>
+
+
+                        <hr>
+
+
+                        <!-- ================================= -->
+                        <!-- VERIFIED BY -->
+                        <!-- ================================= -->
+
+                        {% if approval_verification.verified_by %}
+
+
+                            <div class="small text-muted">
+
+
+                                Verified by:
+
+                                {{ approval_verification.verified_by }}
+
+
+                                {% if approval_verification.verified_at %}
+
+                                    <br>
+
+                                    Verified:
+
+                                    {{ approval_verification.verified_at|date:"d M Y H:i" }}
+
+                                {% endif %}
+
+
+                            </div>
+
+
+                        {% endif %}
+
+
+                    </div>
+
+                </div>
+
+
+            {% endif %}
+
+
+            <!-- ============================================= -->
+            <!-- CLAIM DECISION -->
+            <!-- ============================================= -->
+
+            {% if claim.status == "received" or claim.status == "open" %}
+
+
+                <div class="card mb-4">
+
+
+                    <div class="card-header">
+
+                        <h5 class="mb-0">
+
+                            Verify and Decide
+
+                        </h5>
+
+                    </div>
+
+
+                    <div class="card-body">
+
+
+                        <form
+                            id="claimVerificationForm"
+                            method="post"
+                            action=""
+                        >
+
+                            {% csrf_token %}
+
+
+                            <!-- ================================= -->
+                            <!-- HIDDEN ACTION CONFIRMATIONS -->
+                            <!-- ================================= -->
+
+                            <input
+                                type="hidden"
+                                id="approval_confirmed"
+                                name="approval_confirmed"
+                                value=""
+                            >
+
+
+                            <input
+                                type="hidden"
+                                id="rejection_confirmed"
+                                name="rejection_confirmed"
+                                value=""
+                            >
+
+
+                            <!-- ================================= -->
+                            <!-- NON-FIELD ERRORS -->
+                            <!-- ================================= -->
+
+                            {% if verification_form.non_field_errors %}
+
+                                <div class="alert alert-danger">
+
+                                    {{ verification_form.non_field_errors }}
+
+                                </div>
+
+                            {% endif %}
+
+
+                            <!-- ================================= -->
+                            <!-- QUESTION ONE -->
+                            <!-- ================================= -->
+
+                            <div class="mb-4">
+
+
+                                <label class="form-label">
+
+                                    <strong>
+
+                                        Details in this form
+                                        match current details
+                                        in KRO welfare record.
+
+                                    </strong>
+
+                                </label>
+
+
+                                {% for radio in verification_form.details_match_welfare_record %}
+
+
+                                    <div class="form-check">
+
+
+                                        {{ radio.tag }}
+
+
+                                        <label
+                                            class="form-check-label"
+                                            for="{{ radio.id_for_label }}"
+                                        >
+
+                                            {{ radio.choice_label }}
+
+                                        </label>
+
+
+                                    </div>
+
+
+                                {% endfor %}
+
+
+                                {% if verification_form.details_match_welfare_record.errors %}
+
+                                    <div class="text-danger small mt-1">
+
+                                        {{ verification_form.details_match_welfare_record.errors }}
+
+                                    </div>
+
+                                {% endif %}
+
+
+                            </div>
+
+
+                            <!-- ================================= -->
+                            <!-- QUESTION TWO -->
+                            <!-- ================================= -->
+
+                            <div class="mb-4">
+
+
+                                <label class="form-label">
+
+                                    <strong>
+
+                                        Telephone number matches
+                                        the number on record and
+                                        has not been recently
+                                        changed.
+
+                                    </strong>
+
+                                </label>
+
+
+                                {% for radio in verification_form.telephone_matches_record %}
+
+
+                                    <div class="form-check">
+
+
+                                        {{ radio.tag }}
+
+
+                                        <label
+                                            class="form-check-label"
+                                            for="{{ radio.id_for_label }}"
+                                        >
+
+                                            {{ radio.choice_label }}
+
+                                        </label>
+
+
+                                    </div>
+
+
+                                {% endfor %}
+
+
+                                {% if verification_form.telephone_matches_record.errors %}
+
+                                    <div class="text-danger small mt-1">
+
+                                        {{ verification_form.telephone_matches_record.errors }}
+
+                                    </div>
+
+                                {% endif %}
+
+
+                            </div>
+
+
+                            <!-- ================================= -->
+                            <!-- CONFIRMATION METHOD -->
+                            <!-- ================================= -->
+
+                            <div class="mb-4">
+
+
+                                <label
+                                    for="{{ verification_form.confirmation_method.id_for_label }}"
+                                    class="form-label"
+                                >
+
+                                    <strong>
+
+                                        Details Confirmed Via
+
+                                    </strong>
+
+                                </label>
+
+
+                                {{ verification_form.confirmation_method }}
+
+
+                                {% if verification_form.confirmation_method.errors %}
+
+                                    <div class="text-danger small mt-1">
+
+                                        {{ verification_form.confirmation_method.errors }}
+
+                                    </div>
+
+                                {% endif %}
+
+
+                            </div>
+
+
+                            <!-- ================================= -->
+                            <!-- OTHER METHOD -->
+                            <!-- ================================= -->
+
+                            <div class="mb-4">
+
+
+                                <label
+                                    for="{{ verification_form.confirmation_method_other.id_for_label }}"
+                                    class="form-label"
+                                >
+
+                                    Other
+
+                                </label>
+
+
+                                {{ verification_form.confirmation_method_other }}
+
+
+                                <div class="form-text">
+
+                                    Complete this field when
+                                    "Other" is selected.
+
+                                </div>
+
+
+                                {% if verification_form.confirmation_method_other.errors %}
+
+                                    <div class="text-danger small mt-1">
+
+                                        {{ verification_form.confirmation_method_other.errors }}
+
+                                    </div>
+
+                                {% endif %}
+
+
+                            </div>
+
+
+                            <!-- ================================= -->
+                            <!-- QUESTION THREE -->
+                            <!-- ================================= -->
+
+                            <div class="mb-4">
+
+
+                                <label class="form-label">
+
+                                    <strong>
+
+                                        The information provided
+                                        is correct to the best
+                                        of my knowledge.
+
+                                    </strong>
+
+                                </label>
+
+
+                                {% for radio in verification_form.information_correct_declaration %}
+
+
+                                    <div class="form-check">
+
+
+                                        {{ radio.tag }}
+
+
+                                        <label
+                                            class="form-check-label"
+                                            for="{{ radio.id_for_label }}"
+                                        >
+
+                                            {{ radio.choice_label }}
+
+                                        </label>
+
+
+                                    </div>
+
+
+                                {% endfor %}
+
+
+                                {% if verification_form.information_correct_declaration.errors %}
+
+                                    <div class="text-danger small mt-1">
+
+                                        {{ verification_form.information_correct_declaration.errors }}
+
+                                    </div>
+
+                                {% endif %}
+
+
+                            </div>
+
+
+                            <!-- ================================= -->
+                            <!-- REJECTION REASON -->
+                            <!-- ================================= -->
+
+                            <div class="mb-4">
+
+
+                                <label
+                                    for="rejection_reason"
+                                    class="form-label"
+                                >
+
+                                    <strong>
+
+                                        Rejection Reason
+
+                                    </strong>
+
+                                </label>
+
+
+                                <textarea
+                                    id="rejection_reason"
+                                    name="rejection_reason"
+                                    class="form-control"
+                                    rows="4"
+                                    placeholder="Required when rejecting a claim."
+                                >{{ rejection_reason|default:"" }}</textarea>
+
+
+                                <div class="form-text">
+
+                                    A reason is required when
+                                    rejecting a claim.
+
+                                </div>
+
+
+                            </div>
+
+
+                            <!-- ================================= -->
+                            <!-- ACTION BUTTONS -->
+                            <!-- ================================= -->
+
+                            <div class="d-grid gap-2">
+
+
+                                <button
+                                    type="button"
+                                    class="btn btn-success"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#approveClaimModal"
+                                >
+
+                                    Approve Claim
+
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    class="btn btn-danger"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#rejectClaimModal"
+                                >
+
+                                    Reject Claim
+
+                                </button>
+
+
+                            </div>
+
+
+                        </form>
+
+
+                    </div>
+
+                </div>
+
+
+            {% elif claim.status == "approved" %}
+
+
+                <div class="card border-success mb-4">
+
+
+                    <div class="card-header bg-success text-white">
+
+                        <h5 class="mb-0">
+
+                            Claim Approved
+
+                        </h5>
+
+                    </div>
+
+
+                    <div class="card-body">
+
+
+                        This claim has been approved.
+
+
+                    </div>
+
+                </div>
+
+
+            {% elif claim.status == "settled" %}
+
+
+                <div class="card border-secondary mb-4">
+
+
+                    <div class="card-header bg-secondary text-white">
+
+                        <h5 class="mb-0">
+
+                            Claim Settled
+
+                        </h5>
+
+                    </div>
+
+
+                    <div class="card-body">
+
+
+                        This claim has been settled.
+
+
+                    </div>
+
+                </div>
+
+
+            {% endif %}
+
+
+        </div>
+
+
+    </div>
+
 
 </div>
+
+
+<!-- ========================================================= -->
+<!-- APPROVE CLAIM MODAL -->
+<!-- ========================================================= -->
+
+<div
+    class="modal fade"
+    id="approveClaimModal"
+    tabindex="-1"
+    aria-labelledby="approveClaimModalLabel"
+    aria-hidden="true"
+>
+
+
+    <div class="modal-dialog">
+
+
+        <div class="modal-content">
+
+
+            <div class="modal-header">
+
+
+                <h5
+                    class="modal-title"
+                    id="approveClaimModalLabel"
+                >
+
+                    Confirm Claim Approval
+
+                </h5>
+
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+
+            </div>
+
+
+            <div class="modal-body">
+
+
+                <p>
+
+                    Are you sure you want to approve
+                    this claim?
+
+                </p>
+
+
+                <p class="mb-0">
+
+                    Approval should only proceed when all
+                    three verification statements have been
+                    answered Yes.
+
+                </p>
+
+
+            </div>
+
+
+            <div class="modal-footer">
+
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+
+                    Cancel
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="btn btn-success"
+                    id="finalApproveButton"
+                >
+
+                    Yes, Approve Claim
+
+                </button>
+
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- REJECT CLAIM MODAL -->
+<!-- ========================================================= -->
+
+<div
+    class="modal fade"
+    id="rejectClaimModal"
+    tabindex="-1"
+    aria-labelledby="rejectClaimModalLabel"
+    aria-hidden="true"
+>
+
+
+    <div class="modal-dialog">
+
+
+        <div class="modal-content">
+
+
+            <div class="modal-header">
+
+
+                <h5
+                    class="modal-title"
+                    id="rejectClaimModalLabel"
+                >
+
+                    Confirm Claim Rejection
+
+                </h5>
+
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+
+            </div>
+
+
+            <div class="modal-body">
+
+
+                <p>
+
+                    Are you sure you want to reject
+                    this claim?
+
+                </p>
+
+
+                <p class="mb-0">
+
+                    The rejection reason will be recorded.
+                    The claim may subsequently be reopened
+                    for review.
+
+                </p>
+
+
+            </div>
+
+
+            <div class="modal-footer">
+
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+
+                    Cancel
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="btn btn-danger"
+                    id="finalRejectButton"
+                >
+
+                    Yes, Reject Claim
+
+                </button>
+
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- REVIEW REJECTION MODAL -->
+<!-- ========================================================= -->
+
+{% if claim.status == "rejected" %}
+
+
+    <div
+        class="modal fade"
+        id="reviewRejectionModal"
+        tabindex="-1"
+        aria-labelledby="reviewRejectionModalLabel"
+        aria-hidden="true"
+    >
+
+
+        <div class="modal-dialog">
+
+
+            <div class="modal-content">
+
+
+                <form
+                    method="post"
+                    action="{% url 'members_admin:review_rejection' claim.id %}"
+                >
+
+
+                    {% csrf_token %}
+
+
+                    <div class="modal-header">
+
+
+                        <h5
+                            class="modal-title"
+                            id="reviewRejectionModalLabel"
+                        >
+
+                            Review Rejection
+
+                        </h5>
+
+
+                        <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                        ></button>
+
+
+                    </div>
+
+
+                    <div class="modal-body">
+
+
+                        <p>
+
+                            Reopening the claim will allow
+                            it to be reviewed again.
+
+                        </p>
+
+
+                        <p>
+
+                            The original rejection information
+                            should remain part of the claim
+                            audit history.
+
+                        </p>
+
+
+                        <div class="mb-3">
+
+
+                            <label
+                                for="review_reason"
+                                class="form-label"
+                            >
+
+                                Reason for Reopening Claim
+
+                            </label>
+
+
+                            <textarea
+                                id="review_reason"
+                                name="review_reason"
+                                class="form-control"
+                                rows="4"
+                                required
+                                placeholder="For example: Additional supporting documents have been provided."
+                            ></textarea>
+
+
+                        </div>
+
+
+                        <input
+                            type="hidden"
+                            name="review_confirmed"
+                            value="yes"
+                        >
+
+
+                    </div>
+
+
+                    <div class="modal-footer">
+
+
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal"
+                        >
+
+                            Cancel
+
+                        </button>
+
+
+                        <button
+                            type="submit"
+                            class="btn btn-warning"
+                        >
+
+                            Reopen Claim for Review
+
+                        </button>
+
+
+                    </div>
+
+
+                </form>
+
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
 
 {% endif %}
 
-    <!-- BACK -->
-    <a href="{% url 'members_admin:admin_claims_list' %}"
-       class="btn btn-secondary">
-       Back to Claims
-    </a>
-  
-  </div>
+
+<!-- ========================================================= -->
+<!-- DOCUMENT PREVIEW MODAL -->
+<!-- ========================================================= -->
+
+<div
+    class="modal fade"
+    id="documentPreviewModal"
+    tabindex="-1"
+    aria-labelledby="documentPreviewModalLabel"
+    aria-hidden="true"
+>
+
+
+    <div
+        class="
+            modal-dialog
+            modal-dialog-centered
+            modal-xl
+        "
+    >
+
+
+        <div class="modal-content">
+
+
+            <!-- ============================================= -->
+            <!-- HEADER -->
+            <!-- ============================================= -->
+
+            <div class="modal-header">
+
+
+                <h5
+                    class="modal-title text-break"
+                    id="documentPreviewModalLabel"
+                >
+
+                    Supporting Document
+
+                </h5>
+
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+
+
+            </div>
+
+
+            <!-- ============================================= -->
+            <!-- BODY -->
+            <!-- ============================================= -->
+
+            <div
+                class="
+                    modal-body
+                    p-0
+                    bg-light
+                "
+            >
+
+
+                <div
+                    id="documentPreviewLoading"
+                    class="
+                        text-center
+                        py-5
+                    "
+                >
+
+
+                    <div
+                        class="spinner-border"
+                        role="status"
+                    >
+
+                        <span class="visually-hidden">
+
+                            Loading...
+
+                        </span>
+
+                    </div>
+
+
+                </div>
+
+
+                <!-- ================================================= -->
+                <!-- DOCUMENT PREVIEW CONTENT -->
+                <!-- ================================================= -->
+                <!--
+                    PDFs are loaded into the secure PDF preview endpoint.
+                    Images are loaded from the secure admin document-file
+                    endpoint. Neither path exposes the raw media URL.
+                -->
+
+                <iframe
+                    id="documentPreviewFrame"
+                    title="Document Preview"
+                    class="w-100 border-0"
+                    style="
+                        display: none;
+                        min-height: 75vh;
+                    "
+                ></iframe>
+
+                <div
+                    id="documentPreviewImageContainer"
+                    class="text-center p-3"
+                    style="display: none;"
+                >
+
+                    <img
+                        id="documentPreviewImage"
+                        src=""
+                        alt="Supporting Document"
+                        class="img-fluid"
+                        style="
+                            max-width: 100%;
+                            max-height: 75vh;
+                            object-fit: contain;
+                        "
+                    >
+
+                </div>
+
+                <div
+                    id="documentPreviewUnavailable"
+                    class="alert alert-info m-4 text-center"
+                    style="display: none;"
+                >
+
+                    Preview is not available for this file type.
+                    Use Open to view the document.
+
+                </div>
+
+
+            </div>
+
+
+            <!-- ============================================= -->
+            <!-- FOOTER -->
+            <!-- ============================================= -->
+
+            <div class="modal-footer">
+
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+
+                    Close
+
+                </button>
+
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+
+document.addEventListener(
+
+    "DOMContentLoaded",
+
+    function () {
+
+
+        // ==================================================
+        // BANK ACCOUNT NUMBER SHOW / HIDE
+        // ==================================================
+
+        const toggleAccountNumber = (
+
+            document.getElementById(
+                "toggleAccountNumber"
+            )
+
+        );
+
+
+        const maskedAccountNumber = (
+
+            document.getElementById(
+                "maskedAccountNumber"
+            )
+
+        );
+
+
+        const actualAccountNumber = (
+
+            document.getElementById(
+                "actualAccountNumber"
+            )
+
+        );
+
+
+        if (
+
+            toggleAccountNumber
+            && maskedAccountNumber
+            && actualAccountNumber
+
+        ) {
+
+
+            toggleAccountNumber.addEventListener(
+
+                "click",
+
+                function () {
+
+
+                    if (
+
+                        actualAccountNumber.style.display
+                        === "none"
+
+                    ) {
+
+
+                        // ----------------------------------
+                        // SHOW REAL ACCOUNT NUMBER
+                        // ----------------------------------
+
+                        actualAccountNumber.style.display =
+                            "inline";
+
+
+                        maskedAccountNumber.style.display =
+                            "none";
+
+
+                        toggleAccountNumber.textContent =
+                            "Hide Account Number";
+
+
+                    } else {
+
+
+                        // ----------------------------------
+                        // HIDE REAL ACCOUNT NUMBER
+                        // ----------------------------------
+
+                        actualAccountNumber.style.display =
+                            "none";
+
+
+                        maskedAccountNumber.style.display =
+                            "inline";
+
+
+                        toggleAccountNumber.textContent =
+                            "Show Account Number";
+
+
+                    }
+
+
+                }
+
+            );
+
+
+        }
+
+
+        // ==================================================
+        // CLAIM VERIFICATION FORM
+        // ==================================================
+
+        const verificationForm = (
+
+            document.getElementById(
+                "claimVerificationForm"
+            )
+
+        );
+
+
+        if (!verificationForm) {
+
+            return;
+
+        }
+
+
+        // ==================================================
+        // APPROVAL
+        // ==================================================
+
+        const finalApproveButton = (
+
+            document.getElementById(
+                "finalApproveButton"
+            )
+
+        );
+
+
+        if (finalApproveButton) {
+
+
+            finalApproveButton.addEventListener(
+
+                "click",
+
+                function () {
+
+
+                    // --------------------------------------
+                    // SET APPROVAL CONFIRMATION
+                    // --------------------------------------
+
+                    document.getElementById(
+                        "approval_confirmed"
+                    ).value = "yes";
+
+
+                    // --------------------------------------
+                    // CLEAR REJECTION CONFIRMATION
+                    // --------------------------------------
+
+                    document.getElementById(
+                        "rejection_confirmed"
+                    ).value = "";
+
+
+                    // --------------------------------------
+                    // SET APPROVAL URL
+                    // --------------------------------------
+
+                    verificationForm.action =
+                        "{% url 'members_admin:approve_claim' claim.id %}";
+
+
+                    // --------------------------------------
+                    // SUBMIT VERIFICATION FORM
+                    // --------------------------------------
+
+                    verificationForm.submit();
+
+
+                }
+
+            );
+
+
+        }
+
+
+        // ==================================================
+        // REJECTION
+        // ==================================================
+
+        const finalRejectButton = (
+
+            document.getElementById(
+                "finalRejectButton"
+            )
+
+        );
+
+
+        if (finalRejectButton) {
+
+
+            finalRejectButton.addEventListener(
+
+                "click",
+
+                function () {
+
+
+                    const rejectionReason = (
+
+                        document.getElementById(
+                            "rejection_reason"
+                        )
+
+                    );
+
+
+                    // --------------------------------------
+                    // CLIENT-SIDE REASON CHECK
+                    // --------------------------------------
+
+                    if (
+
+                        !rejectionReason
+                        || !rejectionReason.value.trim()
+
+                    ) {
+
+
+                        alert(
+
+                            "Please provide a reason "
+                            + "for rejecting the claim."
+
+                        );
+
+
+                        return;
+
+
+                    }
+
+
+                    // --------------------------------------
+                    // SET REJECTION CONFIRMATION
+                    // --------------------------------------
+
+                    document.getElementById(
+                        "rejection_confirmed"
+                    ).value = "yes";
+
+
+                    // --------------------------------------
+                    // CLEAR APPROVAL CONFIRMATION
+                    // --------------------------------------
+
+                    document.getElementById(
+                        "approval_confirmed"
+                    ).value = "";
+
+
+                    // --------------------------------------
+                    // SET REJECTION URL
+                    // --------------------------------------
+
+                    verificationForm.action =
+                        "{% url 'members_admin:reject_claim' claim.id %}";
+
+
+                    // --------------------------------------
+                    // SUBMIT VERIFICATION FORM
+                    // --------------------------------------
+
+                    verificationForm.submit();
+
+
+                }
+
+            );
+
+
+        }
+
+
+    }
+
+);
+
+document.addEventListener(
+
+    "DOMContentLoaded",
+
+    function () {
+
+        // =====================================================
+        // DOCUMENT PREVIEW MODAL
+        // =====================================================
+        //
+        // Keep the bank-account and claim-verification code above
+        // unchanged. This listener handles document previews only.
+        //
+        // IMPORTANT:
+        // The admin PDF preview endpoint is intended for PDFs.
+        // Images must use the normal secure admin document-file
+        // endpoint and be displayed as an <img>.
+        //
+        // This distinction fixes the previous empty preview and
+        // "refused to connect" behaviour without changing the
+        // existing secure document URLs.
+        // =====================================================
+
+        const previewModal = document.getElementById(
+            "documentPreviewModal"
+        );
+
+        if (!previewModal) {
+            return;
+        }
+
+        const previewFrame = document.getElementById(
+            "documentPreviewFrame"
+        );
+
+        const previewImageContainer = document.getElementById(
+            "documentPreviewImageContainer"
+        );
+
+        const previewImage = document.getElementById(
+            "documentPreviewImage"
+        );
+
+        const previewUnavailable = document.getElementById(
+            "documentPreviewUnavailable"
+        );
+
+        const previewLoading = document.getElementById(
+            "documentPreviewLoading"
+        );
+
+        const previewTitle = document.getElementById(
+            "documentPreviewModalLabel"
+        );
+
+        // -----------------------------------------------------
+        // RESET THE MODAL
+        // -----------------------------------------------------
+        //
+        // Every opening starts from a clean state. This is
+        // particularly important when an admin opens several
+        // documents one after another.
+        // -----------------------------------------------------
+
+        function resetPreview() {
+
+            previewFrame.src = "";
+
+            previewFrame.style.display = "none";
+
+            previewImage.src = "";
+
+            previewImageContainer.style.display = "none";
+
+            previewUnavailable.style.display = "none";
+
+            previewLoading.style.display = "block";
+
+        }
+
+        // -----------------------------------------------------
+        // SHOW PREVIEW ERROR
+        // -----------------------------------------------------
+
+        function showPreviewError(message) {
+
+            previewLoading.style.display = "none";
+
+            previewUnavailable.textContent = message;
+
+            previewUnavailable.style.display = "block";
+
+        }
+
+        // -----------------------------------------------------
+        // OPEN THE SELECTED DOCUMENT
+        // -----------------------------------------------------
+
+        previewModal.addEventListener(
+
+            "show.bs.modal",
+
+            function (event) {
+
+                const button = event.relatedTarget;
+
+                if (!button) {
+                    return;
+                }
+
+                const title = (
+                    button.getAttribute(
+                        "data-document-title"
+                    )
+                    || "Supporting Document"
+                );
+
+                const documentType = (
+                    button.getAttribute(
+                        "data-document-type"
+                    )
+                    || "file"
+                );
+
+                const documentFileUrl = (
+                    button.getAttribute(
+                        "data-document-file"
+                    )
+                );
+
+                const documentPreviewUrl = (
+                    button.getAttribute(
+                        "data-document-preview"
+                    )
+                );
+
+                previewTitle.textContent = title;
+
+                resetPreview();
+
+                // -------------------------------------------------
+                // IMAGE DOCUMENT
+                // -------------------------------------------------
+                //
+                // Use the secure file endpoint. The endpoint performs
+                // the admin authorization check before serving the
+                // image.
+                // -------------------------------------------------
+
+                if (
+                    documentType === "image"
+                    && documentFileUrl
+                ) {
+
+                    previewImage.onload = function () {
+
+                        previewLoading.style.display = "none";
+
+                        previewImageContainer.style.display =
+                            "block";
+
+                    };
+
+                    previewImage.onerror = function () {
+
+                        showPreviewError(
+                            "Unable to load this document."
+                        );
+
+                    };
+
+                    previewImage.src = documentFileUrl;
+
+                    return;
+                }
+
+                // -------------------------------------------------
+                // PDF DOCUMENT
+                // -------------------------------------------------
+                //
+                // PDFs use the dedicated secure PDF preview endpoint,
+                // which is configured for same-origin iframe display.
+                // -------------------------------------------------
+
+                if (
+                    documentType === "pdf"
+                    && documentPreviewUrl
+                ) {
+
+                    previewFrame.onload = function () {
+
+                        previewLoading.style.display = "none";
+
+                        previewFrame.style.display = "block";
+
+                    };
+
+                    previewFrame.onerror = function () {
+
+                        showPreviewError(
+                            "Unable to load this PDF document."
+                        );
+
+                    };
+
+                    previewFrame.src = documentPreviewUrl;
+
+                    return;
+                }
+
+                // -------------------------------------------------
+                // UNSUPPORTED FILE TYPE
+                // -------------------------------------------------
+
+                showPreviewError(
+                    "Preview is not available for this file type. "
+                    + "Use Open to view the document."
+                );
+
+            }
+
+        );
+
+        // -----------------------------------------------------
+        // CLEAN UP WHEN THE MODAL CLOSES
+        // -----------------------------------------------------
+        //
+        // Clear both preview targets so the previously opened
+        // document cannot remain visible when another document
+        // is selected.
+        // -----------------------------------------------------
+
+        previewModal.addEventListener(
+
+            "hidden.bs.modal",
+
+            function () {
+
+                previewFrame.src = "";
+
+                previewFrame.style.display = "none";
+
+                previewImage.src = "";
+
+                previewImageContainer.style.display = "none";
+
+                previewUnavailable.style.display = "none";
+
+                previewLoading.style.display = "block";
+
+            }
+
+        );
+
+    }
+
+);
+
+</script>
+
 {% endblock %}

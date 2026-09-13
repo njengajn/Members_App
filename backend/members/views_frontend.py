@@ -54,10 +54,3 @@ def home(request):
     #if request.user.is_authenticated:
         #return redirect("members:dashboard")
     return render(request, "frontend/home.html")
-
-
-
-
-
-
-

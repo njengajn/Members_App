@@ -326,11 +326,8 @@ def admin_document_review(
             reason=rejection_reason,
         )
         
-        document.refresh_from_db()
-
-
-        # IMPORTANT
-        document.can_resubmit = True
+        # MemberDocument.reject() already saves
+        # can_resubmit=True as part of its lifecycle logic.
 
     # =====================================================
     # SAVE REVIEW
@@ -524,7 +521,7 @@ def upload_requested_document_admin(request, request_id):
 
         now = timezone.now()
 
-        doc = MemberDocument.objects.create(
+        doc = MemberDocument(
             member=member,
             title=document_request.title,
             description=(
@@ -540,6 +537,9 @@ def upload_requested_document_admin(request, request_id):
             approved_at=now,
             approved_by=request.user,
         )
+
+        doc.full_clean()
+        doc.save()
 
         generate_document_thumbnail(doc)
 
