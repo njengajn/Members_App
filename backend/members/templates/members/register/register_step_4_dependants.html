@@ -15,8 +15,8 @@
 
     <div class="alert alert-warning small rounded-4 border-0">
 
-        Wrong or misleading information may result in failed registration
-        or deregistration.
+        Wrong or misleading information may result in failed registration,
+        deregistration or a claim being rejected.
 
     </div>
 
@@ -28,7 +28,10 @@
 
         <ul class="mb-0 ps-3 small">
 
-            <li>Spouse (if any)</li>
+            {% if marital_status == "MARRIED" %}
+                <li>Spouse (if any)</li>
+            {% endif %}
+
             <li>Children (if any)</li>
             <li>Parents (if alive)</li>
             <li>Maternal siblings only</li>
@@ -39,20 +42,28 @@
 
 </div>
 
+
 <form id="registerStep4"
       method="post"
-      action="{% url 'members:register_step_4' %}">
+      action="{% url 'members:register_step_4' %}"
+      data-marital-status="{{ marital_status }}"
+      data-married-value="MARRIED">
 
     {% csrf_token %}
 
-    <input type="hidden"
-           name="step"
-           value="4">
+    <input
+        type="hidden"
+        name="step"
+        value="4"
+    >
 
-    <input type="hidden"
-           name="dependant_indexes"
-           id="dependantIndexes"
-           value="1">
+    <input
+        type="hidden"
+        name="dependant_indexes"
+        id="dependantIndexes"
+        value="1"
+    >
+
 
     <!-- ========================================= -->
     <!-- DEPENDANTS LIST -->
@@ -60,7 +71,14 @@
 
     <div id="dependantsList">
 
-        <div class="dependant-item dependant-card">
+        <!-- ================================================= -->
+        <!-- INITIAL DEPENDANT CARD -->
+        <!-- ================================================= -->
+
+        <div
+            class="dependant-item dependant-card"
+            data-dependant-index="1"
+        >
 
             <div class="dependant-header">
 
@@ -70,7 +88,11 @@
 
             </div>
 
+
+            <!-- ================================================= -->
             <!-- NAMES -->
+            <!-- ================================================= -->
+
             <div class="row g-3">
 
                 <div class="col-12 col-md-4">
@@ -88,6 +110,7 @@
 
                 </div>
 
+
                 <div class="col-12 col-md-4">
 
                     <label class="form-label">
@@ -101,6 +124,7 @@
                     >
 
                 </div>
+
 
                 <div class="col-12 col-md-4">
 
@@ -119,7 +143,11 @@
 
             </div>
 
+
+            <!-- ================================================= -->
             <!-- DOB + RELATIONSHIP -->
+            <!-- ================================================= -->
+
             <div class="row g-3 mt-1">
 
                 <div class="col-12 col-md-6">
@@ -133,8 +161,10 @@
                         name="dep_1_dob"
                         class="form-control"
                         required
-                        >
+                    >
+
                 </div>
+
 
                 <div class="col-12 col-md-6">
 
@@ -144,16 +174,33 @@
 
                     <select
                         name="dep_1_relation"
-                        class="form-select"
-                        required>
+                        class="form-select dependant-relationship"
+                        required
+                    >
+
+                        <option value="">
+                            Select relationship
+                        </option>
 
                         <option value="CHILD">
                             Child
                         </option>
 
-                        <option value="SPOUSE">
-                            Spouse
-                        </option>
+                        {% if marital_status == "MARRIED" %}
+
+                            <!--
+                                Spouse remains visible for married members.
+
+                                JavaScript disables this option after
+                                one spouse has been entered.
+
+                                The backend remains authoritative.
+                            -->
+                            <option value="SPOUSE">
+                                Spouse
+                            </option>
+
+                        {% endif %}
 
                         <option value="SIBLING">
                             Sibling
@@ -163,11 +210,128 @@
                             Parent
                         </option>
 
-                        <option value="OTHER">
-                            Other
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <!-- ================================================= -->
+            <!-- PARENT DETAILS -->
+            <!-- ================================================= -->
+
+            <div
+                class="row g-3 mt-1 dependant-parent-fields d-none"
+            >
+
+                <div class="col-12 col-md-6">
+
+                    <label class="form-label">
+                        Parent Type
+                    </label>
+
+                    <select
+                        name="dep_1_parent_type"
+                        class="form-select dependant-parent-type"
+                    >
+
+                        <option value="">
+                            Select parent type
+                        </option>
+
+                        <option value="MOTHER">
+                            Mother
+                        </option>
+
+                        <option value="FATHER">
+                            Father
                         </option>
 
                     </select>
+
+                </div>
+
+
+                <div class="col-12 col-md-6">
+
+                    <label class="form-label">
+                        Parent Status
+                    </label>
+
+                    <select
+                        name="dep_1_parent_status"
+                        class="form-select dependant-parent-status"
+                    >
+
+                        <option value="">
+                            Select parent status
+                        </option>
+
+                        <option value="ALIVE">
+                            Alive
+                        </option>
+
+                        <option value="DECEASED">
+                            Deceased
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <!-- ================================================= -->
+            <!-- LOCATION -->
+            <!-- ================================================= -->
+
+            <div
+                class="row g-3 mt-1 dependant-location-fields d-none"
+            >
+
+                <div class="col-12 col-md-4">
+
+                    <label class="form-label">
+                        Country
+                    </label>
+
+                    <input
+                        name="dep_1_country"
+                        class="form-control dependant-country"
+                        placeholder="Country"
+                    >
+
+                </div>
+
+
+                <div class="col-12 col-md-4">
+
+                    <label class="form-label">
+                        County
+                    </label>
+
+                    <input
+                        name="dep_1_county"
+                        class="form-control dependant-county"
+                        placeholder="County"
+                    >
+
+                </div>
+
+
+                <div class="col-12 col-md-4">
+
+                    <label class="form-label">
+                        Sub-county / Town
+                    </label>
+
+                    <input
+                        name="dep_1_sub_county_town"
+                        class="form-control dependant-sub-county-town"
+                        placeholder="Sub-county / Town"
+                    >
 
                 </div>
 
@@ -177,39 +341,49 @@
 
     </div>
 
-    <!-- ADD BUTTON -->
+
+    <!-- ================================================= -->
+    <!-- ADD DEPENDANT -->
+    <!-- ================================================= -->
+
     <div class="my-3">
 
-        <button id="addDepBtn"
-                type="button"
-                class="btn btn-outline-primary add-btn">
-
+        <button
+            id="addDepBtn"
+            type="button"
+            class="btn btn-outline-primary add-btn"
+        >
             + Add Another Dependant
-
         </button>
 
     </div>
 
+
+    <!-- ================================================= -->
     <!-- NAVIGATION -->
+    <!-- ================================================= -->
+
     <div class="row g-2 mt-1">
 
         <div class="col-12 col-md-6">
 
-            <a href="{% url 'members:register_step_3' %}"
-               class="btn btn-light w-100">
-
+            <a
+                href="{% url 'members:register_step_3' %}"
+                class="btn btn-light w-100"
+            >
                 Back
-
             </a>
 
         </div>
 
+
         <div class="col-12 col-md-6">
 
-            <button class="btn btn-primary w-100">
-
+            <button
+                type="submit"
+                class="btn btn-primary w-100"
+            >
                 Continue
-
             </button>
 
         </div>
@@ -218,8 +392,20 @@
 
 </form>
 
+
+<!-- ================================================= -->
+<!-- CACHED DEPENDANT DATA -->
+<!-- ================================================= -->
+
 {{ dependants|json_script:"cachedDependants" }}
+
+
+<!-- ================================================= -->
+<!-- DEPENDANTS JAVASCRIPT -->
+<!-- ================================================= -->
+
 <script src="{% static 'js/dependants.js' %}"></script>
+
 
 <style>
 
@@ -228,47 +414,105 @@
 /* ========================================= */
 
 .info-card {
+
     background: #f8fafc;
+
     border: 1px solid #e9eef5;
+
     border-radius: 18px;
+
     padding: 1rem;
 }
+
 
 /* ========================================= */
 /* DEPENDANT CARD */
 /* ========================================= */
 
 .dependant-card {
+
     background: #ffffff;
+
     border: 1px solid #e9eef5;
+
     border-radius: 20px;
+
     padding: 1.2rem;
+
     margin-bottom: 1rem;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.03);
+
+    box-shadow:
+        0 3px 10px rgba(0, 0, 0, 0.03);
 }
+
+
+/* ========================================= */
+/* DEPENDANT HEADER */
+/* ========================================= */
 
 .dependant-header {
+
     margin-bottom: 1rem;
 }
 
+
 .dependant-number {
-    background: linear-gradient(135deg, #0d6efd, #0a58ca);
+
+    background:
+        linear-gradient(
+            135deg,
+            #0d6efd,
+            #0a58ca
+        );
+
     color: white;
-    padding: 0.45rem 0.9rem;
+
+    padding:
+        0.45rem
+        0.9rem;
+
     border-radius: 999px;
+
     font-size: 0.82rem;
+
     font-weight: 600;
 }
 
+
 /* ========================================= */
-/* BUTTON */
+/* ADD BUTTON */
 /* ========================================= */
 
 .add-btn {
+
     border-radius: 14px;
-    padding: 0.75rem 1rem;
+
+    padding:
+        0.75rem
+        1rem;
+
     font-weight: 600;
 }
+
+
+/* ========================================= */
+/* DISABLED RELATIONSHIP OPTIONS */
+/* ========================================= */
+/*
+ * Bootstrap/browser styling handles the disabled
+ * option appearance.
+ *
+ * We deliberately do not display a permanent limit
+ * message. The unavailable relationship remains
+ * visible but greyed out.
+ */
+
+.dependant-relationship option:disabled {
+
+    color: #6c757d;
+
+}
+
 
 /* ========================================= */
 /* MOBILE */
@@ -277,29 +521,42 @@
 @media (max-width: 768px) {
 
     .dependant-card {
+
         padding: 1rem;
+
         border-radius: 18px;
     }
 
+
     .info-card {
+
         padding: 0.9rem;
+
         border-radius: 16px;
     }
 
+
     .add-btn {
+
         width: 100%;
     }
+
 }
+
 
 @media (max-width: 480px) {
 
     .dependant-card {
+
         padding: 0.85rem;
     }
 
+
     .dependant-number {
+
         font-size: 0.74rem;
     }
+
 }
 
 </style>

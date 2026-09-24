@@ -276,7 +276,8 @@ def update_member_status(request, member_id):
     • UID is allocated automatically by Member.save()
       on the first transition to ACTIVE.
     • Existing UID is retained on reactivation.
-    • All dependants are activated when the member becomes ACTIVE.
+    • All eligible dependants are activated when the member becomes ACTIVE.
+    • A deceased parent dependant is always kept retired.
     • Retired members and dependants are set to retired.
     • Portal access remains an independent permission and is
       NOT changed by this status operation.
@@ -390,11 +391,24 @@ def update_member_status(request, member_id):
             member.joined_at = timezone.now()
 
             # ------------------------------------------
-            # ACTIVATE ALL DEPENDANTS
+            # ACTIVATE DEPENDANTS
             # ------------------------------------------
+            # A deceased parent is permanently retired and must
+            # never be activated as part of the member lifecycle.
+            # All other dependants follow the member activation.
 
-            member.dependants.update(
+            member.dependants.exclude(
+                relationship="PARENT",
+                parent_status="DECEASED",
+            ).update(
                 status="active"
+            )
+
+            member.dependants.filter(
+                relationship="PARENT",
+                parent_status="DECEASED",
+            ).update(
+                status="retired"
             )
 
             # ------------------------------------------
@@ -504,7 +518,7 @@ def admin_member_detail(request, member_id):
 
 
 # ======================================================
-# APPROVE MEMBER (CRITICAL FIX)
+# APPROVE MEMBER
 # ======================================================
 
 @staff_member_required
@@ -766,7 +780,8 @@ def admin_update_member_permissions(request, member_id):
     ----------------
     • joined_at is set to the activation date.
     • UID is allocated on first activation by Member.save().
-    • All dependants become active.
+    • All eligible dependants become active.
+    • A deceased parent dependant remains retired.
     • Members Portal access is enabled.
     • Claim cooling-off starts from joined_at.
 
@@ -774,7 +789,8 @@ def admin_update_member_permissions(request, member_id):
     ------------------
     • joined_at is reset to the reactivation date.
     • Existing UID is retained.
-    • Dependants become active.
+    • All eligible dependants become active.
+    • A deceased parent dependant remains retired.
     • Portal access is enabled.
     • Claim cooling-off starts again.
     """
@@ -878,9 +894,21 @@ def admin_update_member_permissions(request, member_id):
             # Portal must be enabled on activation.
             member.is_portal_access_enabled = True
 
-            # Dependants become active.
-            member.dependants.update(
+            # Dependants become active, except deceased parents.
+            # A deceased parent is permanently retired and must
+            # never be activated during member activation/reactivation.
+            member.dependants.exclude(
+                relationship="PARENT",
+                parent_status="DECEASED",
+            ).update(
                 status="active"
+            )
+
+            member.dependants.filter(
+                relationship="PARENT",
+                parent_status="DECEASED",
+            ).update(
+                status="retired"
             )
 
             # Member should not retain temporary edit access

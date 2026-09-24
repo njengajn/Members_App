@@ -7,16 +7,26 @@
 ==================================================================
 STEP 2 - MEMBER PROFILE
 ==================================================================
+
 Collects:
-  - Personal details
-  - Verified email (read-only)
-  - Date of Birth
-  - Phone
-  - Structured Address
+    - Personal details
+    - Date of Birth
+    - Phone
+    - Marital Status
+    - Verified email (read-only)
+    - Structured Address
 
 Expected view context:
     step_num
     verified_email
+    marital_status_choices
+
+The view should provide:
+
+    "marital_status_choices": Member.MARITAL_STATUS_CHOICES
+
+This keeps the template tied to the model's actual marital-status
+choices instead of duplicating the choice values in the template.
 
 Expected POST fields:
     first_name
@@ -24,6 +34,7 @@ Expected POST fields:
     surname
     dob
     phone
+    marital_status
     house_number
     line_1
     line_2
@@ -31,12 +42,21 @@ Expected POST fields:
     county
     postcode
     country
+
+Session cache:
+    request.session.reg_member
+    request.session.reg_address
+
+The session values are used to restore information when the user
+returns to this step or when validation fails.
 ==================================================================
 -->
 
 <div class="mb-4">
 
-    <h4 class="fw-bold mb-1">Member Registration</h4>
+    <h4 class="fw-bold mb-1">
+        Member Registration
+    </h4>
 
     <p class="text-muted mb-0">
         Please provide your personal and address details.
@@ -44,13 +64,15 @@ Expected POST fields:
 
 </div>
 
+
 <form method="post">
 
     {% csrf_token %}
 
-    <!-- ============================= -->
-    <!-- PERSONAL DETAILS -->
-    <!-- ============================= -->
+
+    <!-- ==========================================================
+         PERSONAL DETAILS
+         ========================================================== -->
 
     <div class="register-section mb-4">
 
@@ -58,72 +80,198 @@ Expected POST fields:
             Personal Details
         </div>
 
+
         <div class="row g-3">
 
-            <div class="col-md-4">
-                <label class="form-label">First Name</label>
+
+            <!-- First Name -->
+            <div class="col-12 col-md-4">
+
+                <label class="form-label">
+                    First Name
+                </label>
+
                 <input
-                    class="form-control"
                     name="first_name"
+                    class="form-control"
                     value="{{ request.session.reg_member.first_name|default:'' }}"
-                    required>
+                    placeholder="Enter first name"
+                    required
+                >
+
             </div>
 
-            <div class="col-md-4">
-                <label class="form-label">Middle Name</label>
+
+            <!-- Middle Name -->
+            <div class="col-12 col-md-4">
+
+                <label class="form-label">
+                    Middle Name
+                </label>
+
                 <input
-                    class="form-control"
                     name="middle_name"
-                    value="{{ request.session.reg_member.middle_name|default:'' }}">
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label">Surname</label>
-                <input
                     class="form-control"
-                    name="surname"
-                    value="{{ request.session.reg_member.surname|default:'' }}"
-                    required>
+                    value="{{ request.session.reg_member.middle_name|default:'' }}"
+                    placeholder="Enter middle name"
+                >
+
             </div>
 
-            <div class="col-md-6">
-                <label class="form-label">Date of Birth</label>
+
+            <!-- Surname -->
+            <div class="col-12 col-md-4">
+
+                <label class="form-label">
+                    Surname
+                </label>
+
+                <input
+                    name="surname"
+                    class="form-control"
+                    value="{{ request.session.reg_member.surname|default:'' }}"
+                    placeholder="Enter surname"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Date of Birth -->
+            <div class="col-12 col-md-6">
+
+                <label class="form-label">
+                    Date of Birth
+                </label>
+
                 <input
                     type="date"
-                    class="form-control"
                     name="dob"
+                    class="form-control"
                     value="{{ request.session.reg_member.dob|default:'' }}"
-                    required>
+                    required
+                >
+
             </div>
 
-            <div class="col-md-6">
-                <label class="form-label">Phone Number</label>
+
+            <!-- Phone Number -->
+            <div class="col-12 col-md-6">
+
+                <label class="form-label">
+                    Phone Number
+                </label>
+
                 <input
-                    class="form-control"
+                    type="tel"
                     name="phone"
+                    class="form-control"
                     value="{{ request.session.reg_member.phone|default:'' }}"
-                    required>
+                    placeholder="Enter phone number"
+                    required
+                >
+
             </div>
+
+
+            <!-- ==================================================
+                 MARITAL STATUS
+
+                 IMPORTANT:
+                 Do not hard-code the four marital-status values
+                 here.
+
+                 The view supplies:
+                     marital_status_choices
+
+                 which comes from:
+                     Member.MARITAL_STATUS_CHOICES
+
+                 This means the model remains the single source
+                 of truth for the available choices.
+                 ================================================== -->
+
+            <div class="col-12 col-md-6">
+
+                <label
+                    for="marital_status"
+                    class="form-label"
+                >
+                    Marital Status
+                </label>
+
+                <select
+                    id="marital_status"
+                    name="marital_status"
+                    class="form-select"
+                    required
+                >
+
+                    <option value="">
+                        Select marital status
+                    </option>
+
+
+                    {% for value, label in marital_status_choices %}
+
+                        <option
+                            value="{{ value }}"
+                            {% if request.session.reg_member.marital_status == value %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ label }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <!-- ==================================================
+                 VERIFIED EMAIL
+
+                 Email is not editable here.
+
+                 It has already been verified by OTP and is
+                 supplied by the view as verified_email.
+                 ================================================== -->
 
             <div class="col-12">
-                <label class="form-label">Verified Email</label>
+
+                <label
+                    for="verified_email"
+                    class="form-label"
+                >
+                    Verified Email
+                </label>
+
                 <input
+                    id="verified_email"
                     type="email"
                     class="form-control"
                     value="{{ verified_email }}"
-                    readonly>
+                    readonly
+                >
+
                 <div class="form-text">
-                    This email has already been verified by OTP and cannot be changed here.
+                    This email has already been verified by OTP and
+                    cannot be changed here.
                 </div>
+
             </div>
+
 
         </div>
 
     </div>
 
-    <!-- ============================= -->
-    <!-- ADDRESS -->
-    <!-- ============================= -->
+
+    <!-- ==========================================================
+         ADDRESS DETAILS
+         ========================================================== -->
 
     <div class="register-section mb-4">
 
@@ -131,9 +279,16 @@ Expected POST fields:
             Address Details
         </div>
 
+
+        <!-- Address search -->
         <div class="mb-3 position-relative">
 
-            <label class="form-label">Search Address</label>
+            <label
+                for="line_1"
+                class="form-label"
+            >
+                Search Address
+            </label>
 
             <input
                 id="line_1"
@@ -141,111 +296,247 @@ Expected POST fields:
                 class="form-control"
                 placeholder="Start typing address..."
                 autocomplete="off"
-                value="{{ request.session.reg_address.line_1|default:'' }}">
+                value="{{ request.session.reg_address.line_1|default:'' }}"
+            >
 
+            <!--
+            Address autocomplete suggestions are inserted here
+            by address_autocomplete.js.
+            -->
             <div
                 id="address-dropdown"
-                class="list-group address-dropdown shadow-sm">
-            </div>
+                class="list-group address-dropdown shadow-sm"
+            ></div>
 
         </div>
+
 
         <div class="row g-3">
 
-            <div class="col-md-4">
-                <label class="form-label">House Number</label>
-                <input id="house_number"
-                       name="house_number"
-                       class="form-control"
-                       value="{{ request.session.reg_address.house_number|default:'' }}">
+
+            <!-- House Number -->
+            <div class="col-12 col-md-4">
+
+                <label
+                    for="house_number"
+                    class="form-label"
+                >
+                    House Number
+                </label>
+
+                <input
+                    id="house_number"
+                    name="house_number"
+                    class="form-control"
+                    value="{{ request.session.reg_address.house_number|default:'' }}"
+                >
+
             </div>
 
-            <div class="col-md-8">
-                <label class="form-label">Address Line 2</label>
-                <input id="line_2"
-                       name="line_2"
-                       class="form-control"
-                       value="{{ request.session.reg_address.line_2|default:'' }}">
+
+            <!-- Address Line 2 -->
+            <div class="col-12 col-md-8">
+
+                <label
+                    for="line_2"
+                    class="form-label"
+                >
+                    Address Line 2
+                </label>
+
+                <input
+                    id="line_2"
+                    name="line_2"
+                    class="form-control"
+                    value="{{ request.session.reg_address.line_2|default:'' }}"
+                >
+
             </div>
 
-            <div class="col-md-4">
-                <label class="form-label">Town / City</label>
-                <input id="town"
-                       name="town"
-                       class="form-control"
-                       value="{{ request.session.reg_address.town|default:'' }}">
+
+            <!-- Town / City -->
+            <div class="col-12 col-md-4">
+
+                <label
+                    for="town"
+                    class="form-label"
+                >
+                    Town / City
+                </label>
+
+                <input
+                    id="town"
+                    name="town"
+                    class="form-control"
+                    value="{{ request.session.reg_address.town|default:'' }}"
+                >
+
             </div>
 
-            <div class="col-md-4">
-                <label class="form-label">County</label>
-                <input id="county"
-                       name="county"
-                       class="form-control"
-                       value="{{ request.session.reg_address.county|default:'' }}">
+
+            <!-- County -->
+            <div class="col-12 col-md-4">
+
+                <label
+                    for="county"
+                    class="form-label"
+                >
+                    County
+                </label>
+
+                <input
+                    id="county"
+                    name="county"
+                    class="form-control"
+                    value="{{ request.session.reg_address.county|default:'' }}"
+                >
+
             </div>
 
-            <div class="col-md-3">
-                <label class="form-label">Postcode</label>
-                <input id="postcode"
-                       name="postcode"
-                       maxlength="9"
-                       class="form-control"
-                       value="{{ request.session.reg_address.postcode|default:'' }}">
+
+            <!-- Postcode -->
+            <div class="col-12 col-md-3">
+
+                <label
+                    for="postcode"
+                    class="form-label"
+                >
+                    Postcode
+                </label>
+
+                <input
+                    id="postcode"
+                    name="postcode"
+                    maxlength="9"
+                    class="form-control"
+                    value="{{ request.session.reg_address.postcode|default:'' }}"
+                >
+
             </div>
 
-            <div class="col-md-1">
-                <label class="form-label">Country</label>
-                <input id="country"
-                       name="country"
-                       class="form-control"
-                       value="{{ request.session.reg_address.country|default:'UK' }}">
+
+            <!-- Country -->
+            <div class="col-12 col-md-1">
+
+                <label
+                    for="country"
+                    class="form-label"
+                >
+                    Country
+                </label>
+
+                <input
+                    id="country"
+                    name="country"
+                    class="form-control"
+                    value="{{ request.session.reg_address.country|default:'UK' }}"
+                >
+
             </div>
+
 
         </div>
 
     </div>
+
+
+    <!-- ==========================================================
+         NAVIGATION
+         ========================================================== -->
 
     <div class="row g-2">
 
-        <div class="col-md-6">
-            <a href="{% url 'members:register_verify_email' %}"
-               class="btn btn-light w-100">
+        <div class="col-12 col-md-6">
+
+            <a
+                href="{% url 'members:register_verify_email' %}"
+                class="btn btn-light w-100"
+            >
                 Back
             </a>
+
         </div>
 
-        <div class="col-md-6">
-            <button class="btn btn-primary w-100">
+
+        <div class="col-12 col-md-6">
+
+            <button
+                type="submit"
+                class="btn btn-primary w-100"
+            >
                 Continue to Next Step
             </button>
+
         </div>
 
     </div>
 
+
 </form>
+
+
+<!--
+==================================================================
+ADDRESS AUTOCOMPLETE
+==================================================================
+
+Keep the existing address autocomplete implementation.
+No change to its location or behaviour is required here.
+==================================================================
+-->
 
 <script src="{% static 'js/address_autocomplete.js' %}"></script>
 
+
 <style>
-.register-section{
-    background:#f8fafc;
-    border:1px solid #edf1f5;
-    border-radius:18px;
-    padding:1.1rem;
+
+/*
+==================================================================
+REGISTRATION SECTION
+==================================================================
+*/
+
+.register-section {
+    background: #f8fafc;
+    border: 1px solid #edf1f5;
+    border-radius: 18px;
+    padding: 1.1rem;
 }
-.section-title{
-    font-size:1rem;
-    font-weight:700;
-    margin-bottom:1rem;
-    color:#0d6efd;
+
+
+/*
+==================================================================
+SECTION TITLE
+==================================================================
+*/
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #0d6efd;
 }
-.address-dropdown{
-    position:absolute;
-    width:100%;
-    z-index:1000;
-    max-height:240px;
-    overflow-y:auto;
+
+
+/*
+==================================================================
+ADDRESS AUTOCOMPLETE DROPDOWN
+==================================================================
+
+The dropdown is positioned relative to the address-search
+container and remains above the other form fields.
+==================================================================
+*/
+
+.address-dropdown {
+    position: absolute;
+    width: 100%;
+    z-index: 1000;
+    max-height: 240px;
+    overflow-y: auto;
 }
+
 </style>
+
 
 {% endblock %}

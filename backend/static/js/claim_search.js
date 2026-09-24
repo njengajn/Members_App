@@ -1,5 +1,3 @@
-// backend/static/js/claim_search.js
-
 document.addEventListener("DOMContentLoaded", function () {
 
     console.log("Claim JS loaded");
@@ -123,6 +121,19 @@ document.addEventListener("DOMContentLoaded", function () {
                 const query =
                     this.value.trim();
 
+                // -------------------------------------------------
+                // Clear any previous member selection.
+                // -------------------------------------------------
+                //
+                // The hidden ID must never remain populated for
+                // a different search query.
+                // -------------------------------------------------
+
+                hiddenInput.value = "";
+
+                if (affected) {
+                    affected.value = "";
+                }
 
                 // -------------------------------------------------
                 // Do not search for very short text.
@@ -134,7 +145,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     return;
                 }
-
 
                 // -------------------------------------------------
                 // Search active members.
@@ -172,7 +182,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             );
 
                             empty.innerText =
-                                "No active members found.";
+                                "No eligible active members found.";
 
                             results.appendChild(
                                 empty

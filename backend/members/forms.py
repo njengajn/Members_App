@@ -108,37 +108,6 @@ class MemberForm(forms.ModelForm):
                 self.instance.user.email
             )
 
-class MemberForm_onHold_31_07_26(forms.ModelForm):
-    """
-    Member profile form.
-
-    User.email is the master email address.
-    Member.email is displayed for information only.
-    """
-
-    email = forms.EmailField(
-        disabled=True,
-        required=False,
-        label="Email Address"
-    )
-
-    class Meta:
-        model = Member
-        fields = [
-            "first_name",
-            "middle_name",
-            "surname",
-            "phone",
-            "email",
-            "address",
-        ]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        if self.instance and self.instance.user:
-            self.fields["email"].initial = self.instance.user.email
-
 
 class NextOfKinForm(forms.ModelForm):
     class Meta:
@@ -146,57 +115,292 @@ class NextOfKinForm(forms.ModelForm):
         fields = ["first_name", "surname", "phone", "email", "relationship"]
 
 class DependantForm(forms.ModelForm):
+    """
+    Dependant form.
+
+    Includes optional document upload.
+    The uploaded document is saved as a MemberDocument
+    in the view rather than directly on the Dependant model.
+
+    Registration / dependant business rules
+    ----------------------------------------
+    • Spouse requires country, county and sub-county/town.
+    • Sibling requires country, county and sub-county/town.
+    • Parent requires parent type and parent status.
+    • Parent location is required when the parent is alive.
+    • Parent location is not required when the parent is deceased
+      or status is unknown.
+    • Child does not use parent-specific fields.
+    """
+
+    document_title = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Document Title",
+    )
+
+    document_file = forms.FileField(
+        required=False,
+        label="Upload Document",
+    )
+
+    class Meta:
+        model = Dependant
+
+        fields = [
+            "first_name",
+            "middle_name",
+            "surname",
+            "relationship",
+            "dob",
+            "parent_type",
+            "parent_status",
+            "country",
+            "county",
+            "sub_county_town",
+        ]
+
+        widgets = {
+            "dob": forms.DateInput(
+                attrs={"type": "date"}
+            ),
+
+            "country": forms.TextInput(
+                attrs={
+                    "placeholder": "Country"
+                }
+            ),
+
+            "county": forms.TextInput(
+                attrs={
+                    "placeholder": "County"
+                }
+            ),
+
+            "sub_county_town": forms.TextInput(
+                attrs={
+                    "placeholder": "Sub-county / Town"
+                }
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Keep the new fields available to the form while allowing
+        # the template/JavaScript to decide when they are displayed.
+        #
+        # The existing dependant-management templates may not use
+        # these fields yet, so this does not force a UI redesign.
+
+        if "relationship" in self.fields:
+            self.fields["relationship"].required = True
+
+        if "first_name" in self.fields:
+            self.fields["first_name"].required = True
+
+        if "surname" in self.fields:
+            self.fields["surname"].required = True
+
+        if "dob" in self.fields:
+            self.fields["dob"].required = True
+
+    def clean(self):
         """
-        Dependant form.
-
-        Includes optional document upload.
-        The uploaded document is saved as a MemberDocument
-        in the view rather than directly on the Dependant model.
+        Validate dependant-specific business rules while preserving
+        the existing document-upload validation.
         """
 
-        document_title = forms.CharField(
-            max_length=255,
-            required=False,
-            label="Document Title",
-        )
+        cleaned_data = super().clean()
 
-        document_file = forms.FileField(
-            required=False,
-            label="Upload Document",
-        )
+        relationship = (
+            cleaned_data.get("relationship") or ""
+        ).strip().upper()
 
-        class Meta:
-            model = Dependant
-            fields = [
-                "first_name",
-                "middle_name",
-                "surname",
+        parent_type = (
+            cleaned_data.get("parent_type") or ""
+        ).strip().upper()
+
+        parent_status = (
+            cleaned_data.get("parent_status") or ""
+        ).strip().upper()
+
+        country = (
+            cleaned_data.get("country") or ""
+        ).strip()
+
+        county = (
+            cleaned_data.get("county") or ""
+        ).strip()
+
+        sub_county_town = (
+            cleaned_data.get("sub_county_town") or ""
+        ).strip()
+
+        # ==========================================================
+        # DOCUMENT VALIDATION
+        # ==========================================================
+
+        file = cleaned_data.get("document_file")
+        title = (
+            cleaned_data.get("document_title") or ""
+        ).strip()
+
+        if file and not title:
+            self.add_error(
+                "document_title",
+                "Document title is required when uploading a file.",
+            )
+
+        # ==========================================================
+        # RELATIONSHIP VALIDATION
+        # ==========================================================
+
+        valid_relationships = {
+            Dependant.TYPE_CHILD,
+            Dependant.TYPE_SPOUSE,
+            Dependant.TYPE_SIBLING,
+            Dependant.TYPE_PARENT,
+        }
+
+        if relationship not in valid_relationships:
+            self.add_error(
                 "relationship",
-                "dob",
-            ]
-
-            widgets = {
-                "dob": forms.DateInput(
-                    attrs={"type": "date"}
-                )
-            }
-
-        def clean(self):
-            """
-            Require a title whenever a document is uploaded.
-            """
-            cleaned_data = super().clean()
-
-            file = cleaned_data.get("document_file")
-            title = cleaned_data.get("document_title")
-
-            if file and not title:
-                self.add_error(
-                    "document_title",
-                    "Document title is required when uploading a file.",
-                )
+                "Please select a valid dependant relationship.",
+            )
 
             return cleaned_data
+
+        # ==========================================================
+        # SPOUSE
+        # ==========================================================
+
+        if relationship == Dependant.TYPE_SPOUSE:
+
+            if not country:
+                self.add_error(
+                    "country",
+                    "Country is required for a spouse.",
+                )
+
+            if not county:
+                self.add_error(
+                    "county",
+                    "County is required for a spouse.",
+                )
+
+            if not sub_county_town:
+                self.add_error(
+                    "sub_county_town",
+                    "Sub-county / Town is required for a spouse.",
+                )
+
+            # Spouse does not use parent-specific information.
+            cleaned_data["parent_type"] = ""
+            cleaned_data["parent_status"] = ""
+
+        # ==========================================================
+        # SIBLING
+        # ==========================================================
+
+        elif relationship == Dependant.TYPE_SIBLING:
+
+            if not country:
+                self.add_error(
+                    "country",
+                    "Country is required for a sibling.",
+                )
+
+            if not county:
+                self.add_error(
+                    "county",
+                    "County is required for a sibling.",
+                )
+
+            if not sub_county_town:
+                self.add_error(
+                    "sub_county_town",
+                    "Sub-county / Town is required for a sibling.",
+                )
+
+            # Sibling does not use parent-specific information.
+            cleaned_data["parent_type"] = ""
+            cleaned_data["parent_status"] = ""
+
+        # ==========================================================
+        # PARENT
+        # ==========================================================
+
+        elif relationship == Dependant.TYPE_PARENT:
+
+            valid_parent_types = {
+                "MOTHER",
+                "FATHER",
+            }
+
+            valid_parent_statuses = {
+                "ALIVE",
+                "DECEASED",
+                "UNKNOWN",
+            }
+
+            if parent_type not in valid_parent_types:
+                self.add_error(
+                    "parent_type",
+                    "Please select Mother or Father.",
+                )
+
+            if parent_status not in valid_parent_statuses:
+                self.add_error(
+                    "parent_status",
+                    "Please select the parent's status.",
+                )
+
+            # Location is required only when parent is alive.
+            if parent_status == "ALIVE":
+
+                if not country:
+                    self.add_error(
+                        "country",
+                        "Country is required for a living parent.",
+                    )
+
+                if not county:
+                    self.add_error(
+                        "county",
+                        "County is required for a living parent.",
+                    )
+
+                if not sub_county_town:
+                    self.add_error(
+                        "sub_county_town",
+                        "Sub-county / Town is required for a living parent.",
+                    )
+
+            else:
+                # Do not retain irrelevant location information
+                # for deceased/unknown parents.
+                cleaned_data["country"] = ""
+                cleaned_data["county"] = ""
+                cleaned_data["sub_county_town"] = ""
+
+        # ==========================================================
+        # CHILD
+        # ==========================================================
+
+        elif relationship == Dependant.TYPE_CHILD:
+
+            # Child does not use parent-specific information.
+            cleaned_data["parent_type"] = ""
+            cleaned_data["parent_status"] = ""
+
+            # Child does not require the parent/sibling/spouse
+            # location fields.
+            cleaned_data["country"] = ""
+            cleaned_data["county"] = ""
+            cleaned_data["sub_county_town"] = ""
+
+        return cleaned_data
 
 class MemberRegistrationForm(forms.ModelForm):
     """
@@ -248,43 +452,44 @@ class MemberRegistrationForm(forms.ModelForm):
 
         widgets = {
             "dob": forms.DateInput(
-                attrs={"type": "date"}
+                attrs={
+                    "type": "date"
+                }
+            ),
+
+            "marital_status": forms.Select(
+                attrs={
+                    "class": "form-select"
+                }
             ),
         }
 
-class MemberRegistrationForm_onHold_31_07_26(forms.ModelForm):
-    """
-    Member registration details.
+    def clean_marital_status(self):
+        """
+        Validate the member marital status.
 
-    User account details are collected separately.
+        Cross-dependant spouse rules are intentionally handled
+        by the registration workflow because this form only
+        represents the Member record.
+        """
 
-    Business Rules
-    ------------------------------------------------------------------
-    • Email is collected in UserRegistrationForm.
-    • Member.email is copied automatically from User.email.
-    • applied_at is automatically recorded.
-    • joined_at is populated only when membership is approved.
-    """
+        marital_status = (
+            self.cleaned_data.get("marital_status") or ""
+        ).strip().upper()
 
-    class Meta:
-        model = Member
+        valid_statuses = {
+            Member.MARITAL_SINGLE,
+            Member.MARITAL_MARRIED,
+            Member.MARITAL_WIDOWED,
+            Member.MARITAL_SEPARATED,
+        }
 
-        exclude = [
-            "user",
-            "member_uid",
-            "uid_assigned",
-            "organization",
-            "status",
-            "applied_at",
-            "joined_at",
-            "email",
-            "can_edit",
-            "can_edit_expires_at",
-            "subscription_year",
-            "retirement_reason",
-            "retired_reason",
-            "is_portal_access_enabled",
-        ]
+        if marital_status not in valid_statuses:
+            raise forms.ValidationError(
+                "Please select a valid marital status."
+            )
+
+        return marital_status
 
 
 class NextOfKinForm(forms.ModelForm):

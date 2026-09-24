@@ -22,6 +22,269 @@ otp = generate_otp()
 
 User = get_user_model()
 
+# ======================================================
+# REGISTRATION VALIDATION HELPERS
+# ======================================================
+
+def _clean(value):
+    """
+    Safely strip a submitted value.
+    """
+    return (value or "").strip()
+
+
+def validate_registration_dependants(
+    dependants,
+    marital_status,
+):
+    """
+    Validate the complete dependant collection.
+
+    This is the authoritative server-side validation.
+    Browser/JavaScript validation is supplementary only.
+
+    Rules
+    ------------------------------------------------------
+    • Married:
+        exactly one spouse.
+
+    • Single / Widowed / Separated:
+        no spouse.
+
+    • Maximum one Mother.
+    • Maximum one Father.
+
+    • Parent:
+        parent type required.
+        parent status required.
+
+    • Living parent:
+        country, county and sub-county/town required.
+
+    • Deceased parent:
+        location is not required.
+
+    • Spouse:
+        location required.
+
+    • Sibling:
+        location required.
+
+    • Child:
+        parent-specific fields are cleared.
+    """
+
+    errors = []
+
+    valid_relationships = {
+        Dependant.TYPE_CHILD,
+        Dependant.TYPE_SPOUSE,
+        Dependant.TYPE_SIBLING,
+        Dependant.TYPE_PARENT,
+    }
+
+    spouse_count = 0
+    mother_count = 0
+    father_count = 0
+
+    for number, dependant in enumerate(
+        dependants,
+        start=1,
+    ):
+
+        relationship = _clean(
+            dependant.get("relationship")
+        ).upper()
+
+        parent_type = _clean(
+            dependant.get("parent_type")
+        ).upper()
+
+        parent_status = _clean(
+            dependant.get("parent_status")
+        ).upper()
+
+        country = _clean(
+            dependant.get("country")
+        )
+
+        county = _clean(
+            dependant.get("county")
+        )
+
+        sub_county_town = _clean(
+            dependant.get("sub_county_town")
+        )
+
+        if relationship not in valid_relationships:
+
+            errors.append(
+                f"Dependant {number}: "
+                "Please select a valid relationship."
+            )
+
+            continue
+
+        # --------------------------------------------------
+        # SPOUSE
+        # --------------------------------------------------
+
+        if relationship == Dependant.TYPE_SPOUSE:
+
+            spouse_count += 1
+
+            if not country:
+                errors.append(
+                    f"Dependant {number}: "
+                    "Country is required for a spouse."
+                )
+
+            if not county:
+                errors.append(
+                    f"Dependant {number}: "
+                    "County is required for a spouse."
+                )
+
+            if not sub_county_town:
+                errors.append(
+                    f"Dependant {number}: "
+                    "Sub-county / Town is required for a spouse."
+                )
+
+        # --------------------------------------------------
+        # SIBLING
+        # --------------------------------------------------
+
+        elif relationship == Dependant.TYPE_SIBLING:
+
+            if not country:
+                errors.append(
+                    f"Dependant {number}: "
+                    "Country is required for a sibling."
+                )
+
+            if not county:
+                errors.append(
+                    f"Dependant {number}: "
+                    "County is required for a sibling."
+                )
+
+            if not sub_county_town:
+                errors.append(
+                    f"Dependant {number}: "
+                    "Sub-county / Town is required for a sibling."
+                )
+
+        # --------------------------------------------------
+        # PARENT
+        # --------------------------------------------------
+
+        elif relationship == Dependant.TYPE_PARENT:
+
+            if parent_type not in {
+                Dependant.PARENT_MOTHER,
+                Dependant.PARENT_FATHER,
+            }:
+                errors.append(
+                    f"Dependant {number}: "
+                    "Please select Mother or Father."
+                )
+
+            else:
+
+                if parent_type == Dependant.PARENT_MOTHER:
+                    mother_count += 1
+
+                elif parent_type == Dependant.PARENT_FATHER:
+                    father_count += 1
+
+            if parent_status not in {
+                Dependant.PARENT_ALIVE,
+                Dependant.PARENT_DECEASED,
+            }:
+                errors.append(
+                    f"Dependant {number}: "
+                    "Please select the parent status."
+                )
+
+            elif parent_status == Dependant.PARENT_ALIVE:
+
+                if not country:
+                    errors.append(
+                        f"Dependant {number}: "
+                        "Country is required for a living parent."
+                    )
+
+                if not county:
+                    errors.append(
+                        f"Dependant {number}: "
+                        "County is required for a living parent."
+                    )
+
+                if not sub_county_town:
+                    errors.append(
+                        f"Dependant {number}: "
+                        "Sub-county / Town is required for a living parent."
+                    )
+
+        # --------------------------------------------------
+        # CHILD
+        # --------------------------------------------------
+
+        elif relationship == Dependant.TYPE_CHILD:
+
+            # Child must not carry parent-only information.
+            dependant["parent_type"] = ""
+            dependant["parent_status"] = ""
+
+            dependant["country"] = ""
+            dependant["county"] = ""
+            dependant["sub_county_town"] = ""
+
+    # ======================================================
+    # SPOUSE / MARITAL STATUS
+    # ======================================================
+
+    if marital_status == Member.MARITAL_MARRIED:
+
+        if spouse_count != 1:
+            errors.append(
+                "Married members must register exactly one spouse."
+            )
+
+    elif marital_status in {
+        Member.MARITAL_SINGLE,
+        Member.MARITAL_WIDOWED,
+        Member.MARITAL_SEPARATED,
+    }:
+
+        if spouse_count:
+            errors.append(
+                "A spouse can only be registered when "
+                "marital status is Married."
+            )
+
+    else:
+
+        errors.append(
+            "Please select a valid marital status."
+        )
+
+    # ======================================================
+    # PARENT LIMITS
+    # ======================================================
+
+    if mother_count > 1:
+        errors.append(
+            "Only one Mother can be registered."
+        )
+
+    if father_count > 1:
+        errors.append(
+            "Only one Father can be registered."
+        )
+
+    return errors
 
 def register_step_1_user(request):
     """
@@ -407,6 +670,7 @@ def register_verify_email(request):
 # ======================================================
 # STEP 2 – MEMBER DETAILS + ADDRESS
 # ======================================================
+
 def register_step_2_member_profile(request):
     """
     STEP 2
@@ -416,96 +680,153 @@ def register_step_2_member_profile(request):
     • Personal details
     • Date of birth
     • Phone
+    • Marital status
     • Address
 
-    The verified email always comes from
-    request.session["reg_user"].
+    All submitted data is cached in the registration
+    session so Back/Next navigation does not lose data.
     """
 
     if "reg_user" not in request.session:
+
         messages.error(
             request,
-            "Your registration session has expired. Please start again."
+            "Your registration session has expired. "
+            "Please start again."
         )
-        return redirect("members:register_step_1")
 
-    verified_email = request.session["reg_user"]["email"]
+        return redirect(
+            "members:register_step_1"
+        )
+
+    verified_email = request.session[
+        "reg_user"
+    ]["email"]
 
     if request.method == "POST":
 
+        marital_status = _clean(
+            request.POST.get("marital_status")
+        ).upper()
+
+        valid_marital_statuses = {
+            Member.MARITAL_SINGLE,
+            Member.MARITAL_MARRIED,
+            Member.MARITAL_WIDOWED,
+            Member.MARITAL_SEPARATED,
+        }
+
+        # --------------------------------------------------
+        # MARITAL STATUS VALIDATION
+        # --------------------------------------------------
+
+        if marital_status not in valid_marital_statuses:
+
+            messages.error(
+                request,
+                "Please select your marital status."
+            )
+
+            return render(
+                request,
+                "members/register/"
+                "register_step_2_member_profile.html",
+                {
+                    "step_num": 2,
+                    "verified_email": verified_email,
+                    "member": request.POST,
+                    "address": request.POST,
+                },
+            )
+
+        # --------------------------------------------------
+        # MEMBER DATA
+        # --------------------------------------------------
+
         request.session["reg_member"] = {
 
-            "first_name": request.POST["first_name"],
-
-            "middle_name": request.POST.get(
-                "middle_name",
-                "",
+            "first_name": _clean(
+                request.POST.get("first_name")
             ),
 
-            "surname": request.POST["surname"],
-
-            # NEW
-            "dob": request.POST["dob"],
-
-            # RESTORED
-            "phone": request.POST.get(
-                "phone",
-                "",
+            "middle_name": _clean(
+                request.POST.get("middle_name")
             ),
+
+            "surname": _clean(
+                request.POST.get("surname")
+            ),
+
+            "dob": request.POST.get("dob"),
+
+            "phone": _clean(
+                request.POST.get("phone")
+            ),
+
+            "marital_status": marital_status,
         }
+
+        # --------------------------------------------------
+        # ADDRESS
+        # --------------------------------------------------
 
         request.session["reg_address"] = {
 
-            "house_number": request.POST.get(
-                "house_number",
-                "",
+            "house_number": _clean(
+                request.POST.get("house_number")
             ),
 
-            "line_1": request.POST.get(
-                "line_1",
-                "",
+            "line_1": _clean(
+                request.POST.get("line_1")
             ),
 
-            "line_2": request.POST.get(
-                "line_2",
-                "",
+            "line_2": _clean(
+                request.POST.get("line_2")
             ),
 
-            "town": request.POST.get(
-                "town",
-                "",
+            "town": _clean(
+                request.POST.get("town")
             ),
 
-            "county": request.POST.get(
-                "county",
-                "",
+            "county": _clean(
+                request.POST.get("county")
             ),
 
-            "postcode": request.POST.get(
-                "postcode",
-                "",
+            "postcode": _clean(
+                request.POST.get("postcode")
             ),
 
-            "country": request.POST.get(
-                "country",
-                "UK",
-            ),
+            "country": _clean(
+                request.POST.get("country")
+            ) or "UK",
         }
 
-        return redirect("members:register_step_3")
+        request.session.modified = True
+
+        return redirect(
+            "members:register_step_3"
+        )
+
+    # ------------------------------------------------------
+    # GET – RESTORE CACHE
+    # ------------------------------------------------------
 
     return render(
-
         request,
-
-        "members/register/register_step_2_member_profile.html",
-
+        "members/register/"
+        "register_step_2_member_profile.html",
         {
-
             "step_num": 2,
-
             "verified_email": verified_email,
-
+            "member": request.session.get(
+                "reg_member",
+                {},
+            ),
+            "address": request.session.get(
+                "reg_address",
+                {},
+            ),
+            "marital_status_choices": Member.MARITAL_STATUS_CHOICES,
         },
     )
 
@@ -635,28 +956,58 @@ def register_step_3_next_of_kin(request):
 # ======================================================
 # STEP 4 – DEPENDANTS
 # ======================================================
+
 def register_step_4_dependants(request):
     """
-    Collects multiple dependants dynamically.
+    Collect multiple dependants dynamically.
 
-    - Requires dependant DOB.
-    - Validates required dependant information server-side.
-    - Stores dependant information in the registration session.
-    - Restores cached dependant information when returning to Step 4.
+    Business rules enforced here:
+
+    - Relationship must be CHILD, SPOUSE, SIBLING or PARENT.
+    - Spouse is allowed only when member is Married.
+    - Maximum one spouse.
+    - Maximum two parents in total.
+    - Maximum one Mother.
+    - Maximum one Father.
+    - Parent type is required for a parent.
+    - Parent status is required for a parent.
+    - Location is required for Spouse and Sibling.
+    - Location is required for an Alive Parent.
+    - Location is not required for Child.
+    - Location is not required for Deceased Parent.
+
+    Browser validation is only a convenience.
+    The server-side checks here are authoritative.
+
+    Submitted dependant information is cached before
+    validation errors are returned so that the user's
+    information is not lost.
     """
 
+    # ======================================================
+    # STEP ACCESS
+    # ======================================================
+
     if "reg_nok" not in request.session:
-        return redirect("members:register_step_3")
+
+        return redirect(
+            "members:register_step_3"
+        )
+
+
+    # ======================================================
+    # POST
+    # ======================================================
 
     if request.method == "POST":
 
-        # =================================================
+        # ==================================================
         # DYNAMIC DEPENDANT PARSING
-        # =================================================
+        # ==================================================
 
         indexes_raw = request.POST.get(
             "dependant_indexes",
-            ""
+            "",
         )
 
         indexes = [
@@ -667,118 +1018,553 @@ def register_step_4_dependants(request):
 
         dependants = []
 
-        for index in indexes:
+        validation_errors = []
 
-            first = request.POST.get(
-                f"dep_{index}_first",
-                ""
-            ).strip()
 
-            middle = request.POST.get(
-                f"dep_{index}_middle",
-                ""
-            ).strip()
+        # ==================================================
+        # PARSE EACH DEPENDANT
+        # ==================================================
 
-            surname = request.POST.get(
-                f"dep_{index}_surname",
-                ""
-            ).strip()
+        for number, index in enumerate(
+            indexes,
+            start=1,
+        ):
 
-            relationship = request.POST.get(
-                f"dep_{index}_relation",
-                ""
-            ).strip()
-
-            dob = request.POST.get(
-                f"dep_{index}_dob"
+            first = _clean(
+                request.POST.get(
+                    f"dep_{index}_first"
+                )
             )
 
-            # =================================================
-            # REQUIRED FIELD VALIDATION
-            # =================================================
+            middle = _clean(
+                request.POST.get(
+                    f"dep_{index}_middle"
+                )
+            )
+
+            surname = _clean(
+                request.POST.get(
+                    f"dep_{index}_surname"
+                )
+            )
+
+            relationship = _clean(
+                request.POST.get(
+                    f"dep_{index}_relation"
+                )
+            ).upper()
+
+            dob = _clean(
+                request.POST.get(
+                    f"dep_{index}_dob"
+                )
+            )
+
+            parent_type = _clean(
+                request.POST.get(
+                    f"dep_{index}_parent_type"
+                )
+            ).upper()
+
+            parent_status = _clean(
+                request.POST.get(
+                    f"dep_{index}_parent_status"
+                )
+            ).upper()
+
+            country = _clean(
+                request.POST.get(
+                    f"dep_{index}_country"
+                )
+            )
+
+            county = _clean(
+                request.POST.get(
+                    f"dep_{index}_county"
+                )
+            )
+
+            sub_county_town = _clean(
+                request.POST.get(
+                    f"dep_{index}_sub_county_town"
+                )
+            )
+
+
+            # ==================================================
+            # BASIC VALIDATION
+            # ==================================================
 
             if not first:
 
-                messages.error(
-                    request,
-                    "Please enter the first name for every dependant."
+                validation_errors.append(
+                    f"Please enter the first name for "
+                    f"Dependant {number}."
                 )
 
-                return redirect(
-                    "members:register_step_4"
-                )
 
             if not surname:
 
-                messages.error(
-                    request,
-                    "Please enter the surname for every dependant."
+                validation_errors.append(
+                    f"Please enter the surname for "
+                    f"Dependant {number}."
                 )
 
-                return redirect(
-                    "members:register_step_4"
-                )
 
             if not dob:
 
-                messages.error(
-                    request,
-                    "Please enter the date of birth for every dependant."
+                validation_errors.append(
+                    f"Please enter the date of birth for "
+                    f"Dependant {number}."
                 )
 
-                return redirect(
-                    "members:register_step_4"
-                )
 
             if not relationship:
 
-                messages.error(
-                    request,
-                    "Please select the relationship for every dependant."
+                validation_errors.append(
+                    f"Please select the relationship for "
+                    f"Dependant {number}."
                 )
 
-                return redirect(
-                    "members:register_step_4"
+
+            # ==================================================
+            # VALID RELATIONSHIP
+            # ==================================================
+
+            if relationship not in {
+                "CHILD",
+                "SPOUSE",
+                "SIBLING",
+                "PARENT",
+            }:
+
+                validation_errors.append(
+                    f"Invalid relationship selected for "
+                    f"Dependant {number}."
                 )
 
-            # =================================================
-            # STORE VALID DEPENDANT
-            # =================================================
+
+            # ==================================================
+            # NORMALISE IRRELEVANT FIELDS
+            # ==================================================
+
+            if relationship != "PARENT":
+
+                parent_type = ""
+                parent_status = ""
+
+
+            if relationship == "CHILD":
+
+                country = ""
+                county = ""
+                sub_county_town = ""
+
+
+            # ==================================================
+            # CACHE SUBMITTED DATA
+            # ==================================================
 
             dependants.append({
+
                 "first_name": first,
+
                 "middle_name": middle,
+
                 "surname": surname,
+
                 "relationship": relationship,
+
                 "dob": dob,
+
+                "parent_type": parent_type,
+
+                "parent_status": parent_status,
+
+                "country": country,
+
+                "county": county,
+
+                "sub_county_town": sub_county_town,
+
             })
 
-        # =================================================
-        # CACHE DEPENDANTS IN SESSION
-        # =================================================
+
+        # ==================================================
+        # SAVE CACHE BEFORE VALIDATION
+        # ==================================================
 
         request.session["reg_dependants"] = dependants
         request.session.modified = True
+
+
+        # ==================================================
+        # BASIC VALIDATION ERRORS
+        # ==================================================
+
+        if validation_errors:
+
+            for error in validation_errors:
+
+                messages.error(
+                    request,
+                    error,
+                )
+
+            return render(
+                request,
+                "members/register/"
+                "register_step_4_dependants.html",
+                {
+                    "step_num": 4,
+                    "dependants": dependants,
+                    "marital_status": (
+                        request.session
+                        .get("reg_member", {})
+                        .get("marital_status", "")
+                    ),
+                },
+            )
+
+
+        # ==================================================
+        # MEMBER MARITAL STATUS
+        # ==================================================
+
+        reg_member = request.session.get(
+            "reg_member",
+            {},
+        )
+
+        marital_status = (
+            reg_member.get(
+                "marital_status",
+                "",
+            )
+            or ""
+        ).upper()
+
+
+        # ==================================================
+        # RELATIONSHIP LIMIT VALIDATION
+        # ==================================================
+        #
+        # These counts apply to the dependants being registered.
+        #
+        # CHILD and SIBLING have no numerical limit here.
+        #
+        # SPOUSE:
+        #     Maximum 1
+        #
+        # PARENT:
+        #     Maximum 2 total
+        #     Maximum 1 Mother
+        #     Maximum 1 Father
+        # ==================================================
+
+        spouse_count = sum(
+            1
+            for dependant in dependants
+            if dependant.get("relationship") == "SPOUSE"
+        )
+
+
+        parent_count = sum(
+            1
+            for dependant in dependants
+            if dependant.get("relationship") == "PARENT"
+        )
+
+
+        mother_count = sum(
+            1
+            for dependant in dependants
+            if (
+                dependant.get("relationship") == "PARENT"
+                and dependant.get("parent_type") == "MOTHER"
+            )
+        )
+
+
+        father_count = sum(
+            1
+            for dependant in dependants
+            if (
+                dependant.get("relationship") == "PARENT"
+                and dependant.get("parent_type") == "FATHER"
+            )
+        )
+
+
+        # ==================================================
+        # SPOUSE LIMIT
+        # ==================================================
+
+        if spouse_count > 1:
+
+            validation_errors.append(
+                "Only one spouse can be registered."
+            )
+
+
+        # ==================================================
+        # PARENT TOTAL LIMIT
+        # ==================================================
+
+        if parent_count > 2:
+
+            validation_errors.append(
+                "A maximum of two parents can be registered."
+            )
+
+
+        # ==================================================
+        # MOTHER LIMIT
+        # ==================================================
+
+        if mother_count > 1:
+
+            validation_errors.append(
+                "Only one mother can be registered."
+            )
+
+
+        # ==================================================
+        # FATHER LIMIT
+        # ==================================================
+
+        if father_count > 1:
+
+            validation_errors.append(
+                "Only one father can be registered."
+            )
+
+
+        # ==================================================
+        # SPOUSE / MARITAL STATUS
+        # ==================================================
+
+        if (
+            spouse_count > 0
+            and marital_status != "MARRIED"
+        ):
+
+            validation_errors.append(
+                "A spouse can only be registered when "
+                "the member's marital status is Married."
+            )
+
+
+        # ==================================================
+        # PARENT FIELD VALIDATION
+        # ==================================================
+
+        for number, dependant in enumerate(
+            dependants,
+            start=1,
+        ):
+
+            if dependant.get("relationship") != "PARENT":
+                continue
+
+
+            parent_type = (
+                dependant.get("parent_type")
+                or ""
+            ).upper()
+
+
+            parent_status = (
+                dependant.get("parent_status")
+                or ""
+            ).upper()
+
+
+            if parent_type not in {
+                "MOTHER",
+                "FATHER",
+            }:
+
+                validation_errors.append(
+                    f"Please select Mother or Father "
+                    f"for Parent {number}."
+                )
+
+
+            if parent_status not in {
+                "ALIVE",
+                "DECEASED",
+            }:
+
+                validation_errors.append(
+                    f"Please select the status for "
+                    f"Parent {number}."
+                )
+
+
+            # --------------------------------------------------
+            # Alive parent requires location.
+            # --------------------------------------------------
+
+            if parent_status == "ALIVE":
+
+                if not dependant.get("country"):
+
+                    validation_errors.append(
+                        f"Please enter the country for "
+                        f"Parent {number}."
+                    )
+
+                if not dependant.get("county"):
+
+                    validation_errors.append(
+                        f"Please enter the county for "
+                        f"Parent {number}."
+                    )
+
+                if not dependant.get(
+                    "sub_county_town"
+                ):
+
+                    validation_errors.append(
+                        f"Please enter the sub-county / town "
+                        f"for Parent {number}."
+                    )
+
+            else:
+
+                # Location is not applicable to a
+                # deceased parent.
+
+                dependant["country"] = ""
+                dependant["county"] = ""
+                dependant["sub_county_town"] = ""
+
+
+        # ==================================================
+        # SPOUSE / SIBLING LOCATION
+        # ==================================================
+
+        for number, dependant in enumerate(
+            dependants,
+            start=1,
+        ):
+
+            relationship = (
+                dependant.get("relationship")
+                or ""
+            ).upper()
+
+
+            if relationship not in {
+                "SPOUSE",
+                "SIBLING",
+            }:
+
+                continue
+
+
+            if not dependant.get("country"):
+
+                validation_errors.append(
+                    f"Please enter the country for "
+                    f"{relationship.title()} {number}."
+                )
+
+
+            if not dependant.get("county"):
+
+                validation_errors.append(
+                    f"Please enter the county for "
+                    f"{relationship.title()} {number}."
+                )
+
+
+            if not dependant.get(
+                "sub_county_town"
+            ):
+
+                validation_errors.append(
+                    f"Please enter the sub-county / town for "
+                    f"{relationship.title()} {number}."
+                )
+
+
+        # ==================================================
+        # FINAL VALIDATION RESULT
+        # ==================================================
+
+        if validation_errors:
+
+            for error in validation_errors:
+
+                messages.error(
+                    request,
+                    error,
+                )
+
+
+            request.session["reg_dependants"] = (
+                dependants
+            )
+
+            request.session.modified = True
+
+
+            return render(
+                request,
+                "members/register/"
+                "register_step_4_dependants.html",
+                {
+                    "step_num": 4,
+                    "dependants": dependants,
+                    "marital_status": marital_status,
+                },
+            )
+
+
+        # ==================================================
+        # VALID → STEP 5
+        # ==================================================
 
         return redirect(
             "members:register_step_5"
         )
 
-    # =====================================================
+
+    # ======================================================
     # GET – RESTORE CACHED DEPENDANTS
-    # =====================================================
+    # ======================================================
 
     dependants = request.session.get(
         "reg_dependants",
-        []
+        [],
     )
+
+
+    reg_member = request.session.get(
+        "reg_member",
+        {},
+    )
+
+
+    marital_status = (
+        reg_member.get(
+            "marital_status",
+            "",
+        )
+        or ""
+    ).upper()
+
 
     return render(
         request,
-        "members/register/register_step_4_dependants.html",
+        "members/register/"
+        "register_step_4_dependants.html",
         {
             "step_num": 4,
             "dependants": dependants,
+            "marital_status": marital_status,
         },
     )
 
@@ -829,6 +1615,37 @@ def register_step_5_confirmation(request):
         "reg_dependants",
         [],
     )
+    
+    # ======================================================
+    # FINAL SERVER-SIDE REGISTRATION VALIDATION
+    # ======================================================
+
+    marital_status = (
+        reg_member or {}
+    ).get("marital_status")
+
+    final_errors = validate_registration_dependants(
+        dependants=reg_dependants,
+        marital_status=marital_status,
+    )
+
+    if final_errors:
+
+        for error in final_errors:
+            messages.error(
+                request,
+                error,
+            )
+
+        request.session["reg_dependants"] = (
+            reg_dependants
+        )
+
+        request.session.modified = True
+
+        return redirect(
+            "members:register_step_4"
+        )
 
     if not all([reg_user, reg_member, reg_nok]):
         return redirect("members:register_step_1")
@@ -916,10 +1733,28 @@ def register_step_5_confirmation(request):
             # -------------------------
             # DEPENDANTS
             # -------------------------
-            dependants = [
-                Dependant(member=member, **d)
-                for d in reg_dependants
-            ]
+            # A deceased parent must always be retired.
+            # All other dependants begin as pending.
+            dependants = []
+
+            for dependant_data in reg_dependants:
+
+                dependant_data = dict(dependant_data)
+
+                if (
+                    dependant_data.get("relationship") == "PARENT"
+                    and dependant_data.get("parent_status") == "DECEASED"
+                ):
+                    dependant_data["status"] = "retired"
+                else:
+                    dependant_data["status"] = "pending"
+
+                dependants.append(
+                    Dependant(
+                        member=member,
+                        **dependant_data,
+                    )
+                )
 
             Dependant.objects.bulk_create(dependants)
 

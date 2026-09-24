@@ -30,7 +30,6 @@ def ensure_active_member(request):
 
     return member
 
-
 def create_claim_entry(request):
     """
     FINAL SAFE ROUTER
@@ -102,6 +101,43 @@ def member_create_claim(request):
 
         return redirect(
             "members:dashboard"
+        )
+
+    # ==========================================================
+    # CLAIM COOLING-OFF PERIOD
+    # ==========================================================
+    #
+    # This is an authoritative server-side safeguard.
+    # A member must be ACTIVE and must have completed the
+    # 180-day cooling-off period before a claim can be created.
+    #
+    # Do this check before processing POST data so a forged POST
+    # cannot bypass the restriction. The member is deliberately
+    # returned to the same page with clear feedback.
+    # ==========================================================
+
+    if not member.can_make_claim:
+
+        messages.error(
+            request,
+            (
+                "You cannot make a claim yet. Claims can only be "
+                "submitted after you have completed the 180-day "
+                "active membership cooling-off period."
+            ),
+        )
+
+        return render(
+            request,
+            "members/claims/members_create_claim.html",
+            {
+                "form": ClaimForm(user=request.user),
+                "bank_details_form": ClaimBankDetailsForm(),
+                "declaration_form": ClaimSubmissionDeclarationForm(),
+                "cooling_off_blocked": True,
+                "claim_eligibility_date": member.claim_eligibility_date,
+                "days_until_claim": member.days_until_claim,
+            },
         )
 
     # ==========================================================
@@ -378,6 +414,9 @@ def member_create_claim(request):
             "form": form,
             "bank_details_form": bank_details_form,
             "declaration_form": declaration_form,
+            "cooling_off_blocked": False,
+            "claim_eligibility_date": member.claim_eligibility_date,
+            "days_until_claim": member.days_until_claim,
         },
     )
 

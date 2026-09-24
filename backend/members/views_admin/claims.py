@@ -2,12 +2,14 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+#from backend.members.services.claim_service import approve_claim, ClaimService
 from backend.members.forms import ClaimForm, ClaimBankDetailsForm, ClaimSubmissionDeclarationForm
 from backend.members.services.claim_service import ClaimService
 from backend.members.models import Claim, Member, MemberDocument, Payment, NextOfKin, PaymentRequest
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Count
 from backend.members.services.document_files import DocumentUploadValidationError, generate_document_thumbnail, prepare_document_file
+from backend.members.views_admin import admin_required
 from django.db import transaction
 from .admin_auth import admin_required
 
@@ -198,41 +200,37 @@ def admin_claims_list(request):
 @admin_required
 def admin_create_claim(request):
     """
-    Create a claim on behalf of an active member.
-
-    Supported claim types
-    ==========================================================
+    ADMIN CLAIM CREATION
 
     MEMBER CAUSER
-    ----------------------------------------------------------
-    - The selected member is the causer.
-    - The selected member is recorded as claim.member.
-    - The selected member's next of kin is the claimer.
-    - A new member-causer claim is blocked when that member
-      already has a Received, Open, or Approved member claim.
+    --------------------------------------------------------------
+    - Search/select an active member.
+    - Selected member is the causer.
+    - Selected member becomes claim.member.
+    - Selected member's next of kin becomes the claimer.
+    - Next-of-kin contacted confirmation is required.
 
     DEPENDANT CAUSER
-    ----------------------------------------------------------
-    - The selected dependant must belong to the selected member.
-    - The dependant is the causer.
-    - The selected member is the claimer.
-    - Existing dependant claims do NOT block a member-causer
-      claim and are not affected by the member-claim rule.
+    --------------------------------------------------------------
+    - Only the signed-in admin's own active dependants are shown.
+    - Member search remains hidden.
+    - Selected dependant is the causer.
+    - Dependant's member becomes claim.member.
+    - Owning member becomes the claimer.
+    - Next-of-kin confirmation is not required.
 
-    ADMIN AUDIT
-    ----------------------------------------------------------
-    - The signed-in admin is recorded in created_by.
-    - The signed-in admin is NOT automatically the claimer.
+    BANK DETAILS
+    --------------------------------------------------------------
+    Saved through ClaimBankDetailsForm.
+
+    DECLARATION
+    --------------------------------------------------------------
+    Saved through ClaimSubmissionDeclarationForm.
 
     DOCUMENTS
-    ----------------------------------------------------------
-    Supporting documents use the central MemberDocument
-    processing service.
-
-    IMPORTANT:
-    Successful submission redirects directly to the newly
-    created claim's admin detail page so that the admin gets
-    immediate confirmation and can review the submitted claim.
+    --------------------------------------------------------------
+    Multiple documents remain supported using the existing
+    document upload mechanism.
     """
 
     # ==========================================================
@@ -252,12 +250,16 @@ def admin_create_claim(request):
 
         messages.error(
             request,
-            "Your account does not have active membership.",
+            "Your account does not have active membership."
         )
 
         return redirect(
             "members_admin:dashboard"
         )
+
+    # ==========================================================
+    # INITIAL VALUES
+    # ==========================================================
 
     selected_member = None
     next_of_kin = None
@@ -277,537 +279,491 @@ def admin_create_claim(request):
 
         declaration_form = (
             ClaimSubmissionDeclarationForm(
-                member_claim=False,
+                member_claim=False
             )
-        )
-
-        return render(
-            request,
-            "members/admin/claims/admin_create_claim.html",
-            {
-                "form": form,
-                "bank_form": bank_form,
-                "declaration_form": declaration_form,
-                "selected_member": selected_member,
-                "next_of_kin": next_of_kin,
-            },
         )
 
     # ==========================================================
     # POST
     # ==========================================================
 
-    cause_type = request.POST.get(
-        "cause_type"
-    )
-
-    member_claim = (
-        cause_type
-        == Claim.CLAIM_CAUSER_MEMBER
-    )
-
-    # ----------------------------------------------------------
-    # Selected member
-    # ----------------------------------------------------------
-
-    member_id = request.POST.get(
-        "selected_member_id"
-    )
-
-    if member_id:
-
-        selected_member = (
-            Member.objects
-            .filter(
-                id=member_id,
-                status="active",
-            )
-            .first()
-        )
-
-    # ----------------------------------------------------------
-    # Bind all forms
-    # ----------------------------------------------------------
-
-    form = ClaimForm(
-        request.POST,
-        request.FILES,
-        user=request.user,
-        selected_member=selected_member,
-    )
-
-    bank_form = ClaimBankDetailsForm(
-        request.POST
-    )
-
-    declaration_form = (
-        ClaimSubmissionDeclarationForm(
-            request.POST,
-            member_claim=member_claim,
-        )
-    )
-
-    # ==========================================================
-    # CLAIM FORM VALIDATION
-    # ==========================================================
-
-    claim_valid = form.is_valid()
-
-    if claim_valid:
-
-        cause_type = form.cleaned_data.get(
-            "cause_type"
-        )
-
-        dependant = form.cleaned_data.get(
-            "causer_dependant"
-        )
-
     else:
 
-        dependant = None
+        # ------------------------------------------------------
+        # Determine claim type directly from POST.
+        # ------------------------------------------------------
 
-    # ==========================================================
-    # MEMBER CAUSER VALIDATION
-    # ==========================================================
-
-    if (
-        cause_type
-        == Claim.CLAIM_CAUSER_MEMBER
-    ):
-
-        if not selected_member:
-
-            form.add_error(
-                None,
-                (
-                    "Please search for and select "
-                    "an active member."
-                ),
+        cause_type = (
+            request.POST.get(
+                "cause_type"
             )
+        )
 
-        if dependant:
+        member_claim = (
+            cause_type
+            == Claim.CLAIM_CAUSER_MEMBER
+        )
 
-            form.add_error(
-                "causer_dependant",
-                (
-                    "A member claim cannot have "
-                    "a dependant selected."
-                ),
+        # ------------------------------------------------------
+        # Selected member.
+        # ------------------------------------------------------
+
+        member_id = (
+            request.POST.get(
+                "selected_member_id"
             )
+        )
 
-        if selected_member:
+        if member_id:
 
-            # --------------------------------------------------
-            # NEXT OF KIN
-            # --------------------------------------------------
-
-            try:
-
-                next_of_kin = (
-                    selected_member.next_of_kin
-                )
-
-            except NextOfKin.DoesNotExist:
-
-                next_of_kin = None
-
-            if not next_of_kin:
-
-                form.add_error(
-                    None,
-                    (
-                        "The selected member does not "
-                        "have next of kin details."
-                    ),
-                )
-
-            # --------------------------------------------------
-            # EXISTING MEMBER CLAIM CHECK
-            # --------------------------------------------------
-            #
-            # BUSINESS RULE:
-            #
-            # A member cannot have another MEMBER-causer claim
-            # while an existing member claim is:
-            #
-            #   Received
-            #   Open
-            #   Approved
-            #
-            # IMPORTANT:
-            # Dependants' claims belonging to this member are
-            # deliberately excluded by cause_type.
-            #
-            # This is server-side validation and therefore
-            # cannot be bypassed by changing the browser UI.
-            # --------------------------------------------------
-
-            existing_member_claim = (
-                Claim.objects
+            selected_member = (
+                Member.objects
                 .filter(
-                    member=selected_member,
-                    cause_type=(
-                        Claim.CLAIM_CAUSER_MEMBER
-                    ),
-                    status__in=[
-                        "received",
-                        "open",
-                        "approved",
-                    ],
-                )
-                .order_by(
-                    "-created_at"
+                    id=member_id,
+                    status="active",
                 )
                 .first()
             )
 
-            if existing_member_claim:
+        # ------------------------------------------------------
+        # Claim form.
+        # ------------------------------------------------------
 
-                existing_status = (
-                    existing_member_claim
-                    .get_status_display()
+        form = ClaimForm(
+            request.POST,
+            request.FILES,
+            user=request.user,
+            selected_member=selected_member,
+        )
+
+        # ------------------------------------------------------
+        # Bank details.
+        # ------------------------------------------------------
+
+        bank_form = ClaimBankDetailsForm(
+            request.POST
+        )
+
+        # ------------------------------------------------------
+        # Declaration.
+        #
+        # IMPORTANT:
+        # It receives member_claim BEFORE is_valid() is called.
+        # ------------------------------------------------------
+
+        declaration_form = (
+            ClaimSubmissionDeclarationForm(
+                request.POST,
+                member_claim=member_claim,
+            )
+        )
+
+        # ======================================================
+        # VALIDATE CLAIM FORM
+        # ======================================================
+
+        claim_valid = form.is_valid()
+
+        # ======================================================
+        # CLAIM TYPE / MEMBER VALIDATION
+        # ======================================================
+
+        if claim_valid:
+
+            cause_type = (
+                form.cleaned_data.get(
+                    "cause_type"
                 )
+            )
+
+            dependant = (
+                form.cleaned_data.get(
+                    "causer_dependant"
+                )
+            )
+
+        else:
+
+            dependant = None
+
+        # ======================================================
+        # MEMBER CAUSER
+        # ======================================================
+
+        if (
+            cause_type
+            == Claim.CLAIM_CAUSER_MEMBER
+        ):
+
+            if not selected_member:
 
                 form.add_error(
                     None,
                     (
-                        "Can not make a claim request "
-                        "for a member with "
-                        f"{existing_status} claim."
-                    ),
+                        "Please search for and select "
+                        "an active member."
+                    )
                 )
 
-    # ==========================================================
-    # DEPENDANT CAUSER VALIDATION
-    # ==========================================================
+            if dependant:
 
-    elif (
-        cause_type
-        == Claim.CLAIM_CAUSER_DEPENDANT
-    ):
+                form.add_error(
+                    "causer_dependant",
+                    (
+                        "A member claim cannot have "
+                        "a dependant selected."
+                    )
+                )
 
-        if not dependant:
+            # --------------------------------------------------
+            # Get next of kin.
+            # --------------------------------------------------
 
-            form.add_error(
-                "causer_dependant",
-                (
-                    "Please select an active dependant."
-                ),
-            )
+            if selected_member:
+
+                # --------------------------------------------------
+                # PREVENT A SECOND MEMBER CLAIM
+                # --------------------------------------------------
+                # A member cannot be selected for a new MEMBER-type
+                # claim when they already have a claim in any of the
+                # following active/completed claim states:
+                #
+                #   Received, Open, Settled, Approved
+                #
+                # This is deliberately checked server-side as well as
+                # in the search endpoint so a forged/stale POST cannot
+                # bypass the member search restriction.
+                # --------------------------------------------------
+
+                existing_member_claim = (
+                    Claim.objects
+                    .filter(
+                        member=selected_member,
+                        status__in=[
+                            Claim.STATUS_RECEIVED,
+                            Claim.STATUS_OPEN,
+                            Claim.STATUS_SETTLED,
+                            Claim.STATUS_APPROVED,
+                        ],
+                    )
+                    .exists()
+                )
+
+                if existing_member_claim:
+
+                    form.add_error(
+                        None,
+                        (
+                            "The selected member already has a claim "
+                            "with a status of Received, Open, Settled, "
+                            "or Approved. A new member claim cannot be "
+                            "created for this member."
+                        ),
+                    )
+
+                try:
+
+                    next_of_kin = (
+                        selected_member.next_of_kin
+                    )
+
+                except NextOfKin.DoesNotExist:
+
+                    next_of_kin = None
+
+                if not next_of_kin:
+
+                    form.add_error(
+                        None,
+                        (
+                            "The selected member does not "
+                            "have next of kin details."
+                        )
+                    )
+
+        # ======================================================
+        # DEPENDANT CAUSER
+        # ======================================================
 
         elif (
-            dependant.member_id
-            != admin_member.id
+            cause_type
+            == Claim.CLAIM_CAUSER_DEPENDANT
         ):
 
+            if not dependant:
+
+                form.add_error(
+                    "causer_dependant",
+                    (
+                        "Please select an active dependant."
+                    )
+                )
+
+            elif (
+                dependant.member_id
+                != admin_member.id
+            ):
+
+                form.add_error(
+                    "causer_dependant",
+                    (
+                        "You can only create a dependant "
+                        "claim for one of your own "
+                        "dependants."
+                    )
+                )
+
+            elif not admin_member.can_make_claim:
+
+                form.add_error(
+                    "causer_dependant",
+                    (
+                        "You cannot create a dependant claim yet. "
+                        "Your 180-day active membership cooling-off "
+                        "period has not been completed."
+                    )
+                )
+
+        # ======================================================
+        # INVALID CLAIM TYPE
+        # ======================================================
+
+        else:
+
             form.add_error(
-                "causer_dependant",
-                (
-                    "You can only create a dependant "
-                    "claim for one of your own "
-                    "dependants."
-                ),
+                "cause_type",
+                "Please select a valid claim type."
             )
 
-    # ==========================================================
-    # INVALID CLAIM TYPE
-    # ==========================================================
+        # ======================================================
+        # ADDITIONAL FORM VALIDATION
+        # ======================================================
 
-    else:
+        bank_valid = bank_form.is_valid()
 
-        form.add_error(
-            "cause_type",
-            "Please select a valid claim type.",
+        declaration_valid = (
+            declaration_form.is_valid()
         )
 
-    # ==========================================================
-    # BANK + DECLARATION VALIDATION
-    # ==========================================================
+        forms_valid = (
+            not form.errors
+            and bank_valid
+            and declaration_valid
+        )
 
-    bank_valid = bank_form.is_valid()
+        # ======================================================
+        # SAVE
+        # ======================================================
 
-    declaration_valid = (
-        declaration_form.is_valid()
-    )
+        if forms_valid:
 
-    forms_valid = (
-        not form.errors
-        and bank_valid
-        and declaration_valid
-    )
+            try:
 
-    # ==========================================================
-    # SAVE CLAIM
-    # ==========================================================
+                with transaction.atomic():
 
-    if forms_valid:
+                    # ==========================================
+                    # CLAIM
+                    # ==========================================
 
-        try:
-
-            with transaction.atomic():
-
-                # --------------------------------------------------
-                # CREATE CLAIM
-                # --------------------------------------------------
-
-                claim = form.save(
-                    commit=False
-                )
-
-                # --------------------------------------------------
-                # MEMBER CAUSER
-                # --------------------------------------------------
-
-                if (
-                    cause_type
-                    == Claim.CLAIM_CAUSER_MEMBER
-                ):
-
-                    claim.member = (
-                        selected_member
-                    )
-
-                    claim.causer_dependant = None
-
-                    claim.causer_full_name = (
-                        f"{selected_member.first_name} "
-                        f"{selected_member.surname}"
-                    )
-
-                    claim.claimer = (
-                        next_of_kin.full_name()
-                    )
-
-                    claim.claimer_is_next_of_kin = (
-                        True
-                    )
-
-                # --------------------------------------------------
-                # DEPENDANT CAUSER
-                # --------------------------------------------------
-
-                else:
-
-                    claim.member = (
-                        dependant.member
-                    )
-
-                    claim.causer_dependant = (
-                        dependant
-                    )
-
-                    claim.causer_full_name = (
-                        f"{dependant.first_name} "
-                        f"{dependant.surname}"
-                    )
-
-                    claim.claimer = (
-                        f"{dependant.member.first_name} "
-                        f"{dependant.member.surname}"
-                    )
-
-                    claim.claimer_is_next_of_kin = (
-                        False
-                    )
-
-                # --------------------------------------------------
-                # ADMIN AUDIT
-                # --------------------------------------------------
-
-                claim.created_by = (
-                    request.user
-                )
-
-                claim.full_clean()
-                claim.save()
-
-                # --------------------------------------------------
-                # BANK DETAILS
-                # --------------------------------------------------
-
-                bank_details = (
-                    bank_form.save(
+                    claim = form.save(
                         commit=False
                     )
-                )
 
-                bank_details.claim = claim
+                    # ==========================================
+                    # MEMBER CAUSER
+                    # ==========================================
 
-                bank_details.full_clean()
-                bank_details.save()
+                    if (
+                        cause_type
+                        == Claim.CLAIM_CAUSER_MEMBER
+                    ):
 
-                # --------------------------------------------------
-                # CLAIM SUBMISSION DECLARATION
-                # --------------------------------------------------
-
-                declaration = (
-                    declaration_form.save(
-                        commit=False
-                    )
-                )
-
-                declaration.claim = claim
-
-                declaration.full_clean()
-                declaration.save()
-
-                # ==================================================
-                # SUPPORTING DOCUMENTS
-                # ==================================================
-                #
-                # KEEP THE WORKING MULTI-DOCUMENT PIPELINE INTACT.
-                #
-                # request.FILES.getlist("documents") receives the
-                # accumulated files created by the template's
-                # selectedFiles/DataTransfer mechanism.
-                #
-                # Each file remains paired with its title and
-                # description by index.
-                # ==================================================
-
-                files = request.FILES.getlist(
-                    "documents"
-                )
-
-                titles = request.POST.getlist(
-                    "doc_title"
-                )
-
-                descriptions = request.POST.getlist(
-                    "doc_description"
-                )
-
-                for i, uploaded_file in enumerate(
-                    files
-                ):
-
-                    original_filename = (
-                        uploaded_file.name
-                    )
-
-                    title = (
-                        titles[i].strip()
-                        if (
-                            i < len(titles)
-                            and titles[i].strip()
+                        claim.member = (
+                            selected_member
                         )
-                        else (
-                            "Claim Supporting "
-                            f"Document {i + 1}"
+
+                        claim.causer_dependant = None
+
+                        claim.causer_full_name = (
+                            f"{selected_member.first_name} "
+                            f"{selected_member.surname}"
+                        )
+
+                        claim.claimer = (
+                            next_of_kin.full_name()
+                        )
+
+                        claim.claimer_is_next_of_kin = (
+                            True
+                        )
+
+                    # ==========================================
+                    # DEPENDANT CAUSER
+                    # ==========================================
+
+                    else:
+
+                        claim.member = (
+                            dependant.member
+                        )
+
+                        claim.causer_dependant = (
+                            dependant
+                        )
+
+                        claim.causer_full_name = (
+                            f"{dependant.first_name} "
+                            f"{dependant.surname}"
+                        )
+
+                        claim.claimer = (
+                            f"{dependant.member.first_name} "
+                            f"{dependant.member.surname}"
+                        )
+
+                        claim.claimer_is_next_of_kin = (
+                            False
+                        )
+
+                    # ==========================================
+                    # ADMIN AUDIT
+                    # ==========================================
+
+                    claim.created_by = (
+                        request.user
+                    )
+
+                    claim.full_clean()
+
+                    claim.save()
+
+                    # ==========================================
+                    # BANK DETAILS
+                    # ==========================================
+
+                    bank_details = (
+                        bank_form.save(
+                            commit=False
                         )
                     )
 
-                    description = (
-                        descriptions[i].strip()
-                        if (
-                            i < len(descriptions)
-                            and descriptions[i].strip()
-                        )
-                        else ""
+                    bank_details.claim = (
+                        claim
                     )
 
-                    # --------------------------------------------------
-                    # CENTRAL DOCUMENT PROCESSING
-                    # --------------------------------------------------
+                    bank_details.full_clean()
 
-                    processed_file = (
-                        prepare_document_file(
-                            uploaded_file=uploaded_file,
+                    bank_details.save()
+
+                    # ==========================================
+                    # DECLARATION
+                    # ==========================================
+
+                    declaration = (
+                        declaration_form.save(
+                            commit=False
+                        )
+                    )
+
+                    declaration.claim = (
+                        claim
+                    )
+
+                    # ------------------------------------------
+                    # Force false for dependant claims.
+                    # ------------------------------------------
+
+                    if (
+                        cause_type
+                        != Claim.CLAIM_CAUSER_MEMBER
+                    ):
+
+                        declaration.next_of_kin_contacted = (
+                            False
+                        )
+
+                    declaration.full_clean()
+
+                    declaration.save()
+
+                    # ==========================================
+                    # DOCUMENTS
+                    # ==========================================
+
+                    files = request.FILES.getlist(
+                        "documents"
+                    )
+
+                    titles = request.POST.getlist(
+                        "doc_title"
+                    )
+
+                    descriptions = request.POST.getlist(
+                        "doc_description"
+                    )
+
+                    for i, uploaded_file in enumerate(
+                        files
+                    ):
+
+                        if not uploaded_file:
+                            continue
+
+                        title = (
+                            titles[i].strip()
+                            if (
+                                i < len(titles)
+                                and titles[i].strip()
+                            )
+                            else (
+                                "Claim Supporting "
+                                f"Document {i + 1}"
+                            )
+                        )
+
+                        description = (
+                            descriptions[i].strip()
+                            if (
+                                i < len(descriptions)
+                                and descriptions[i].strip()
+                            )
+                            else ""
+                        )
+
+                        MemberDocument.objects.create(
                             member=claim.member,
-                            document_title=title,
+                            dependant=(
+                                claim.causer_dependant
+                                if claim.causer_dependant
+                                else None
+                            ),
+                            claim=claim,
+                            title=title,
+                            description=description,
+                            file=uploaded_file,
                         )
+
+                messages.success(
+                    request,
+                    "Claim created successfully."
+                )
+
+                return redirect(
+                    "members_admin:dashboard"
+                )
+
+            except Exception as exc:
+
+                messages.error(
+                    request,
+                    (
+                        "The claim could not be submitted. "
+                        f"{exc}"
                     )
-
-                    # --------------------------------------------------
-                    # CREATE DOCUMENT
-                    # --------------------------------------------------
-
-                    document = MemberDocument(
-                        member=claim.member,
-                        dependant=(
-                            claim.causer_dependant
-                            if claim.causer_dependant
-                            else None
-                        ),
-                        claim=claim,
-                        title=title,
-                        description=description,
-                        file=processed_file,
-                        original_filename=original_filename,
-                    )
-
-                    document.full_clean()
-                    document.save()
-
-                    # --------------------------------------------------
-                    # THUMBNAIL
-                    # --------------------------------------------------
-
-                    generate_document_thumbnail(
-                        document
-                    )
-
-        except DocumentUploadValidationError as exc:
-
-            messages.error(
-                request,
-                (
-                    "The claim could not be submitted. "
-                    f"{exc}"
-                ),
-            )
-
-            return render(
-                request,
-                "members/admin/claims/admin_create_claim.html",
-                {
-                    "form": form,
-                    "bank_form": bank_form,
-                    "declaration_form": declaration_form,
-                    "selected_member": selected_member,
-                    "next_of_kin": next_of_kin,
-                },
-            )
-
-        except Exception as exc:
-
-            messages.error(
-                request,
-                (
-                    "The claim could not be submitted. "
-                    f"{exc}"
-                ),
-            )
-
-            return render(
-                request,
-                "members/admin/claims/admin_create_claim.html",
-                {
-                    "form": form,
-                    "bank_form": bank_form,
-                    "declaration_form": declaration_form,
-                    "selected_member": selected_member,
-                    "next_of_kin": next_of_kin,
-                },
-            )
-
-        # ======================================================
-        # SUCCESS
-        # ======================================================
-
-        messages.success(
-            request,
-            "Claim created successfully and submitted for review.",
-        )
-
-        return redirect(
-            "members_admin:claim_detail",
-            claim_id=claim.id,
-        )
+                )
 
     # ==========================================================
-    # INVALID POST
+    # RENDER
     # ==========================================================
 
     return render(
@@ -819,6 +775,9 @@ def admin_create_claim(request):
             "declaration_form": declaration_form,
             "selected_member": selected_member,
             "next_of_kin": next_of_kin,
+            "admin_can_make_dependant_claim": admin_member.can_make_claim,
+            "admin_claim_eligibility_date": admin_member.claim_eligibility_date,
+            "admin_days_until_claim": admin_member.days_until_claim,
         },
     )
 
@@ -855,6 +814,25 @@ def search_members(request):
             safe=False
         )
 
+    # ----------------------------------------------------------
+    # MEMBER CLAIM ELIGIBILITY
+    # ----------------------------------------------------------
+    # Only ACTIVE members who do not already have a claim in one
+    # of the protected statuses may be returned for a MEMBER-type
+    # claim.
+    #
+    # Rejected claims are intentionally not included here, so a
+    # member whose previous claim was rejected can be searched and
+    # selected for a new member claim.
+    # ----------------------------------------------------------
+
+    protected_claim_statuses = [
+        Claim.STATUS_RECEIVED,
+        Claim.STATUS_OPEN,
+        Claim.STATUS_SETTLED,
+        Claim.STATUS_APPROVED,
+    ]
+
     members = (
         Member.objects
         .filter(
@@ -866,6 +844,15 @@ def search_members(request):
             | Q(member_uid__icontains=q)
             | Q(user__email__icontains=q)
             | Q(phone__icontains=q)
+        )
+        .exclude(
+            id__in=(
+                Claim.objects
+                .filter(
+                    status__in=protected_claim_statuses
+                )
+                .values("member_id")
+            )
         )
         .select_related(
             "user",

@@ -1,38 +1,677 @@
 {% extends "members/members_base.html" %}
+{% load static %}
+
 {% block content %}
 
-<div class="container mt-4">
- <h2 class="text-primary mb-3">Add Dependant</h2>
+<div class="container-fluid py-3">
 
- <div class="card shadow-sm">
-   <div class="card-body">
+    <!-- ===================================================== -->
+    <!-- PAGE HEADER -->
+    <!-- ===================================================== -->
 
-     <form method="POST" enctype="multipart/form-data">
-       {% csrf_token %}
+    <div class="mb-4">
 
-       <div class="row mb-3">
-         <div class="col-md-4">{{ form.first_name.label_tag }} {{ form.first_name }}</div>
-         <div class="col-md-4">{{ form.middle_name.label_tag }} {{ form.middle_name }}</div>
-         <div class="col-md-4">{{ form.surname.label_tag }} {{ form.surname }}</div>
-       </div>
+        <h4 class="fw-bold mb-1">
+            Add Dependant
+        </h4>
 
-       <div class="row mb-3">
-         <div class="col-md-4">{{ form.relationship.label_tag }} {{ form.relationship }}</div>
-         <div class="col-md-4">{{ form.dob.label_tag }} {{ form.dob }}</div>
-       </div>
+        <p class="text-muted mb-0">
+            Add the details of your dependant carefully.
+        </p>
 
-       <div class="mb-3">
-         {{ form.document.label_tag }}
-         {{ form.document }}
-       </div>
+    </div>
 
-       <button type="submit" class="btn btn-success">Save</button>
-       <a href="{% url 'members:dependants' %}" class="btn btn-secondary">Cancel</a>
 
-     </form>
+    <!-- ===================================================== -->
+    <!-- FORM -->
+    <!-- ===================================================== -->
 
-   </div>
- </div>
+    <form
+        method="post"
+        enctype="multipart/form-data"
+        id="addDependantForm"
+        data-marital-status="{{ marital_status }}"
+        data-married-value="MARRIED"
+        data-existing-spouse="{{ existing_spouse_count }}"
+        data-existing-parents="{{ existing_parent_count }}"
+        data-existing-mothers="{{ existing_mother_count }}"
+        data-existing-fathers="{{ existing_father_count }}"
+    >
+
+        {% csrf_token %}
+
+
+        <!-- ================================================= -->
+        <!-- FORM ERRORS -->
+        <!-- ================================================= -->
+
+        {% if form.non_field_errors %}
+
+            <div class="alert alert-danger">
+
+                {% for error in form.non_field_errors %}
+
+                    <div>
+                        {{ error }}
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% endif %}
+
+
+        <!-- ================================================= -->
+        <!-- PERSONAL DETAILS -->
+        <!-- ================================================= -->
+
+        <div class="dependant-card">
+
+            <div class="dependant-header">
+
+                <span class="dependant-number">
+                    Dependant Details
+                </span>
+
+            </div>
+
+
+            <div class="row g-3">
+
+                <!-- ========================================= -->
+                <!-- FIRST NAME -->
+                <!-- ========================================= -->
+
+                <div class="col-12 col-md-4">
+
+                    <label
+                        for="{{ form.first_name.id_for_label }}"
+                        class="form-label"
+                    >
+                        First Name
+                    </label>
+
+                    {{ form.first_name }}
+
+                    {% for error in form.first_name.errors %}
+
+                        <div class="text-danger small mt-1">
+                            {{ error }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+
+                <!-- ========================================= -->
+                <!-- MIDDLE NAME -->
+                <!-- ========================================= -->
+
+                <div class="col-12 col-md-4">
+
+                    <label
+                        for="{{ form.middle_name.id_for_label }}"
+                        class="form-label"
+                    >
+                        Middle Name
+                    </label>
+
+                    {{ form.middle_name }}
+
+                    {% for error in form.middle_name.errors %}
+
+                        <div class="text-danger small mt-1">
+                            {{ error }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+
+                <!-- ========================================= -->
+                <!-- SURNAME -->
+                <!-- ========================================= -->
+
+                <div class="col-12 col-md-4">
+
+                    <label
+                        for="{{ form.surname.id_for_label }}"
+                        class="form-label"
+                    >
+                        Surname
+                    </label>
+
+                    {{ form.surname }}
+
+                    {% for error in form.surname.errors %}
+
+                        <div class="text-danger small mt-1">
+                            {{ error }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+
+            <!-- ================================================= -->
+            <!-- DOB + RELATIONSHIP -->
+            <!-- ================================================= -->
+
+            <div class="row g-3 mt-1">
+
+                <!-- ========================================= -->
+                <!-- DATE OF BIRTH -->
+                <!-- ========================================= -->
+
+                <div class="col-12 col-md-6">
+
+                    <label
+                        for="{{ form.dob.id_for_label }}"
+                        class="form-label"
+                    >
+                        Date of Birth
+                    </label>
+
+                    {{ form.dob }}
+
+                    {% for error in form.dob.errors %}
+
+                        <div class="text-danger small mt-1">
+                            {{ error }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+
+                <!-- ========================================= -->
+                <!-- RELATIONSHIP -->
+                <!-- ========================================= -->
+
+                <div class="col-12 col-md-6">
+
+                    <label
+                        for="{{ form.relationship.id_for_label }}"
+                        class="form-label"
+                    >
+                        Relationship
+                    </label>
+
+                    <select
+                        name="relationship"
+                        id="{{ form.relationship.id_for_label }}"
+                        class="form-select"
+                        required
+                    >
+
+                        <option value="">
+                            Select relationship
+                        </option>
+
+
+                        <option
+                            value="CHILD"
+                            {% if form.relationship.value == "CHILD" %}
+                                selected
+                            {% endif %}
+                        >
+                            Child
+                        </option>
+
+
+                        {% if marital_status == "MARRIED" %}
+
+                            <!--
+                                Spouse is deliberately kept visible.
+
+                                add_dependant.js disables it when
+                                one spouse already exists.
+                            -->
+
+                            <option
+                                value="SPOUSE"
+                                {% if form.relationship.value == "SPOUSE" %}
+                                    selected
+                                {% endif %}
+                            >
+                                Spouse
+                            </option>
+
+                        {% endif %}
+
+
+                        <option
+                            value="SIBLING"
+                            {% if form.relationship.value == "SIBLING" %}
+                                selected
+                            {% endif %}
+                        >
+                            Sibling
+                        </option>
+
+
+                        <option
+                            value="PARENT"
+                            {% if form.relationship.value == "PARENT" %}
+                                selected
+                            {% endif %}
+                        >
+                            Parent
+                        </option>
+
+                    </select>
+
+
+                    {% for error in form.relationship.errors %}
+
+                        <div class="text-danger small mt-1">
+                            {{ error }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+
+            <!-- ================================================= -->
+            <!-- PARENT DETAILS -->
+            <!-- ================================================= -->
+
+            <div
+                id="parentFields"
+                class="row g-3 mt-1 d-none"
+            >
+
+                <!-- ========================================= -->
+                <!-- PARENT TYPE -->
+                <!-- ========================================= -->
+
+                <div class="col-12 col-md-6">
+
+                    <label
+                        for="id_parent_type"
+                        class="form-label"
+                    >
+                        Parent Type
+                    </label>
+
+                    <select
+                        name="parent_type"
+                        id="id_parent_type"
+                        class="form-select"
+                    >
+
+                        <option value="">
+                            Select parent type
+                        </option>
+
+                        <option value="MOTHER">
+                            Mother
+                        </option>
+
+                        <option value="FATHER">
+                            Father
+                        </option>
+
+                    </select>
+
+                    <div
+                        id="parentTypeLimitMessage"
+                        class="text-danger small mt-1 d-none"
+                    ></div>
+
+                </div>
+
+
+                <!-- ========================================= -->
+                <!-- PARENT STATUS -->
+                <!-- ========================================= -->
+
+                <div class="col-12 col-md-6">
+
+                    <label
+                        for="id_parent_status"
+                        class="form-label"
+                    >
+                        Parent Status
+                    </label>
+
+                    <select
+                        name="parent_status"
+                        id="id_parent_status"
+                        class="form-select"
+                    >
+
+                        <option value="">
+                            Select parent status
+                        </option>
+
+                        <option value="ALIVE">
+                            Alive
+                        </option>
+
+                        <option value="DECEASED">
+                            Deceased
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <!-- ================================================= -->
+            <!-- LOCATION -->
+            <!-- ================================================= -->
+
+            <div
+                id="locationFields"
+                class="row g-3 mt-1 d-none"
+            >
+
+                <!-- ========================================= -->
+                <!-- COUNTRY -->
+                <!-- ========================================= -->
+
+                <div class="col-12 col-md-4">
+
+                    <label
+                        for="id_country"
+                        class="form-label"
+                    >
+                        Country
+                    </label>
+
+                    <input
+                        type="text"
+                        name="country"
+                        id="id_country"
+                        class="form-control"
+                        placeholder="Enter country"
+                    >
+
+                </div>
+
+
+                <!-- ========================================= -->
+                <!-- COUNTY -->
+                <!-- ========================================= -->
+
+                <div class="col-12 col-md-4">
+
+                    <label
+                        for="id_county"
+                        class="form-label"
+                    >
+                        County
+                    </label>
+
+                    <input
+                        type="text"
+                        name="county"
+                        id="id_county"
+                        class="form-control"
+                        placeholder="Enter county"
+                    >
+
+                </div>
+
+
+                <!-- ========================================= -->
+                <!-- SUB-COUNTY / TOWN -->
+                <!-- ========================================= -->
+
+                <div class="col-12 col-md-4">
+
+                    <label
+                        for="id_sub_county_town"
+                        class="form-label"
+                    >
+                        Sub-county / Town
+                    </label>
+
+                    <input
+                        type="text"
+                        name="sub_county_town"
+                        id="id_sub_county_town"
+                        class="form-control"
+                        placeholder="Enter sub-county / town"
+                    >
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- DOCUMENT -->
+        <!-- ================================================= -->
+
+        <div class="dependant-card">
+
+            <div class="dependant-header">
+
+                <span class="dependant-number">
+                    Supporting Document
+                </span>
+
+            </div>
+
+
+            <div class="row g-3">
+
+                <!-- ========================================= -->
+                <!-- DOCUMENT TITLE -->
+                <!-- ========================================= -->
+
+                <div class="col-12 col-md-6">
+
+                    <label
+                        for="{{ form.document_title.id_for_label }}"
+                        class="form-label"
+                    >
+                        {{ form.document_title.label }}
+                    </label>
+
+                    {{ form.document_title }}
+
+                    {% for error in form.document_title.errors %}
+
+                        <div class="text-danger small mt-1">
+                            {{ error }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+
+                <!-- ========================================= -->
+                <!-- DOCUMENT FILE -->
+                <!-- ========================================= -->
+
+                <div class="col-12 col-md-6">
+
+                    <label
+                        for="{{ form.document_file.id_for_label }}"
+                        class="form-label"
+                    >
+                        {{ form.document_file.label }}
+                    </label>
+
+                    {{ form.document_file }}
+
+                    {% for error in form.document_file.errors %}
+
+                        <div class="text-danger small mt-1">
+                            {{ error }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- ACTIONS -->
+        <!-- ================================================= -->
+
+        <div class="row g-2 mt-3">
+
+            <div class="col-12 col-md-6">
+
+                <a
+                    href="{% url 'members:dependants' %}"
+                    class="btn btn-light w-100"
+                >
+                    Cancel
+                </a>
+
+            </div>
+
+
+            <div class="col-12 col-md-6">
+
+                <button
+                    type="submit"
+                    class="btn btn-primary w-100"
+                >
+                    Add Dependant
+                </button>
+
+            </div>
+
+        </div>
+
+    </form>
+
 </div>
+
+
+<!-- ===================================================== -->
+<!-- JAVASCRIPT -->
+<!-- ===================================================== -->
+
+<script src="{% static 'js/add_dependant.js' %}"></script>
+
+
+<style>
+
+/* ===================================================== */
+/* DEPENDANT CARD */
+/* ===================================================== */
+
+.dependant-card {
+
+    background: #ffffff;
+
+    border: 1px solid #e9eef5;
+
+    border-radius: 20px;
+
+    padding: 1.2rem;
+
+    margin-bottom: 1rem;
+
+    box-shadow:
+        0 3px 10px rgba(0, 0, 0, 0.03);
+}
+
+
+/* ===================================================== */
+/* CARD HEADER */
+/* ===================================================== */
+
+.dependant-header {
+
+    margin-bottom: 1rem;
+}
+
+
+.dependant-number {
+
+    background:
+        linear-gradient(
+            135deg,
+            #0d6efd,
+            #0a58ca
+        );
+
+    color: white;
+
+    padding:
+        0.45rem
+        0.9rem;
+
+    border-radius: 999px;
+
+    font-size: 0.82rem;
+
+    font-weight: 600;
+}
+
+
+/* ===================================================== */
+/* DISABLED RELATIONSHIP OPTIONS */
+/* ===================================================== */
+/*
+ * Unavailable relationships remain visible but greyed out.
+ */
+
+.form-select option:disabled {
+
+    color: #6c757d;
+
+}
+
+
+/* ===================================================== */
+/* MOBILE */
+/* ===================================================== */
+
+@media (max-width: 768px) {
+
+    .dependant-card {
+
+        padding: 1rem;
+
+        border-radius: 18px;
+    }
+
+}
+
+
+@media (max-width: 480px) {
+
+    .dependant-card {
+
+        padding: 0.85rem;
+    }
+
+
+    .dependant-number {
+
+        font-size: 0.74rem;
+    }
+
+}
+
+</style>
 
 {% endblock %}

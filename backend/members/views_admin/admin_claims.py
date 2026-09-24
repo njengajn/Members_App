@@ -402,37 +402,6 @@ def approve_claim(request, claim_uid):
         claim_uid=claim.uid,
     )
 
-@admin_required
-def approve_claimReplaced(request, claim_id):
-    """
-    Approve claim and trigger lifecycle event.
-
-    Business rules preserved:
-    - Only 'received' claims can be approved
-    """
-
-    claim = get_object_or_404(Claim, id=claim_id)
-
-    # FIX STATUS (pending → received)
-    if claim.status != "received":
-        messages.warning(request, "Only received claims can be approved.")
-        return redirect("members_admin:admin_claims_list")
-
-    try:
-        # Step 1: update status
-        claim.status = "approved"
-        claim.save()
-
-        # Step 2: trigger event (NEW — replaces manual logic)
-        trigger_event("claim_approved", claim=claim)
-
-        messages.success(request, "Claim approved successfully.")
-
-    except Exception as e:
-        messages.error(request, str(e))
-
-    return redirect("members_admin:admin_claims_list")
-
 
 @staff_member_required
 def create_payment_request_from_claim(request):

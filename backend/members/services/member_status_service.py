@@ -31,6 +31,7 @@ def retire_member(
 
     member.save()
 
+    # All dependants follow the member into retirement.
     member.dependants.update(
         status="retired"
     )
@@ -59,7 +60,8 @@ def reactivate_member(
     • Existing UID is retained.
     • joined_at is reset to reactivation date.
     • Claim cooling-off starts again.
-    • Dependants become active.
+    • Eligible dependants become active.
+    • A deceased parent remains RETIRED.
     • Portal access is enabled.
     """
 
@@ -82,8 +84,28 @@ def reactivate_member(
 
     member.save()
 
-    member.dependants.update(
+    # ------------------------------------------------------
+    # DEPENDANT ACTIVATION SAFEGUARD
+    # ------------------------------------------------------
+    # Deceased parents must never become active merely because
+    # their member is being reactivated.
+    #
+    # All other dependants follow the member's active status.
+    # A deceased parent remains retired.
+    # ------------------------------------------------------
+
+    member.dependants.exclude(
+        relationship="PARENT",
+        parent_status="DECEASED",
+    ).update(
         status="active"
+    )
+
+    member.dependants.filter(
+        relationship="PARENT",
+        parent_status="DECEASED",
+    ).update(
+        status="retired"
     )
 
     MembershipStatusHistory.objects.create(

@@ -68,6 +68,22 @@ class Member(models.Model):
         choices=STATUS_CHOICES,
         default=STATUS_PENDING
     )
+    
+        # -----------------------------
+    # MARITAL STATUS
+    # -----------------------------
+
+    MARITAL_SINGLE = "SINGLE"
+    MARITAL_MARRIED = "MARRIED"
+    MARITAL_WIDOWED = "WIDOWED"
+    MARITAL_SEPARATED = "SEPARATED"
+
+    MARITAL_STATUS_CHOICES = [
+        (MARITAL_SINGLE, "Single"),
+        (MARITAL_MARRIED, "Married"),
+        (MARITAL_WIDOWED, "Widow / Widower"),
+        (MARITAL_SEPARATED, "Separated"),
+    ]
 
     # -----------------------------
     # ORGANIZATION
@@ -104,6 +120,7 @@ class Member(models.Model):
     phone = models.CharField(max_length=32, blank=True, default="")
     email = models.EmailField(unique=True,  blank=True, null=True,help_text="Automatically synchronised with related User email.")
     address = models.ForeignKey("Address", on_delete=models.SET_NULL, null=True, blank=True, related_name="members")
+    marital_status = models.CharField(max_length=16, choices=MARITAL_STATUS_CHOICES, blank=True,)
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
     applied_at = models.DateTimeField(auto_now_add=True,db_index=True,help_text="Date the application was submitted.")
     joined_at = models.DateTimeField(null=True, blank=True, db_index=True, help_text="Date membership was activated.")
@@ -570,6 +587,26 @@ class Dependant(models.Model):
         (STATUS_RETIRED, "Retired"),
         
     ]
+    
+        # -----------------------------
+    # PARENT DETAILS
+    # -----------------------------
+
+    PARENT_MOTHER = "MOTHER"
+    PARENT_FATHER = "FATHER"
+
+    PARENT_TYPE_CHOICES = [
+        (PARENT_MOTHER, "Mother"),
+        (PARENT_FATHER, "Father"),
+    ]
+
+    PARENT_ALIVE = "ALIVE"
+    PARENT_DECEASED = "DECEASED"
+
+    PARENT_STATUS_CHOICES = [
+        (PARENT_ALIVE, "Alive"),
+        (PARENT_DECEASED, "Deceased"),
+    ]
 
     member = models.ForeignKey("Member", related_name="dependants", on_delete=models.CASCADE)
     first_name = models.CharField(max_length=50, default="")
@@ -577,9 +614,49 @@ class Dependant(models.Model):
     surname = models.CharField(max_length=50, default="")
     relationship = models.CharField(max_length=50, choices=RELATIONSHIP_TYPE_CHOICES, blank=True)
     dob = models.DateField()
+    # -----------------------------
+    # FAMILY LOCATION
+    # -----------------------------
+    country = models.CharField(max_length=100, blank=True, null=True,)    
+    county = models.CharField(max_length=100, blank=True, null=True,)    
+    sub_county_town = models.CharField(max_length=150, blank=True, null=True,)
     status = models.CharField(max_length=16, choices=DEP_STATUS_CHOICES, default=STATUS_PENDING)
-    created_at = models.DateTimeField(auto_now_add=True)
+    parent_type = models.CharField(
+        max_length=10,
+        choices=PARENT_TYPE_CHOICES,
+        blank=True,
+        null=True,
+    )
 
+    parent_status = models.CharField(
+        max_length=12,
+        choices=PARENT_STATUS_CHOICES,
+        blank=True,
+        null=True,
+    )
+
+    # -----------------------------
+    # FAMILY LOCATION
+    # -----------------------------
+
+    country = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+
+    county = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+
+    sub_county_town = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def full_name(self):
         return f"{self.first_name} {self.surname} ({self.relationship})"
