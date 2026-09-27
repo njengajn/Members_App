@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect
 from django.db import transaction
 from backend.members.models import Member, NextOfKin, Dependant, Address
@@ -16,6 +17,11 @@ from backend.members.services.notifications import (
 )
 from backend.members.utils.ip import (
     get_client_ip
+)
+from backend.members.utils.validation import (
+    validate_email_address,
+    validate_member_password,
+    clean_uk_mobile,
 )
 
 otp = generate_otp()
@@ -295,6 +301,30 @@ def register_step_1_user(request):
     - sends branded verification email
     """
 
+    # =================================================
+    # AUTHENTICATED USER GUARD
+    # =================================================
+    #
+    # Registration is only for users who are not already
+    # authenticated.
+    #
+    # This check is deliberately performed before any
+    # registration processing so an existing logged-in
+    # member is not asked to enter registration details,
+    # complete CAPTCHA, or request an OTP.
+    #
+
+    if request.user.is_authenticated:
+
+        messages.info(
+            request,
+            "You are already logged in. You cannot register another account while logged in."
+        )
+
+        return redirect(
+            "members:dashboard"
+        )
+
     if request.method == "POST":
 
         username = request.POST.get("username")
@@ -337,6 +367,21 @@ def register_step_1_user(request):
                 return redirect("members:register_step_1")
 
         # =================================================
+        # EMAIL VALIDATION
+        # =================================================
+
+        try:
+            # Normalise the email once so duplicate checks and the session
+            # value use the same representation.
+            email = validate_email_address(email)
+        except ValidationError as exc:
+            messages.error(
+                request,
+                exc.messages[0]
+            )
+            return redirect("members:register_step_1")
+
+        # =================================================
         # PASSWORD CHECK
         # =================================================
 
@@ -347,6 +392,17 @@ def register_step_1_user(request):
                 "Passwords do not match."
             )
 
+            return redirect("members:register_step_1")
+
+        try:
+            # This is the authoritative member password policy.
+            # The same helper is used by password reset.
+            validate_member_password(password)
+        except ValidationError as exc:
+            messages.error(
+                request,
+                exc.messages[0]
+            )
             return redirect("members:register_step_1")
 
         # =================================================
@@ -743,6 +799,35 @@ def register_step_2_member_profile(request):
         # MEMBER DATA
         # --------------------------------------------------
 
+        # --------------------------------------------------
+        # PHONE VALIDATION
+        # --------------------------------------------------
+
+        try:
+            # Store phone numbers consistently in international +44 format.
+            # The member may still enter the familiar 07... format.
+            phone = clean_uk_mobile(
+                request.POST.get("phone")
+            )
+        except ValidationError as exc:
+            messages.error(
+                request,
+                exc.messages[0]
+            )
+
+            return render(
+                request,
+                "members/register/"
+                "register_step_2_member_profile.html",
+                {
+                    "step_num": 2,
+                    "verified_email": verified_email,
+                    "member": request.POST,
+                    "address": request.POST,
+                    "marital_status_choices": Member.MARITAL_STATUS_CHOICES,
+                },
+            )
+
         request.session["reg_member"] = {
 
             "first_name": _clean(
@@ -759,9 +844,7 @@ def register_step_2_member_profile(request):
 
             "dob": request.POST.get("dob"),
 
-            "phone": _clean(
-                request.POST.get("phone")
-            ),
+            "phone": phone,
 
             "marital_status": marital_status,
         }
@@ -1608,14 +1691,42 @@ def register_step_5_confirmation(request):
     Final registration step.
     """
 
+    # ======================================================
+    # AUTHENTICATED USER PROTECTION
+    # ======================================================
+    #
+    # Registration is intended for users who are not
+    # currently logged in.
+    #
+    # This is enforced server-side so that an authenticated
+    # user cannot complete registration simply by posting
+    # directly to this URL.
+    #
+
+    if request.user.is_authenticated:
+
+        messages.info(
+            request,
+            "You are already logged in. Registration is not required."
+        )
+
+        return redirect(
+            "members:dashboard"
+        )
+
+
     reg_user = request.session.get("reg_user")
+
     reg_member = request.session.get("reg_member")
+
     reg_nok = request.session.get("reg_nok")
+
     reg_dependants = request.session.get(
         "reg_dependants",
         [],
     )
-    
+
+
     # ======================================================
     # FINAL SERVER-SIDE REGISTRATION VALIDATION
     # ======================================================
@@ -1624,18 +1735,22 @@ def register_step_5_confirmation(request):
         reg_member or {}
     ).get("marital_status")
 
+
     final_errors = validate_registration_dependants(
         dependants=reg_dependants,
         marital_status=marital_status,
     )
 
+
     if final_errors:
 
         for error in final_errors:
+
             messages.error(
                 request,
                 error,
             )
+
 
         request.session["reg_dependants"] = (
             reg_dependants
@@ -1643,139 +1758,232 @@ def register_step_5_confirmation(request):
 
         request.session.modified = True
 
+
         return redirect(
             "members:register_step_4"
         )
 
-    if not all([reg_user, reg_member, reg_nok]):
-        return redirect("members:register_step_1")
+
+    if not all([
+        reg_user,
+        reg_member,
+        reg_nok,
+    ]):
+
+        return redirect(
+            "members:register_step_1"
+        )
+
 
     if request.method == "POST":
 
-            # -------------------------
-            # DUPLICATE CHECKS
-            # -------------------------
+        # -------------------------
+        # DUPLICATE CHECKS
+        # -------------------------
 
-            # Existing Django User
-            if User.objects.filter(email__iexact=reg_user["email"]).exists():
+        # Existing Django User
 
-                messages.error(
-                    request,
-                    "An account with this email address already exists. Please log in or use a different email address."
+        if User.objects.filter(
+            email__iexact=reg_user["email"]
+        ).exists():
+
+            messages.error(
+                request,
+                (
+                    "An account with this email address "
+                    "already exists. Please log in or use "
+                    "a different email address."
                 )
-
-                return redirect("members:register_step_1")
-
-
-            # Existing Member
-            if Member.objects.filter(email__iexact=reg_user["email"]).exists():
-
-                messages.error(
-                    request,
-                    "This email address is already registered as a member."
-                )
-
-                return redirect("members:register_step_1")
-
-
-            # Existing Username
-            if User.objects.filter(username__iexact=reg_user["username"]).exists():
-
-                messages.error(
-                    request,
-                    "That username is already in use."
-                )
-
-                return redirect("members:register_step_1")
-
-
-            # -------------------------
-            # CREATE USER
-            # -------------------------
-
-            user = User.objects.create_user(
-
-                username=reg_user["username"],
-
-                email=reg_user["email"],
-
-                password=reg_user["password"],
             )
 
-            # -------------------------
-            # ADDRESS
-            # -------------------------
-            address = create_address_from_session(request)
-
-            # -------------------------
-            # MEMBER
-            # -------------------------
-            member = Member.objects.create(
-                user=user,
-                address=address,
-                email=user.email,
-                can_edit=False,
-                gdpr_consent=True,
-                gdpr_consent_at=timezone.now(),
-                gdpr_consent_ip=get_client_ip(request),
-                gdpr_version="v1",
-                **reg_member,
+            return redirect(
+                "members:register_step_1"
             )
 
-            # -------------------------
-            # NEXT OF KIN
-            # -------------------------
-            NextOfKin.objects.create(
-                member=member,
-                **reg_nok,
+
+        # Existing Member
+
+        if Member.objects.filter(
+            email__iexact=reg_user["email"]
+        ).exists():
+
+            messages.error(
+                request,
+                (
+                    "This email address is already registered "
+                    "as a member."
+                )
             )
 
-            # -------------------------
-            # DEPENDANTS
-            # -------------------------
-            # A deceased parent must always be retired.
-            # All other dependants begin as pending.
-            dependants = []
+            return redirect(
+                "members:register_step_1"
+            )
 
-            for dependant_data in reg_dependants:
 
-                dependant_data = dict(dependant_data)
+        # Existing Username
 
-                if (
-                    dependant_data.get("relationship") == "PARENT"
-                    and dependant_data.get("parent_status") == "DECEASED"
-                ):
-                    dependant_data["status"] = "retired"
-                else:
-                    dependant_data["status"] = "pending"
+        if User.objects.filter(
+            username__iexact=reg_user["username"]
+        ).exists():
 
-                dependants.append(
-                    Dependant(
-                        member=member,
-                        **dependant_data,
-                    )
+            messages.error(
+                request,
+                "That username is already in use."
+            )
+
+            return redirect(
+                "members:register_step_1"
+            )
+
+
+        # -------------------------
+        # CREATE USER
+        # -------------------------
+
+        user = User.objects.create_user(
+
+            username=reg_user["username"],
+
+            email=reg_user["email"],
+
+            password=reg_user["password"],
+        )
+
+
+        # -------------------------
+        # ADDRESS
+        # -------------------------
+
+        address = create_address_from_session(
+            request
+        )
+
+
+        # -------------------------
+        # MEMBER
+        # -------------------------
+
+        member = Member.objects.create(
+
+            user=user,
+
+            address=address,
+
+            email=user.email,
+
+            can_edit=False,
+
+            gdpr_consent=True,
+
+            gdpr_consent_at=timezone.now(),
+
+            gdpr_consent_ip=get_client_ip(
+                request
+            ),
+
+            gdpr_version="v1",
+
+            **reg_member,
+        )
+
+
+        # -------------------------
+        # NEXT OF KIN
+        # -------------------------
+
+        NextOfKin.objects.create(
+
+            member=member,
+
+            **reg_nok,
+        )
+
+
+        # -------------------------
+        # DEPENDANTS
+        # -------------------------
+
+        # A deceased parent must always be retired.
+        # All other dependants begin as pending.
+
+        dependants = []
+
+
+        for dependant_data in reg_dependants:
+
+            dependant_data = dict(
+                dependant_data
+            )
+
+
+            if (
+                dependant_data.get(
+                    "relationship"
+                ) == "PARENT"
+
+                and dependant_data.get(
+                    "parent_status"
+                ) == "DECEASED"
+            ):
+
+                dependant_data["status"] = (
+                    "retired"
                 )
 
-            Dependant.objects.bulk_create(dependants)
+            else:
+
+                dependant_data["status"] = (
+                    "pending"
+                )
+
+
+            dependants.append(
+                Dependant(
+                    member=member,
+                    **dependant_data,
+                )
+            )
+
+
+        Dependant.objects.bulk_create(
+            dependants
+        )
+
 
         # -------------------------
         # CLEAR SESSION
         # -------------------------
-            for key in [
-                "reg_user",
-                "reg_member",
-                "reg_nok",
-                "reg_dependants",
-                "reg_address",
-            ]:
-                request.session.pop(key, None)
 
-            messages.success(
-                request,
-                "Registration completed.",
+        for key in [
+
+            "reg_user",
+
+            "reg_member",
+
+            "reg_nok",
+
+            "reg_dependants",
+
+            "reg_address",
+
+        ]:
+
+            request.session.pop(
+                key,
+                None
             )
 
-            return redirect("members:login")
+
+        messages.success(
+            request,
+            "Registration completed.",
+        )
+
+
+        return redirect(
+            "members:login"
+        )
+
 
     return render(
 
@@ -1788,6 +1996,9 @@ def register_step_5_confirmation(request):
             "step_num": 5,
 
             "member": reg_member,
+
+            # The verified registration email comes
+            # directly from Step 1's reg_user session.
 
             "verified_email": reg_user["email"],
 

@@ -5,13 +5,13 @@
 
 <div class="mb-4">
 
-    <h4 class="page-title mb-1">
-        User Registration
-    </h4>
+<h4 class="page-title mb-1">
+    User Registration
+</h4>
 
-    <p class="page-subtitle mb-0">
-        Create your account to continue registration
-    </p>
+<p class="page-subtitle mb-0">
+    Create your account to continue registration
+</p>
 
 </div>
 
@@ -19,154 +19,327 @@
       id="registerStep1Form"
       novalidate>
 
-    {% csrf_token %}
+{% csrf_token %}
 
-    <!-- USERNAME -->
-    <div class="register-section">
 
-        <label class="form-label">
-            Username
-        </label>
+<!-- USERNAME -->
 
-        <input
-            name="username"
-            class="form-control"
-            placeholder="Enter username"
-            required
-        >
+<div class="register-section">
 
+    <label class="form-label">
+        Username
+    </label>
+
+    <input
+        name="username"
+        class="form-control"
+        placeholder="Enter username"
+        autocomplete="username"
+        required
+    >
+
+</div>
+
+
+<!-- EMAIL -->
+
+<div class="register-section">
+
+    <label class="form-label">
+        Email Address
+    </label>
+
+    <input
+        name="email"
+        type="email"
+        class="form-control"
+        placeholder="Enter email address"
+        autocomplete="email"
+        required
+    >
+
+    <div class="form-text">
+        Enter a valid email address. This address will be verified
+        before you continue.
     </div>
 
-    <!-- EMAIL -->
-    <div class="register-section">
+</div>
 
-        <label class="form-label">
-            Email Address
-        </label>
 
-        <input
-            name="email"
-            type="email"
-            class="form-control"
-            placeholder="Enter email address"
-            required
-        >
+<!-- PASSWORD -->
 
+<div class="register-section">
+
+    <label class="form-label">
+        Password
+    </label>
+
+    <input
+        id="registration_password"
+        name="password"
+        type="password"
+        class="form-control"
+        placeholder="Enter password"
+        autocomplete="new-password"
+        minlength="8"
+        required
+    >
+
+    <!--
+    These are the same rules enforced server-side by
+    backend.members.utils.validation.validate_member_password().
+
+    JavaScript is only visual feedback and is never trusted as the
+    authoritative validation mechanism.
+    -->
+
+    <div class="form-text mt-2">
+        Password must contain:
     </div>
 
-    <!-- PASSWORD -->
-    <div class="register-section">
+    <ul class="password-requirements small text-muted mb-0 mt-1"
+        id="passwordRequirements">
 
-        <label class="form-label">
-            Password
-        </label>
+        <li data-rule="length">
+            At least 8 characters
+        </li>
 
-        <input
-            name="password"
-            type="password"
-            class="form-control"
-            placeholder="Enter password"
-            required
-        >
+        <li data-rule="upper">
+            At least one uppercase letter
+        </li>
 
+        <li data-rule="lower">
+            At least one lowercase letter
+        </li>
+
+        <li data-rule="number">
+            At least one number
+        </li>
+
+        <li data-rule="special">
+            At least one special character
+        </li>
+
+    </ul>
+
+</div>
+
+
+<!-- CONFIRM PASSWORD -->
+
+<div class="register-section">
+
+    <label
+        for="confirm_password"
+        class="form-label"
+    >
+        Confirm Password
+    </label>
+
+    <input
+        id="confirm_password"
+        name="confirm_password"
+        type="password"
+        class="form-control"
+        placeholder="Confirm password"
+        autocomplete="new-password"
+        minlength="8"
+        aria-describedby="confirm-password-feedback"
+        required
+    >
+
+    <!--
+    Client-side confirmation feedback only.
+
+    The server-side registration validation remains authoritative.
+    -->
+
+    <div
+        id="confirm-password-feedback"
+        class="form-text mt-2"
+        aria-live="polite"
+    ></div>
+
+</div>
+
+
+<!-- CAPTCHA -->
+
+<div class="register-section captcha-wrapper">
+
+    <div class="g-recaptcha"
+         data-sitekey="{{ recaptcha_site_key }}">
     </div>
 
-    <!-- CONFIRM PASSWORD -->
-    <div class="register-section">
+</div>
 
-        <label class="form-label">
-            Confirm Password
-        </label>
 
-        <input
-            name="confirm_password"
-            type="password"
-            class="form-control"
-            placeholder="Confirm password"
-            required
+<!-- ===================================== -->
+<!-- GDPR / PRIVACY -->
+<!-- ===================================== -->
+
+<div
+    class="card border-0 shadow-sm mt-4"
+    style="
+        border-radius:16px;
+        overflow:hidden;
+    "
+>
+
+    <div class="card-body">
+
+        <h5 class="fw-bold mb-3">
+            GDPR & Privacy Policy
+        </h5>
+
+        <p
+            class="small text-muted"
+            style="line-height:1.8;"
         >
+            Please read and agree to the
+            KRO Welfare Group GDPR and
+            Privacy Policy before continuing.
+        </p>
 
-    </div>
 
-    <!-- CAPTCHA -->
-    <div class="register-section captcha-wrapper">
+        <!-- ============================== -->
+        <!-- OPEN POLICY MODAL -->
+        <!-- ============================== -->
 
-        <div class="g-recaptcha"
-             data-sitekey="{{ recaptcha_site_key }}">
+        <button
+            type="button"
+            class="btn btn-outline-primary btn-sm mt-2"
+            data-bs-toggle="modal"
+            data-bs-target="#gdprModal"
+        >
+            Read GDPR & Privacy Policy
+        </button>
+
+
+        <!-- ============================== -->
+        <!-- CONSENT -->
+        <!-- ============================== -->
+
+        <div class="form-check mt-4">
+
+            <input
+                class="form-check-input"
+                type="checkbox"
+                id="gdpr_consent"
+                name="gdpr_consent"
+                required
+            >
+
+            <label
+                class="form-check-label"
+                for="gdpr_consent"
+            >
+                I agree to the KRO Welfare Group
+                using my information for purposes
+                related to its welfare objectives
+                and operations.
+            </label>
+
         </div>
 
     </div>
-    <!-- ===================================== -->
-    <!-- GDPR / PRIVACY -->
-    <!-- ===================================== -->
+
+</div>
+
+
+<!-- ===================================== -->
+<!-- GDPR MODAL -->
+<!-- ===================================== -->
+
+<div
+    class="modal fade"
+    id="gdprModal"
+    tabindex="-1"
+>
 
     <div
-        class="card border-0 shadow-sm mt-4"
-        style="
-            border-radius:16px;
-            overflow:hidden;
-        "
+        class="modal-dialog modal-dialog-scrollable modal-lg"
     >
 
-        <div class="card-body">
+        <div class="modal-content">
 
-            <h5 class="fw-bold mb-3">
+            <div class="modal-header">
 
-                GDPR & Privacy Policy
+                <h5 class="modal-title">
+                    GDPR & Privacy Policy
+                </h5>
 
-            </h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
 
-            <p
-                class="small text-muted"
-                style="line-height:1.8;"
-            >
+            </div>
 
-                Please read and agree to the
-                KRO Welfare Group GDPR and
-                Privacy Policy before continuing.
 
-            </p>
+            <div class="modal-body">
 
-            <!-- ============================== -->
-            <!-- OPEN POLICY MODAL -->
-            <!-- ============================== -->
+                <p style="line-height:1.8;">
+                    Under the General Data
+                    Protection Regulation
+                    (GDPR) (EU) 2016/679,
+                    KRO Welfare Group has
+                    a legal duty to protect
+                    your information.
+                </p>
 
-            <button
-                type="button"
-                class="btn btn-outline-primary btn-sm mt-2"
-                data-bs-toggle="modal"
-                data-bs-target="#gdprModal"
-            >
 
-                Read GDPR & Privacy Policy
+                <p style="line-height:1.8;">
+                    Information provided may be used
+                    solely for welfare operations including:
+                </p>
 
-            </button>
 
-            <!-- ============================== -->
-            <!-- CONSENT -->
-            <!-- ============================== -->
+                <ul style="line-height:1.8;">
 
-            <div class="form-check mt-4">
+                    <li>
+                        Membership management
+                    </li>
 
-                <input
-                    class="form-check-input"
-                    type="checkbox"
-                    id="gdpr_consent"
-                    name="gdpr_consent"
-                    required
+                    <li>
+                        Welfare administration
+                    </li>
+
+                    <li>
+                        Payment processing
+                    </li>
+
+                    <li>
+                        Claims processing
+                    </li>
+
+                    <li>
+                        Notifications and communication
+                    </li>
+
+                </ul>
+
+
+                <p style="line-height:1.8;">
+                    Your information will not
+                    be sold or disclosed outside
+                    the organization except where
+                    legally required.
+                </p>
+
+            </div>
+
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
                 >
-
-                <label
-                    class="form-check-label"
-                    for="gdpr_consent"
-                >
-
-                    I agree to the KRO Welfare Group
-                    using my information for purposes
-                    related to its welfare objectives
-                    and operations.
-
-                </label>
+                    Close
+                </button>
 
             </div>
 
@@ -174,191 +347,330 @@
 
     </div>
 
-    <!-- ===================================== -->
-    <!-- GDPR MODAL -->
-    <!-- ===================================== -->
+</div>
 
-    <div
-        class="modal fade"
-        id="gdprModal"
-        tabindex="-1"
-    >
 
-        <div
-            class="modal-dialog modal-dialog-scrollable modal-lg"
+<!-- BUTTONS -->
+
+<div class="row g-2 mt-1">
+
+    <div class="col-12 col-md-6">
+
+        <a
+            href="/"
+            class="btn btn-light mobile-btn w-100"
         >
-
-            <div class="modal-content">
-
-                <!-- ========================== -->
-                <!-- HEADER -->
-                <!-- ========================== -->
-
-                <div class="modal-header">
-
-                    <h5 class="modal-title">
-
-                        GDPR & Privacy Policy
-
-                    </h5>
-
-                    <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                    ></button>
-
-                </div>
-
-                <!-- ========================== -->
-                <!-- BODY -->
-                <!-- ========================== -->
-
-                <div class="modal-body">
-
-                    <p style="line-height:1.8;">
-
-                        Under the General Data
-                        Protection Regulation
-                        (GDPR) (EU) 2016/679,
-                        KRO Welfare Group has
-                        a legal duty to protect
-                        your information.
-
-                    </p>
-
-                    <p style="line-height:1.8;">
-
-                        Information provided may
-                        be used solely for welfare
-                        operations including:
-
-                    </p>
-
-                    <ul style="line-height:1.8;">
-
-                        <li>
-                            Membership management
-                        </li>
-
-                        <li>
-                            Welfare administration
-                        </li>
-
-                        <li>
-                            Payment processing
-                        </li>
-
-                        <li>
-                            Claims processing
-                        </li>
-
-                        <li>
-                            Notifications and communication
-                        </li>
-
-                    </ul>
-
-                    <p style="line-height:1.8;">
-
-                        Your information will not
-                        be sold or disclosed outside
-                        the organization except where
-                        legally required.
-
-                    </p>
-
-                </div>
-
-                <!-- ========================== -->
-                <!-- FOOTER -->
-                <!-- ========================== -->
-
-                <div class="modal-footer">
-
-                    <button
-                        type="button"
-                        class="btn btn-secondary"
-                        data-bs-dismiss="modal"
-                    >
-
-                        Close
-
-                    </button>
-
-                </div>
-
-            </div>
-
-        </div>
+            Cancel
+        </a>
 
     </div>
 
-    <!-- BUTTONS -->
-    <div class="row g-2 mt-1">
 
-        <div class="col-12 col-md-6">
+    <div class="col-12 col-md-6">
 
-            <a href="/"
-               class="btn btn-light mobile-btn w-100">
-
-                Cancel
-
-            </a>
-
-        </div>
-
-        <div class="col-12 col-md-6">
-
-            <button type="submit"
-                    class="btn mobile-btn-primary mobile-btn w-100">
-
-                Continue
-
-            </button>
-
-        </div>
+        <button
+            type="submit"
+            class="btn mobile-btn-primary mobile-btn w-100"
+        >
+            Continue
+        </button>
 
     </div>
+
+</div>
 
 </form>
 
-<script src="https://www.google.com/recaptcha/api.js"
-        async
-        defer>
-    </script>
+<script
+    src="https://www.google.com/recaptcha/api.js"
+    async
+    defer>
+</script>
 
 <script>
 
-    document.addEventListener(
-        "DOMContentLoaded",
-        function () {
+document.addEventListener("DOMContentLoaded", function () {
 
-            const form = document.querySelector("form");
-
-            form.addEventListener(
-                "submit",
-                function (e) {
-
-                    const consent = document.getElementById(
-                        "gdpr_consent"
-                    );
-
-                    if (!consent.checked) {
-
-                        e.preventDefault();
-
-                        alert(
-                            "You must agree to the GDPR and Privacy Policy before continuing."
-                        );
-
-                        return false;
-                    }
-                }
-            );
-        }
+    const form = document.getElementById("registerStep1Form");
+    const password = document.getElementById("registration_password");
+    const confirmPassword = document.getElementById("confirm_password");
+    const confirmFeedback = document.getElementById(
+        "confirm-password-feedback"
     );
 
+
+    /*
+     * ================================================================
+     * VISUAL PASSWORD-STRENGTH FEEDBACK
+     * ================================================================
+     *
+     * The view remains authoritative.
+     */
+
+    if (password) {
+
+        password.addEventListener("input", function () {
+
+            const value = password.value;
+
+            const rules = {
+
+                length: value.length >= 8,
+
+                upper: /[A-Z]/.test(value),
+
+                lower: /[a-z]/.test(value),
+
+                number: /\d/.test(value),
+
+                special: /[^A-Za-z0-9]/.test(value)
+
+            };
+
+
+            Object.keys(rules).forEach(function (rule) {
+
+                const item = document.querySelector(
+                    '#passwordRequirements [data-rule="' +
+                    rule +
+                    '"]'
+                );
+
+
+                if (!item) {
+                    return;
+                }
+
+
+                item.classList.toggle(
+                    "text-success",
+                    rules[rule]
+                );
+
+
+                item.classList.toggle(
+                    "text-danger",
+                    value.length > 0 && !rules[rule]
+                );
+
+            });
+
+
+            /*
+             * Re-check the confirmation password whenever the
+             * original password changes.
+             */
+
+            checkPasswordMatch();
+
+        });
+
+    }
+
+
+    /*
+     * ================================================================
+     * CONFIRM PASSWORD FEEDBACK
+     * ================================================================
+     *
+     * This gives the user immediate feedback when Password and
+     * Confirm Password do not match.
+     *
+     * It does NOT replace server-side validation.
+     */
+
+    function checkPasswordMatch() {
+
+        if (!password || !confirmPassword) {
+            return true;
+        }
+
+
+        const passwordValue = password.value;
+        const confirmValue = confirmPassword.value;
+
+
+        /*
+         * Do not show an error while Confirm Password is empty.
+         * The required attribute and server-side validation handle
+         * an empty confirmation field.
+         */
+
+        if (confirmValue.length === 0) {
+
+            confirmPassword.classList.remove(
+                "is-valid",
+                "is-invalid"
+            );
+
+            if (confirmFeedback) {
+
+                confirmFeedback.textContent = "";
+
+                confirmFeedback.classList.remove(
+                    "text-success",
+                    "text-danger"
+                );
+
+            }
+
+            return false;
+        }
+
+
+        /*
+         * Passwords match.
+         */
+
+        if (passwordValue === confirmValue) {
+
+            confirmPassword.classList.remove(
+                "is-invalid"
+            );
+
+            confirmPassword.classList.add(
+                "is-valid"
+            );
+
+
+            if (confirmFeedback) {
+
+                confirmFeedback.textContent =
+                    "Passwords match.";
+
+                confirmFeedback.classList.remove(
+                    "text-danger"
+                );
+
+                confirmFeedback.classList.add(
+                    "text-success"
+                );
+
+            }
+
+            return true;
+        }
+
+
+        /*
+         * Passwords do not match.
+         */
+
+        confirmPassword.classList.remove(
+            "is-valid"
+        );
+
+        confirmPassword.classList.add(
+            "is-invalid"
+        );
+
+
+        if (confirmFeedback) {
+
+            confirmFeedback.textContent =
+                "Passwords do not match.";
+
+            confirmFeedback.classList.remove(
+                "text-success"
+            );
+
+            confirmFeedback.classList.add(
+                "text-danger"
+            );
+
+        }
+
+        return false;
+    }
+
+
+    if (confirmPassword) {
+
+        confirmPassword.addEventListener(
+            "input",
+            checkPasswordMatch
+        );
+
+    }
+
+
+    /*
+     * ================================================================
+     * FORM SUBMISSION
+     * ================================================================
+     *
+     * GDPR consent check
+     * prevent submission when both password fields contain values
+     * that do not match.
+     */
+
+    if (form) {
+
+        form.addEventListener("submit", function (e) {
+
+            const consent = document.getElementById(
+                "gdpr_consent"
+            );
+
+
+            /*
+             * Confirm Password must match Password.
+             */
+
+            if (!checkPasswordMatch()) {
+
+                if (
+                    password &&
+                    confirmPassword &&
+                    confirmPassword.value.length > 0
+                ) {
+
+                    e.preventDefault();
+
+                    confirmPassword.focus();
+
+                    return false;
+
+                }
+
+            }
+
+
+            /*
+             * Preserve the existing GDPR consent check.
+             */
+
+            if (!consent || !consent.checked) {
+
+                e.preventDefault();
+
+                alert(
+                    "You must agree to the GDPR and Privacy Policy before continuing."
+                );
+
+                return false;
+
+            }
+
+        });
+
+    }
+
+});
+
 </script>
+
+<style>
+
+.password-requirements {
+    padding-left: 1.2rem;
+}
+
+
+.password-requirements li {
+    margin-bottom: 0.15rem;
+}
+
+</style>
 
 {% endblock %}

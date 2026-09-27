@@ -11,482 +11,586 @@ STEP 2 - MEMBER PROFILE
 Collects:
     - Personal details
     - Date of Birth
-    - Phone
+    - UK mobile phone
     - Marital Status
     - Verified email (read-only)
-    - Structured Address
+    - Structured UK address
 
-Expected view context:
+The view supplies:
     step_num
     verified_email
     marital_status_choices
+    member
+    address
 
-The view should provide:
-
-    "marital_status_choices": Member.MARITAL_STATUS_CHOICES
-
-This keeps the template tied to the model's actual marital-status
-choices instead of duplicating the choice values in the template.
-
-Expected POST fields:
-    first_name
-    middle_name
-    surname
-    dob
-    phone
-    marital_status
-    house_number
-    line_1
-    line_2
-    town
-    county
-    postcode
-    country
-
-Session cache:
+The existing session cache names remain unchanged:
     request.session.reg_member
     request.session.reg_address
 
-The session values are used to restore information when the user
-returns to this step or when validation fails.
+The postcode lookup is a convenience feature (optional).
+It fills town, county and country where postcode information
+is available. House number and address line 1 remain editable
+manual fields.
+
+Registration does not depend on the postcode lookup working.
 ==================================================================
 -->
 
 <div class="mb-4">
 
-    <h4 class="fw-bold mb-1">
-        Member Registration
-    </h4>
+<h4 class="fw-bold mb-1">
+    Member Registration
+</h4>
 
-    <p class="text-muted mb-0">
-        Please provide your personal and address details.
-    </p>
+<p class="text-muted mb-0">
+    Please provide your personal and address details.
+</p>
+
+</div>
+
+<form method="post">
+
+{% csrf_token %}
+
+
+<!-- ==========================================================
+     PERSONAL DETAILS
+     ========================================================== -->
+
+<div class="register-section mb-4">
+
+    <div class="section-title">
+        Personal Details
+    </div>
+
+
+    <div class="row g-3">
+
+
+        <!-- First Name -->
+
+        <div class="col-12 col-md-4">
+
+            <label class="form-label">
+                First Name
+            </label>
+
+            <input
+                name="first_name"
+                class="form-control"
+                value="{{ member.first_name|default:'' }}"
+                placeholder="Enter first name"
+                required
+            >
+
+        </div>
+
+
+        <!-- Middle Name -->
+
+        <div class="col-12 col-md-4">
+
+            <label class="form-label">
+                Middle Name
+            </label>
+
+            <input
+                name="middle_name"
+                class="form-control"
+                value="{{ member.middle_name|default:'' }}"
+                placeholder="Enter middle name"
+            >
+
+        </div>
+
+
+        <!-- Surname -->
+
+        <div class="col-12 col-md-4">
+
+            <label class="form-label">
+                Surname
+            </label>
+
+            <input
+                name="surname"
+                class="form-control"
+                value="{{ member.surname|default:'' }}"
+                placeholder="Enter surname"
+                required
+            >
+
+        </div>
+
+
+        <!-- Date of Birth -->
+
+        <div class="col-12 col-md-6">
+
+            <label class="form-label">
+                Date of Birth
+            </label>
+
+            <input
+                type="date"
+                name="dob"
+                class="form-control"
+                value="{{ member.dob|default:'' }}"
+                required
+            >
+
+        </div>
+
+
+        <!-- Phone Number -->
+
+        <div class="col-12 col-md-6">
+
+            <label class="form-label">
+                UK Mobile Phone Number
+            </label>
+
+            <input
+                type="tel"
+                name="phone"
+                class="form-control"
+                value="{{ member.phone|default:'' }}"
+                placeholder="07123456789 or +447123456789"
+                autocomplete="tel"
+                inputmode="tel"
+                maxlength="16"
+                required
+            >
+
+            <div class="form-text">
+                Enter an 11-digit UK mobile beginning with 07,
+                or the international +44 format.
+            </div>
+
+        </div>
+
+
+        <!-- ==================================================
+             MARITAL STATUS
+
+             The view supplies Member.MARITAL_STATUS_CHOICES.
+             ================================================== -->
+
+        <div class="col-12 col-md-6">
+
+            <label
+                for="marital_status"
+                class="form-label"
+            >
+                Marital Status
+            </label>
+
+            <select
+                id="marital_status"
+                name="marital_status"
+                class="form-select"
+                required
+            >
+
+                <option value="">
+                    Select marital status
+                </option>
+
+
+                {% for value, label in marital_status_choices %}
+
+                    <option
+                        value="{{ value }}"
+                        {% if member.marital_status == value %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ label }}
+                    </option>
+
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+
+        <!-- VERIFIED EMAIL -->
+
+        <div class="col-12">
+
+            <label
+                for="verified_email"
+                class="form-label"
+            >
+                Verified Email
+            </label>
+
+            <input
+                id="verified_email"
+                type="email"
+                class="form-control"
+                value="{{ verified_email }}"
+                readonly
+            >
+
+            <div class="form-text">
+                This email has already been verified by OTP and
+                cannot be changed here.
+            </div>
+
+        </div>
+
+
+    </div>
 
 </div>
 
 
-<form method="post">
+<!-- ==========================================================
+     ADDRESS DETAILS
+     ========================================================== -->
 
-    {% csrf_token %}
+<div class="register-section mb-4">
+
+    <div class="section-title">
+        Address Details
+    </div>
 
 
-    <!-- ==========================================================
-         PERSONAL DETAILS
-         ========================================================== -->
+    <!--
+    ==========================================================
+    POSTCODE LOOKUP
+    ==========================================================
 
-    <div class="register-section mb-4">
+    The postcode lookup is an optional convenience feature.
 
-        <div class="section-title">
-            Personal Details
+    It uses the existing:
+        /api/postcode-lookup/
+
+    endpoint.
+
+    The lookup provides geographical information such as:
+        - Town / City
+        - County
+        - Country
+
+    It does NOT identify an individual property.
+
+    Therefore:
+        - House Number is entered manually.
+        - Address Line 1 / Street is entered manually.
+        - Address Line 2 is entered manually.
+        - Postcode can be entered manually or used for lookup.
+
+    Registration remains fully usable if the lookup is
+    unavailable or the postcode is not found.
+    ==========================================================
+    -->
+
+
+    <div class="mb-3">
+
+        <label
+            for="postcode"
+            class="form-label"
+        >
+            Postcode
+        </label>
+
+
+        <div class="input-group">
+
+            <input
+                id="postcode"
+                name="postcode"
+                type="text"
+                class="form-control"
+                value="{{ address.postcode|default:'' }}"
+                placeholder="Enter postcode, e.g. RG1 1AA"
+                autocomplete="postal-code"
+                maxlength="9"
+                required
+            >
+
+
+            <button
+                type="button"
+                id="find-postcode-button"
+                class="btn btn-outline-primary"
+                onclick="lookupPostcode()"
+            >
+                Find
+            </button>
+
+        </div>
+
+
+        <div class="form-text">
+            Enter your postcode and select Find to automatically
+            fill the town, county and country where available.
         </div>
 
 
-        <div class="row g-3">
-
-
-            <!-- First Name -->
-            <div class="col-12 col-md-4">
-
-                <label class="form-label">
-                    First Name
-                </label>
-
-                <input
-                    name="first_name"
-                    class="form-control"
-                    value="{{ request.session.reg_member.first_name|default:'' }}"
-                    placeholder="Enter first name"
-                    required
-                >
-
-            </div>
-
-
-            <!-- Middle Name -->
-            <div class="col-12 col-md-4">
-
-                <label class="form-label">
-                    Middle Name
-                </label>
-
-                <input
-                    name="middle_name"
-                    class="form-control"
-                    value="{{ request.session.reg_member.middle_name|default:'' }}"
-                    placeholder="Enter middle name"
-                >
-
-            </div>
-
-
-            <!-- Surname -->
-            <div class="col-12 col-md-4">
-
-                <label class="form-label">
-                    Surname
-                </label>
-
-                <input
-                    name="surname"
-                    class="form-control"
-                    value="{{ request.session.reg_member.surname|default:'' }}"
-                    placeholder="Enter surname"
-                    required
-                >
-
-            </div>
-
-
-            <!-- Date of Birth -->
-            <div class="col-12 col-md-6">
-
-                <label class="form-label">
-                    Date of Birth
-                </label>
-
-                <input
-                    type="date"
-                    name="dob"
-                    class="form-control"
-                    value="{{ request.session.reg_member.dob|default:'' }}"
-                    required
-                >
-
-            </div>
-
-
-            <!-- Phone Number -->
-            <div class="col-12 col-md-6">
-
-                <label class="form-label">
-                    Phone Number
-                </label>
-
-                <input
-                    type="tel"
-                    name="phone"
-                    class="form-control"
-                    value="{{ request.session.reg_member.phone|default:'' }}"
-                    placeholder="Enter phone number"
-                    required
-                >
-
-            </div>
-
-
-            <!-- ==================================================
-                 MARITAL STATUS
-
-                 IMPORTANT:
-                 Do not hard-code the four marital-status values
-                 here.
-
-                 The view supplies:
-                     marital_status_choices
-
-                 which comes from:
-                     Member.MARITAL_STATUS_CHOICES
-
-                 This means the model remains the single source
-                 of truth for the available choices.
-                 ================================================== -->
-
-            <div class="col-12 col-md-6">
-
-                <label
-                    for="marital_status"
-                    class="form-label"
-                >
-                    Marital Status
-                </label>
-
-                <select
-                    id="marital_status"
-                    name="marital_status"
-                    class="form-select"
-                    required
-                >
-
-                    <option value="">
-                        Select marital status
-                    </option>
-
-
-                    {% for value, label in marital_status_choices %}
-
-                        <option
-                            value="{{ value }}"
-                            {% if request.session.reg_member.marital_status == value %}
-                                selected
-                            {% endif %}
-                        >
-                            {{ label }}
-                        </option>
-
-                    {% endfor %}
-
-                </select>
-
-            </div>
-
-
-            <!-- ==================================================
-                 VERIFIED EMAIL
-
-                 Email is not editable here.
-
-                 It has already been verified by OTP and is
-                 supplied by the view as verified_email.
-                 ================================================== -->
-
-            <div class="col-12">
-
-                <label
-                    for="verified_email"
-                    class="form-label"
-                >
-                    Verified Email
-                </label>
-
-                <input
-                    id="verified_email"
-                    type="email"
-                    class="form-control"
-                    value="{{ verified_email }}"
-                    readonly
-                >
-
-                <div class="form-text">
-                    This email has already been verified by OTP and
-                    cannot be changed here.
-                </div>
-
-            </div>
-
-
-        </div>
+        <div
+            id="postcode-lookup-status"
+            class="form-text mt-2"
+            aria-live="polite"
+        ></div>
 
     </div>
 
 
-    <!-- ==========================================================
-         ADDRESS DETAILS
-         ========================================================== -->
+    <div class="row g-3">
 
-    <div class="register-section mb-4">
 
-        <div class="section-title">
-            Address Details
+        <!-- House Number -->
+
+        <div class="col-12 col-md-4">
+
+            <label
+                for="house_number"
+                class="form-label"
+            >
+                House Number
+            </label>
+
+            <input
+                id="house_number"
+                name="house_number"
+                class="form-control"
+                value="{{ address.house_number|default:'' }}"
+                placeholder="House number or name"
+                autocomplete="address-line1"
+            >
+
         </div>
 
 
-        <!-- Address search -->
-        <div class="mb-3 position-relative">
+        <!-- Address Line 1 / Street -->
+
+        <div class="col-12 col-md-8">
 
             <label
                 for="line_1"
                 class="form-label"
             >
-                Search Address
+                Address Line 1 / Street
             </label>
 
             <input
                 id="line_1"
                 name="line_1"
                 class="form-control"
-                placeholder="Start typing address..."
-                autocomplete="off"
-                value="{{ request.session.reg_address.line_1|default:'' }}"
+                value="{{ address.line_1|default:'' }}"
+                placeholder="Street name"
+                autocomplete="address-line1"
             >
+
+        </div>
+
+
+        <!-- Address Line 2 -->
+
+        <div class="col-12">
+
+            <label
+                for="line_2"
+                class="form-label"
+            >
+                Address Line 2
+            </label>
+
+            <input
+                id="line_2"
+                name="line_2"
+                class="form-control"
+                value="{{ address.line_2|default:'' }}"
+                placeholder="Optional"
+                autocomplete="address-line2"
+            >
+
+        </div>
+
+
+        <!-- Town / City -->
+
+        <div class="col-12 col-md-4">
+
+            <label
+                for="town"
+                class="form-label"
+            >
+                Town / City
+            </label>
+
+            <input
+                id="town"
+                name="town"
+                class="form-control"
+                value="{{ address.town|default:'' }}"
+                autocomplete="address-level2"
+            >
+
+        </div>
+
+
+        <!-- County -->
+
+        <div class="col-12 col-md-4">
+
+            <label
+                for="county"
+                class="form-label"
+            >
+                County
+            </label>
+
+            <input
+                id="county"
+                name="county"
+                class="form-control"
+                value="{{ address.county|default:'' }}"
+                autocomplete="address-level1"
+            >
+
+        </div>
+
+
+        <!-- Postcode is already above -->
+
+        <div class="col-12 col-md-4">
+
+            <label
+                for="postcode-display"
+                class="form-label"
+            >
+                Postcode
+            </label>
 
             <!--
-            Address autocomplete suggestions are inserted here
-            by address_autocomplete.js.
+            This is intentionally displayed as a read-only
+            confirmation of the postcode already entered above.
+
+            It is NOT submitted as a second field.
             -->
-            <div
-                id="address-dropdown"
-                class="list-group address-dropdown shadow-sm"
-            ></div>
+
+            <input
+                id="postcode-display"
+                type="text"
+                class="form-control"
+                value="{{ address.postcode|default:'' }}"
+                readonly
+                aria-label="Postcode confirmation"
+            >
 
         </div>
 
 
-        <div class="row g-3">
+        <!-- Country -->
 
+        <div class="col-12">
 
-            <!-- House Number -->
-            <div class="col-12 col-md-4">
+            <label
+                for="country"
+                class="form-label"
+            >
+                Country
+            </label>
 
-                <label
-                    for="house_number"
-                    class="form-label"
-                >
-                    House Number
-                </label>
-
-                <input
-                    id="house_number"
-                    name="house_number"
-                    class="form-control"
-                    value="{{ request.session.reg_address.house_number|default:'' }}"
-                >
-
-            </div>
-
-
-            <!-- Address Line 2 -->
-            <div class="col-12 col-md-8">
-
-                <label
-                    for="line_2"
-                    class="form-label"
-                >
-                    Address Line 2
-                </label>
-
-                <input
-                    id="line_2"
-                    name="line_2"
-                    class="form-control"
-                    value="{{ request.session.reg_address.line_2|default:'' }}"
-                >
-
-            </div>
-
-
-            <!-- Town / City -->
-            <div class="col-12 col-md-4">
-
-                <label
-                    for="town"
-                    class="form-label"
-                >
-                    Town / City
-                </label>
-
-                <input
-                    id="town"
-                    name="town"
-                    class="form-control"
-                    value="{{ request.session.reg_address.town|default:'' }}"
-                >
-
-            </div>
-
-
-            <!-- County -->
-            <div class="col-12 col-md-4">
-
-                <label
-                    for="county"
-                    class="form-label"
-                >
-                    County
-                </label>
-
-                <input
-                    id="county"
-                    name="county"
-                    class="form-control"
-                    value="{{ request.session.reg_address.county|default:'' }}"
-                >
-
-            </div>
-
-
-            <!-- Postcode -->
-            <div class="col-12 col-md-3">
-
-                <label
-                    for="postcode"
-                    class="form-label"
-                >
-                    Postcode
-                </label>
-
-                <input
-                    id="postcode"
-                    name="postcode"
-                    maxlength="9"
-                    class="form-control"
-                    value="{{ request.session.reg_address.postcode|default:'' }}"
-                >
-
-            </div>
-
-
-            <!-- Country -->
-            <div class="col-12 col-md-1">
-
-                <label
-                    for="country"
-                    class="form-label"
-                >
-                    Country
-                </label>
-
-                <input
-                    id="country"
-                    name="country"
-                    class="form-control"
-                    value="{{ request.session.reg_address.country|default:'UK' }}"
-                >
-
-            </div>
-
+            <input
+                id="country"
+                name="country"
+                class="form-control"
+                value="{{ address.country|default:'UK' }}"
+                autocomplete="country-name"
+            >
 
         </div>
+
+
+    </div>
+
+</div>
+
+
+<!-- ==========================================================
+     NAVIGATION
+     ========================================================== -->
+
+<div class="row g-2">
+
+    <div class="col-12 col-md-6">
+
+        <a
+            href="{% url 'members:register_verify_email' %}"
+            class="btn btn-light w-100"
+        >
+            Back
+        </a>
 
     </div>
 
 
-    <!-- ==========================================================
-         NAVIGATION
-         ========================================================== -->
+    <div class="col-12 col-md-6">
 
-    <div class="row g-2">
-
-        <div class="col-12 col-md-6">
-
-            <a
-                href="{% url 'members:register_verify_email' %}"
-                class="btn btn-light w-100"
-            >
-                Back
-            </a>
-
-        </div>
-
-
-        <div class="col-12 col-md-6">
-
-            <button
-                type="submit"
-                class="btn btn-primary w-100"
-            >
-                Continue to Next Step
-            </button>
-
-        </div>
+        <button
+            type="submit"
+            class="btn btn-primary w-100"
+        >
+            Continue to Next Step
+        </button>
 
     </div>
 
+</div>
 
 </form>
 
-
 <!--
 ==================================================================
-ADDRESS AUTOCOMPLETE
+POSTCODE LOOKUP
 ==================================================================
 
-Keep the existing address autocomplete implementation.
-No change to its location or behaviour is required here.
+This is deliberately NOT address_autocomplete.js because that
+script currently expects line_1 to be the search field and calls
+/api/address-autocomplete/?q=... . It is therefore not compatible
+with the postcode-search UI.
 ==================================================================
 -->
 
-<script src="{% static 'js/address_autocomplete.js' %}"></script>
+<script src="{% static 'js/address_lookup.js' %}"></script>
 
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const postcodeInput =
+        document.getElementById("postcode");
+
+    const postcodeDisplay =
+        document.getElementById("postcode-display");
+
+
+    /*
+     * Keep the visual postcode confirmation field synchronised
+     * with the actual submitted postcode field.
+     */
+
+    if (postcodeInput && postcodeDisplay) {
+
+        postcodeInput.addEventListener("input", function () {
+
+            postcodeDisplay.value =
+                postcodeInput.value;
+
+        });
+
+    }
+
+});
+
+</script>
 
 <style>
 
@@ -497,10 +601,15 @@ REGISTRATION SECTION
 */
 
 .register-section {
+
     background: #f8fafc;
+
     border: 1px solid #edf1f5;
+
     border-radius: 18px;
+
     padding: 1.1rem;
+
 }
 
 
@@ -511,32 +620,43 @@ SECTION TITLE
 */
 
 .section-title {
+
     font-size: 1rem;
+
     font-weight: 700;
+
     margin-bottom: 1rem;
+
     color: #0d6efd;
+
 }
 
 
 /*
 ==================================================================
-ADDRESS AUTOCOMPLETE DROPDOWN
-==================================================================
-
-The dropdown is positioned relative to the address-search
-container and remains above the other form fields.
+POSTCODE LOOKUP STATUS
 ==================================================================
 */
 
-.address-dropdown {
-    position: absolute;
-    width: 100%;
-    z-index: 1000;
-    max-height: 240px;
-    overflow-y: auto;
+#postcode-lookup-status {
+
+    min-height: 1.25rem;
+
+}
+
+
+/*
+==================================================================
+MOBILE ADDRESS LOOKUP BUTTON
+==================================================================
+*/
+
+#find-postcode-button {
+
+    white-space: nowrap;
+
 }
 
 </style>
-
 
 {% endblock %}

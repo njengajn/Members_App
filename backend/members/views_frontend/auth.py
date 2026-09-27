@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate, login, logout, get_user_model
+from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.conf import settings
@@ -16,6 +17,7 @@ from datetime import timedelta
 import random
 from django.contrib.auth.hashers import make_password
 from backend.members.models import EmailOTP, MagicLoginToken
+from backend.members.utils.validation import validate_member_password
 from django.core.mail import send_mail
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -542,6 +544,27 @@ def password_reset_verify(request):
 
             return redirect(
                 "members:password_reset"
+            )
+
+        # =================================================
+        # PASSWORD POLICY
+        # =================================================
+
+        try:
+            # Use exactly the same password policy as registration.
+            # This prevents password-reset from becoming a weaker route.
+            validate_member_password(
+                password,
+                user=user,
+            )
+        except ValidationError as exc:
+            messages.error(
+                request,
+                exc.messages[0]
+            )
+
+            return redirect(
+                "members:password_reset_verify"
             )
 
         # =================================================

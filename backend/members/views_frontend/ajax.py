@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
+from django.core.exceptions import ValidationError
 from backend.core import settings
 from backend.members.models import Dependant
 from django.contrib.auth.decorators import login_required
@@ -15,6 +16,10 @@ from django.conf import settings
 import random
 
 from backend.members.models import EmailOTP
+from backend.members.utils.validation import (
+    validate_email_address,
+    validate_member_password,
+)
 
 User = get_user_model()
 
@@ -61,6 +66,23 @@ def register_ajax(request):
 
         })
 
+    # -----------------------------------------------------
+    # EMAIL FORMAT VALIDATION
+    # -----------------------------------------------------
+
+    try:
+        email = validate_email_address(email)
+
+    except ValidationError as exc:
+
+        return JsonResponse({
+
+            "status": "error",
+
+            "message": exc.messages[0]
+
+        })
+
     if password != confirm:
 
         return JsonResponse({
@@ -70,6 +92,25 @@ def register_ajax(request):
             "message": (
                 "Passwords do not match"
             )
+
+        })
+
+    # -----------------------------------------------------
+    # PASSWORD POLICY
+    # -----------------------------------------------------
+
+    try:
+        # Keep this AJAX registration path consistent with the normal
+        # registration view and the password-reset flow.
+        validate_member_password(password)
+
+    except ValidationError as exc:
+
+        return JsonResponse({
+
+            "status": "error",
+
+            "message": exc.messages[0]
 
         })
 
