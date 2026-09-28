@@ -67,7 +67,7 @@
       <td>{{ claim.id }}</td>
       <td>{{ claim.status|title }}</td>
       <td>{{ claim.causer_full_name }}</td>
-      <td>{{ claim.created_at|date:"Y-m-d" }}</td>
+      <td>{{ claim.created_at|date:"d-m-Y" }}</td>
 
       <td>
         <button
@@ -137,7 +137,7 @@
       <td>{{ p.payment_type|title }}</td>
       <td>${{ p.amount }}</td>
       <td>{{ p.reference }}</td>
-      <td>{{ p.created_at|date:"Y-m-d" }}</td>
+      <td>{{ p.created_at|date:"d-m-Y" }}</td>
     </tr>
     {% empty %}
     <tr>

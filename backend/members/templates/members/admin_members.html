@@ -52,7 +52,7 @@
               <option value="retired" {% if member.status == "retired" %}selected{% endif %}>Retired</option>
             </select>
           </td>
-          <td>{{ member.joined_at|date:"Y-m-d" }}</td>
+          <td>{{ member.joined_at|date:"d-m-Y" }}</td>
           <td>
             <a href="{% url 'members_admin:edit_member' member.id %}" class="btn btn-outline-primary btn-sm">Edit</a>
           </td>

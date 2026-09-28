@@ -29,7 +29,7 @@
         <td>{{ pr.id }}</td>
         <td>{{ pr.title }}</td>
         <td>£{{ pr.amount }}</td>
-        <td>{{ pr.due_date|date:"Y-m-d" }}</td>
+        <td>{{ pr.due_date|date:"d-m-Y" }}</td>
         <td>
           {% if pr.is_overdue %}
             <span class="badge bg-danger">Overdue</span>
@@ -83,7 +83,7 @@
         <td>{{ pr.id }}</td>
         <td>{{ pr.title }}</td>
         <td>£{{ pr.amount }}</td>
-        <td>{{ pr.due_date|date:"Y-m-d" }}</td>
+        <td>{{ pr.due_date|date:"d-m-Y" }}</td>
         <td>
           <span class="badge bg-success">Paid</span>
         </td>
@@ -125,7 +125,7 @@
         <td>{{ pr.id }}</td>
         <td>{{ pr.title }}</td>
         <td>£{{ pr.amount }}</td>
-        <td>{{ pr.due_date|date:"Y-m-d" }}</td>
+        <td>{{ pr.due_date|date:"d-m-Y" }}</td>
         <td>
           <span class="badge bg-secondary">Closed</span>
         </td>

@@ -179,10 +179,20 @@ AUTH_PASSWORD_VALIDATORS = [
 # -----------------------------
 # INTERNATIONALIZATION
 # -----------------------------
+
 LANGUAGE_CODE = "en-gb"
-TIME_ZONE = 'Europe/London'
-USE_L10N = True
+
+TIME_ZONE = "Europe/London"
+
+USE_I18N = True
+
 USE_TZ = True
+
+# UK display formats
+DATE_FORMAT = "d-m-Y"
+DATETIME_FORMAT = "d-m-Y H:i"
+SHORT_DATE_FORMAT = "d-m-Y"
+SHORT_DATETIME_FORMAT = "d-m-Y H:i"
 
 # -----------------------------
 # STATIC FILES

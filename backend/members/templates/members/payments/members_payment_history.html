@@ -16,7 +16,7 @@
   <tbody>
     {% for p in payments %}
       <tr>
-        <td>{{ p.created_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ p.created_at|date:"d-m-Y H:i" }}</td>
         <td>
           {{ p.payment_request.get_request_type_display }}
           <span class="badge bg-success ms-2">Paid</span>

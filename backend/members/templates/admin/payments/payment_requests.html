@@ -23,7 +23,7 @@
                     <td>{{ pr.uid }}</td>
                     <td>{{ pr.get_request_type_display }}</td>
                     <td>{{ pr.amount }}</td>
-                    <td>{{ pr.due_date|date:"Y-m-d" }}</td>
+                    <td>{{ pr.due_date|date:"d-m-Y" }}</td>
                     <td>
                         {% if pr.member %}
                             {{ pr.member }}
@@ -39,7 +39,7 @@
                         {% endif %}
                     </td>
                     <td>{{ pr.status }}</td>
-                    <td>{{ pr.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>{{ pr.created_at|date:"d-m-Y H:i" }}</td>
                 </tr>
             {% endfor %}
         </tbody>
