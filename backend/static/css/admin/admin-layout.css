@@ -1148,3 +1148,324 @@ body {
     box-shadow:
         0 0 0 0.2rem rgba(13, 110, 253, 0.25);
 }
+
+/* ==========================================================
+   AUDIT & ACTIVITY
+   ========================================================== */
+
+.admin-page,
+.admin-page-header,
+.admin-card,
+.audit-filter-form,
+.audit-filter-grid,
+.audit-filter-actions {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.audit-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.audit-filter-grid .form-group {
+    min-width: 0;
+}
+
+.audit-filter-grid select,
+.audit-filter-grid input {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.audit-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.audit-results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.audit-results-header > * {
+    min-width: 0;
+}
+
+.audit-results-header form {
+    flex-shrink: 0;
+}
+
+.audit-log-table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+}
+
+.audit-log-table th,
+.audit-log-table td {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    vertical-align: top;
+}
+
+.audit-log-table th:nth-child(1) { width: 12%; }
+.audit-log-table th:nth-child(2) { width: 17%; }
+.audit-log-table th:nth-child(3) { width: 18%; }
+.audit-log-table th:nth-child(4) { width: 15%; }
+.audit-log-table th:nth-child(5) { width: 28%; }
+.audit-log-table th:nth-child(6) { width: 10%; }
+
+.audit-date {
+    display: block;
+    font-weight: 600;
+}
+
+.audit-time {
+    display: block;
+    font-size: 0.85rem;
+    opacity: 0.7;
+}
+
+.audit-risk {
+    display: inline-block;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.audit-risk-high {
+    font-weight: 700;
+}
+
+.audit-risk-normal {
+    opacity: 0.8;
+}
+
+.audit-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.audit-page-status {
+    font-weight: 600;
+}
+
+.audit-empty-state {
+    padding: 3rem 1rem;
+    text-align: center;
+}
+
+.audit-empty-state h3 {
+    margin-bottom: 0.5rem;
+}
+
+.muted {
+    opacity: 0.65;
+}
+
+
+/* ==========================================================
+   AUDIT & ACTIVITY — TABLET
+   ========================================================== */
+
+@media (max-width: 900px) {
+
+    .audit-filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .audit-log-table {
+        table-layout: auto;
+    }
+}
+
+
+/* ==========================================================
+   AUDIT & ACTIVITY — MOBILE
+   ========================================================== */
+
+@media (max-width: 600px) {
+
+    .admin-page {
+        overflow-x: hidden;
+    }
+
+    .admin-card {
+        overflow: hidden;
+    }
+
+    .audit-filter-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.85rem;
+    }
+
+    .audit-filter-grid .form-group,
+    .audit-filter-grid select,
+    .audit-filter-grid input {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .audit-filter-actions {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .audit-filter-actions .btn {
+        width: 100%;
+        text-align: center;
+        box-sizing: border-box;
+    }
+
+    .audit-results-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .audit-results-header form,
+    .audit-results-header form .btn {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Turn each table row into a mobile card. */
+    .audit-log-table,
+    .audit-log-table thead,
+    .audit-log-table tbody,
+    .audit-log-table tr,
+    .audit-log-table th,
+    .audit-log-table td {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .audit-log-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: auto;
+    }
+
+    .audit-log-table thead {
+        display: none;
+    }
+
+    .audit-log-table tbody {
+        display: block;
+    }
+
+    .audit-log-table tr {
+        margin: 0 0 1rem 0;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color, #ddd);
+        border-radius: 0.75rem;
+        background: var(--card-background, #fff);
+        overflow: hidden;
+    }
+
+    .audit-log-table tr:last-child {
+        margin-bottom: 0;
+    }
+
+    .audit-log-table td {
+        display: grid;
+        grid-template-columns: minmax(95px, 32%) minmax(0, 1fr);
+        gap: 0.65rem;
+        align-items: start;
+        padding: 0.6rem 0;
+        border: 0;
+        border-bottom: 1px solid var(--border-color, #eee);
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        white-space: normal;
+    }
+
+    .audit-log-table td:last-child {
+        border-bottom: 0;
+    }
+
+    .audit-log-table td::before {
+        content: attr(data-label);
+        min-width: 0;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+    }
+
+    .audit-log-table td > * {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .audit-log-table .audit-risk {
+        justify-self: start;
+        max-width: 100%;
+    }
+
+    .audit-pagination {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    .audit-pagination .btn {
+        width: 100%;
+        text-align: center;
+        box-sizing: border-box;
+    }
+
+    .audit-page-status {
+        text-align: center;
+    }
+}
+
+
+/* ==========================================================
+   AUDIT & ACTIVITY — VERY SMALL PHONES
+   ========================================================== */
+
+@media (max-width: 375px) {
+
+    .audit-log-table tr {
+        padding: 0.65rem;
+    }
+
+    .audit-log-table td {
+        grid-template-columns: 1fr;
+        gap: 0.2rem;
+        padding: 0.55rem 0;
+    }
+
+    .audit-log-table td::before {
+        font-size: 0.8rem;
+    }
+
+    .audit-pagination {
+        gap: 0.6rem;
+    }
+}

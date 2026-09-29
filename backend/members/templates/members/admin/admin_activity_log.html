@@ -1,28 +1,629 @@
-{% extends "members/admin/admin_base.html" %} {% block content %}
-<div class="container mt-4">
-  <h3>Admin Activity Log</h3>
+{% extends "members/admin/admin_base.html" %}
 
-  <table class="table table-striped mt-3">
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>Admin</th>
-        <th>Action</th>
-        <th>Member</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for log in logs %}
-      <tr>
-        <td>{{ log.created_at }}</td>
-        <td>{{ log.admin }}</td>
-        <td>{{ log.get_action_display }}</td>
-        <td>{{ log.target_member }}</td>
-        <td>{{ log.description }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+{% block content %}
+
+<div class="admin-page">
+
+    <!-- ==================================================
+         PAGE HEADER
+         ================================================== -->
+
+    <div class="admin-page-header">
+
+        <div>
+            <h1>Audit &amp; Activity</h1>
+
+            <p>
+                Review administrative activity and audit records.
+            </p>
+        </div>
+
+    </div>
+
+
+    <!-- ==================================================
+         FILTERS
+         ================================================== -->
+
+    <section class="admin-card">
+
+        <div class="admin-card-header">
+
+            <div>
+                <h2>Filter Activity</h2>
+
+                <p>
+                    Narrow the audit records by administrator,
+                    member, action, date or risk level.
+                </p>
+            </div>
+
+        </div>
+
+
+        <form
+            method="get"
+            action="{% url 'members_admin:admin_activity_log' %}"
+            class="audit-filter-form"
+        >
+
+            <div class="audit-filter-grid">
+
+                <!-- ======================================
+                     ADMINISTRATOR
+                     ====================================== -->
+
+                <div class="form-group">
+
+                    <label for="audit-admin">
+                        Administrator
+                    </label>
+
+                    <select
+                        id="audit-admin"
+                        name="admin"
+                    >
+
+                        <option value="">
+                            All administrators
+                        </option>
+
+                        {% for admin in admins %}
+
+                            <option
+                                value="{{ admin.pk }}"
+                                {% if selected_admin == admin.pk|stringformat:"s" %}
+                                    selected
+                                {% endif %}
+                            >
+                                {% if admin.get_full_name %}
+                                    {{ admin.get_full_name }}
+                                {% else %}
+                                    {{ admin.username }}
+                                {% endif %}
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <!-- ======================================
+                     MEMBER
+                     ====================================== -->
+
+                <div class="form-group">
+
+                    <label for="audit-member">
+                        Member
+                    </label>
+
+                    <select
+                        id="audit-member"
+                        name="member"
+                    >
+
+                        <option value="">
+                            All members
+                        </option>
+
+                        {% for member in members %}
+
+                            <option
+                                value="{{ member.pk }}"
+                                {% if selected_member == member.pk|stringformat:"s" %}
+                                    selected
+                                {% endif %}
+                            >
+                                {{ member.member_uid }}
+                                -
+                                {{ member.first_name }}
+                                {{ member.surname }}
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <!-- ======================================
+                     ACTION
+                     ====================================== -->
+
+                <div class="form-group">
+
+                    <label for="audit-action">
+                        Action
+                    </label>
+
+                    <select
+                        id="audit-action"
+                        name="action"
+                    >
+
+                        <option value="">
+                            All actions
+                        </option>
+
+                        {% for value, label in actions %}
+
+                            <option
+                                value="{{ value }}"
+                                {% if selected_action == value %}
+                                    selected
+                                {% endif %}
+                            >
+                                {{ label }}
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <!-- ======================================
+                     RISK
+                     ====================================== -->
+
+                <div class="form-group">
+
+                    <label for="audit-risk">
+                        Risk
+                    </label>
+
+                    <select
+                        id="audit-risk"
+                        name="risk"
+                    >
+
+                        <option value="">
+                            All activity
+                        </option>
+
+                        <option
+                            value="high"
+                            {% if selected_risk == "high" %}
+                                selected
+                            {% endif %}
+                        >
+                            High risk only
+                        </option>
+
+                        <option
+                            value="normal"
+                            {% if selected_risk == "normal" %}
+                                selected
+                            {% endif %}
+                        >
+                            Normal activity
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- ======================================
+                     DATE FROM
+                     ====================================== -->
+
+                <div class="form-group">
+
+                    <label for="audit-date-from">
+                        From
+                    </label>
+
+                    <input
+                        id="audit-date-from"
+                        type="date"
+                        name="date_from"
+                        value="{{ selected_date_from }}"
+                    >
+
+                </div>
+
+
+                <!-- ======================================
+                     DATE TO
+                     ====================================== -->
+
+                <div class="form-group">
+
+                    <label for="audit-date-to">
+                        To
+                    </label>
+
+                    <input
+                        id="audit-date-to"
+                        type="date"
+                        name="date_to"
+                        value="{{ selected_date_to }}"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- ==========================================
+                 FILTER ACTIONS
+                 ========================================== -->
+
+            <div class="audit-filter-actions">
+
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                >
+                    Apply Filters
+                </button>
+
+                <a
+                    href="{% url 'members_admin:admin_activity_log' %}"
+                    class="btn btn-secondary"
+                >
+                    Clear Filters
+                </a>
+
+            </div>
+
+        </form>
+
+    </section>
+
+
+    <!-- ==================================================
+         RESULTS / EXPORT
+         ================================================== -->
+
+    <section class="admin-card">
+
+        <div class="admin-card-header audit-results-header">
+
+            <div>
+                <h2>Activity Records</h2>
+
+                {% if logs.paginator.count %}
+                    <p>
+                        {{ logs.paginator.count }}
+                        record{{ logs.paginator.count|pluralize }}
+                        found.
+                    </p>
+                {% else %}
+                    <p>
+                        No audit records found.
+                    </p>
+                {% endif %}
+            </div>
+
+
+            <!-- ==========================================
+                 EXPORT
+                 ========================================== -->
+
+            {% if perms.members.can_export_audit_logs %}
+
+                <form
+                    method="get"
+                    action="{% url 'members_admin:export_audit_logs' %}"
+                >
+
+                    <!-- Preserve current filters during export. -->
+
+                    {% if selected_admin %}
+                        <input
+                            type="hidden"
+                            name="admin"
+                            value="{{ selected_admin }}"
+                        >
+                    {% endif %}
+
+                    {% if selected_member %}
+                        <input
+                            type="hidden"
+                            name="member"
+                            value="{{ selected_member }}"
+                        >
+                    {% endif %}
+
+                    {% if selected_action %}
+                        <input
+                            type="hidden"
+                            name="action"
+                            value="{{ selected_action }}"
+                        >
+                    {% endif %}
+
+                    {% if selected_risk %}
+                        <input
+                            type="hidden"
+                            name="risk"
+                            value="{{ selected_risk }}"
+                        >
+                    {% endif %}
+
+                    {% if selected_date_from %}
+                        <input
+                            type="hidden"
+                            name="date_from"
+                            value="{{ selected_date_from }}"
+                        >
+                    {% endif %}
+
+                    {% if selected_date_to %}
+                        <input
+                            type="hidden"
+                            name="date_to"
+                            value="{{ selected_date_to }}"
+                        >
+                    {% endif %}
+
+                    <button
+                        type="submit"
+                        class="btn btn-secondary"
+                    >
+                        Export CSV
+                    </button>
+
+                </form>
+
+            {% endif %}
+
+        </div>
+
+
+        <!-- ==================================================
+             LOG TABLE
+             ================================================== -->
+
+        {% if logs %}
+
+            <div class="table-responsive">
+
+                <table class="admin-table audit-log-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Date
+                            </th>
+
+                            <th>
+                                Administrator
+                            </th>
+
+                            <th>
+                                Member
+                            </th>
+
+                            <th>
+                                Action
+                            </th>
+
+                            <th>
+                                Description
+                            </th>
+
+                            <th>
+                                Risk
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        {% for log in logs %}
+
+                            <tr>
+
+                                <!-- ==================================
+                                     DATE
+                                     ================================== -->
+
+                                <td data-label="Date">
+
+                                    <span class="audit-date">
+                                        {{ log.created_at|date:"d M Y" }}
+                                    </span>
+
+                                    <span class="audit-time">
+                                        {{ log.created_at|date:"H:i" }}
+                                    </span>
+
+                                </td>
+
+
+                                <!-- ==================================
+                                     ADMIN
+                                     ================================== -->
+
+                                <td data-label="Administrator">
+
+                                    {% if log.admin %}
+
+                                        {% if log.admin.get_full_name %}
+                                            {{ log.admin.get_full_name }}
+                                        {% else %}
+                                            {{ log.admin.username }}
+                                        {% endif %}
+
+                                    {% else %}
+
+                                        System
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- ==================================
+                                     MEMBER
+                                     ================================== -->
+
+                                <td data-label="Member">
+
+                                    {% if log.target_member %}
+
+                                        <strong>
+                                            {{ log.target_member.member_uid }}
+                                        </strong>
+
+                                        <br>
+
+                                        <span>
+                                            {{ log.target_member.first_name }}
+                                            {{ log.target_member.surname }}
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="muted">
+                                            —
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- ==================================
+                                     ACTION
+                                     ================================== -->
+
+                                <td data-label="Action">
+
+                                    {{ log.get_action_display }}
+
+                                </td>
+
+
+                                <!-- ==================================
+                                     DESCRIPTION
+                                     ================================== -->
+
+                                <td data-label="Description">
+
+                                    {{ log.description|default:"—" }}
+
+                                </td>
+
+
+                                <!-- ==================================
+                                     RISK
+                                     ================================== -->
+
+                                <td data-label="Risk">
+
+                                    {% if log.is_high_risk %}
+
+                                        <span class="audit-risk audit-risk-high">
+                                            High Risk
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="audit-risk audit-risk-normal">
+                                            Normal
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+                            </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+            <!-- ==================================================
+                 PAGINATION
+                 ================================================== -->
+
+            {% if logs.has_other_pages %}
+
+                <nav
+                    class="audit-pagination"
+                    aria-label="Audit log pagination"
+                >
+
+                    {% if logs.has_previous %}
+
+                        <a
+                            href="?page={{ logs.previous_page_number }}{% if selected_admin %}&admin={{ selected_admin }}{% endif %}{% if selected_member %}&member={{ selected_member }}{% endif %}{% if selected_action %}&action={{ selected_action }}{% endif %}{% if selected_risk %}&risk={{ selected_risk }}{% endif %}{% if selected_date_from %}&date_from={{ selected_date_from }}{% endif %}{% if selected_date_to %}&date_to={{ selected_date_to }}{% endif %}"
+                            class="btn btn-secondary"
+                        >
+                            Previous
+                        </a>
+
+                    {% endif %}
+
+
+                    <span class="audit-page-status">
+
+                        Page
+                        {{ logs.number }}
+                        of
+                        {{ logs.paginator.num_pages }}
+
+                    </span>
+
+
+                    {% if logs.has_next %}
+
+                        <a
+                            href="?page={{ logs.next_page_number }}{% if selected_admin %}&admin={{ selected_admin }}{% endif %}{% if selected_member %}&member={{ selected_member }}{% endif %}{% if selected_action %}&action={{ selected_action }}{% endif %}{% if selected_risk %}&risk={{ selected_risk }}{% endif %}{% if selected_date_from %}&date_from={{ selected_date_from }}{% endif %}{% if selected_date_to %}&date_to={{ selected_date_to }}{% endif %}"
+                            class="btn btn-secondary"
+                        >
+                            Next
+                        </a>
+
+                    {% endif %}
+
+                </nav>
+
+            {% endif %}
+
+
+        {% else %}
+
+            <!-- ==================================================
+                 EMPTY STATE
+                 ================================================== -->
+
+            <div class="audit-empty-state">
+
+                <h3>
+                    No activity found
+                </h3>
+
+                <p>
+                    There are no audit records matching
+                    the selected filters.
+                </p>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
 </div>
+
 {% endblock %}
