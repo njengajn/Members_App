@@ -158,7 +158,7 @@ def send_html_email(
         # =================================================
 
         context["logo_url"] = (
-            "https://i.postimg.cc/6p5Syzg9/logo.png"
+            f"{settings.PUBLIC_SITE_URL}/static/images/favicon.jpg"
         )
 
         # =================================================

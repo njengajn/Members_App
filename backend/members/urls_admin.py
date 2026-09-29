@@ -13,6 +13,7 @@ from backend.members.views_admin.admin_dashboard import admin_dashboard
 
 # MEMBERS
 from backend.members.views_admin.admin_members import (
+    admin_activity_log,
     admin_update_member_permissions,
     dependant_detail,
     export_members_excel,
@@ -22,6 +23,11 @@ from backend.members.views_admin.admin_members import (
     membership_history,
     update_member_status,
     bulk_update_dependants,
+)
+
+from .views_admin.admin_audit import (
+    admin_activity_log,
+    export_audit_logs,
 )
 
 from backend.members.views_admin.admin_members import (
@@ -325,6 +331,13 @@ urlpatterns = [
     path("audit/", admin_audit_logs, name="admin_audit_logs"),
     path("audit/export/", export_audit_logs, name="export_audit_logs"),
     
+    # ==========================================================
+    # AUDIT & ACTIVITY
+    # ==========================================================
+
+    path("activity-log/", admin_activity_log, name="admin_activity_log",),
+    path("activity-log/export/", export_audit_logs, name="export_audit_logs",),
+        
        #SECURITY DASHBOARD
 
     path("security/", admin_security_dashboard, name="security_dashboard"),

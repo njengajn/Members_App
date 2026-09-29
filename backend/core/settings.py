@@ -206,6 +206,15 @@ STATICFILES_DIRS = [
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+#------------------
+# images
+#-------------------
+
+PUBLIC_SITE_URL = os.environ.get(
+    "PUBLIC_SITE_URL",
+    ""
+).rstrip("/")
+
 
 # -----------------------------
 # TEMPLATES

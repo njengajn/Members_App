@@ -1968,6 +1968,20 @@ class AuditLog(models.Model):
             pass  # fail silently
 
         return log
+    
+    class Meta:
+        ordering = ["-created_at"]
+
+        permissions = [
+            (
+                "can_view_audit_logs",
+                "Can view audit and activity logs",
+            ),
+            (
+                "can_export_audit_logs",
+                "Can export audit and activity logs",
+            ),
+        ]
         
 class PaymentAuditLog(models.Model):
     """

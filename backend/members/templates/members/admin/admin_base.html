@@ -143,6 +143,19 @@
         Finance Analytics
       </a>
 
+      {% if perms.members.can_view_audit_logs %}
+
+        <a
+            href="{% url 'members_admin:admin_activity_log' %}"
+            class="admin-nav-link"
+        >
+            <span>
+                Audit &amp; Activity
+            </span>
+        </a>
+
+    {% endif %}
+
 
       <!-- LOGOUT -->
 

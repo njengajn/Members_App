@@ -1,5 +1,4 @@
-{% extends "members/members_base.html" %}
-{% block content %}
+{% extends "members/members_base.html" %} {% block content %}
 
 <h2>Payment History</h2>
 
@@ -15,26 +14,29 @@
   </thead>
   <tbody>
     {% for p in payments %}
-      <tr>
-        <td>{{ p.created_at|date:"d-m-Y H:i" }}</td>
-        <td>
-          {{ p.payment_request.get_request_type_display }}
-          <span class="badge bg-success ms-2">Paid</span>
-        </td>
-        <td>£{{ p.amount }}</td>
-        <td>{{ p.status|title }}</td>
-        <td>
-          <a href="{% url 'members:payment_confirmation' p.id %}" class="btn btn-sm btn-outline-primary">
-            View Receipt
-          </a>
-        </td>
-      </tr>
+    <tr>
+      <td>{{ p.created_at|date:"d-m-Y H:i" }}</td>
+      <td>
+        {{ p.payment_request.get_request_type_display }}
+        <span class="badge bg-success ms-2">Paid</span>
+      </td>
+      <td>£{{ p.amount }}</td>
+      <td>{{ p.status|title }}</td>
+      <td>
+        <a
+          href="{% url 'members:payment_confirmation' p.id %}"
+          class="btn btn-sm btn-outline-primary"
+        >
+          View Receipt
+        </a>
+      </td>
+    </tr>
     {% empty %}
-      <tr>
-        <td colspan="5" class="text-muted text-center">
-          No payment history found.
-        </td>
-      </tr>
+    <tr>
+      <td colspan="5" class="text-muted text-center">
+        No payment history found.
+      </td>
+    </tr>
     {% endfor %}
   </tbody>
 </table>
