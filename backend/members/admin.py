@@ -106,7 +106,7 @@ class ClaimAdmin(admin.ModelAdmin):
         for claim in queryset:
             ClaimService.approve_claim(
                 claim=claim,
-                approved_by=request.user,
+                by_user=request.user,
             )
 
     approve_selected_claims.short_description = "Approve selected claims"

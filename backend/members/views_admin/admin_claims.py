@@ -31,6 +31,7 @@ from backend.members.models import (
     ClaimBankDetails,
     ClaimSubmissionDeclaration,
     ClaimApprovalVerification,
+    AuditLog,
 )
 
 @admin_required
@@ -74,7 +75,7 @@ def claims_list_admin(request):
 
 @admin_required
 @login_required
-def approve_claim(request, claim_uid):
+def approve_claim(request, claim_id):
     """
     Approve a claim.
 
@@ -99,7 +100,7 @@ def approve_claim(request, claim_uid):
 
         Claim,
 
-        uid=claim_uid,
+        id=claim_id,
     )
 
 
@@ -126,10 +127,8 @@ def approve_claim(request, claim_uid):
         )
 
         return redirect(
-
-            "claim_detail_admin",
-
-            claim_uid=claim.uid,
+            "members_admin:claim_detail",
+            claim_id=claim.id,
         )
 
 
@@ -140,10 +139,8 @@ def approve_claim(request, claim_uid):
     if request.method != "POST":
 
         return redirect(
-
-            "claim_detail_admin",
-
-            claim_uid=claim.uid,
+            "members_admin:claim_detail",
+            claim_id=claim.id,
         )
 
 
@@ -169,12 +166,9 @@ def approve_claim(request, claim_uid):
         )
 
         return redirect(
-
-            "claim_detail_admin",
-
-            claim_uid=claim.uid,
+            "members_admin:claim_detail",
+            claim_id=claim.id,
         )
-
 
     # ==================================================
     # VALIDATE VERIFICATION FORM
@@ -382,6 +376,13 @@ def approve_claim(request, claim_uid):
         performed_by=request.user,
     )
 
+    AuditLog.log_action(
+        admin=request.user,
+        action=AuditLog.ACTION_CLAIM_APPROVED,
+        member=claim.member,
+        message=f"Claim {claim.uid} approved",
+    )
+
 
     # ==================================================
     # SUCCESS
@@ -396,10 +397,8 @@ def approve_claim(request, claim_uid):
 
 
     return redirect(
-
-        "claim_detail_admin",
-
-        claim_uid=claim.uid,
+        "members_admin:claim_detail",
+        claim_id=claim.id,
     )
 
 
@@ -629,13 +628,26 @@ def reject_claim(request, claim_id):
 
     # ==========================================================
     # STATUS CHECK
+    #
+    # A claim can be rejected when it is RECEIVED.
+    # After a rejected claim is reopened, it becomes OPEN and
+    # must also be allowed to go through the rejection process
+    # again.
+    #
+    # Keep the existing lifecycle otherwise unchanged.
     # ==========================================================
 
-    if claim.status != Claim.STATUS_RECEIVED:
+    if claim.status not in [
+        Claim.STATUS_RECEIVED,
+        Claim.STATUS_OPEN,
+    ]:
 
         messages.warning(
             request,
-            "Only received claims can be rejected.",
+            (
+                "Only received or open claims can be "
+                "rejected."
+            ),
         )
 
         return redirect(
@@ -752,7 +764,7 @@ def review_rejection(request, claim_id):
 
         Claim,
 
-        uid=claim_id,
+        id=claim_id,
     )
 
 
@@ -773,10 +785,8 @@ def review_rejection(request, claim_id):
         )
 
         return redirect(
-
-            "claim_detail_admin",
-
-            claim_uid=claim.id,
+            "members_admin:claim_detail",
+            claim_id=claim.id,
         )
 
 
@@ -787,10 +797,8 @@ def review_rejection(request, claim_id):
     if request.method != "POST":
 
         return redirect(
-
-            "claim_detail_admin",
-
-            claim_uid=claim.uid,
+            "members_admin:claim_detail",
+            claim_id=claim.id,
         )
 
 
@@ -816,10 +824,8 @@ def review_rejection(request, claim_id):
         )
 
         return redirect(
-
-            "claim_detail_admin",
-
-            claim_uid=claim.uid,
+            "members_admin:claim_detail",
+            claim_id=claim.id,
         )
 
 
@@ -861,10 +867,8 @@ def review_rejection(request, claim_id):
         )
 
         return redirect(
-
-            "claim_detail_admin",
-
-            claim_uid=claim.uid,
+            "members_admin:claim_detail",
+            claim_id=claim.id,
         )
 
 
@@ -916,15 +920,13 @@ def review_rejection(request, claim_id):
 
 
     return redirect(
-
-        "claim_detail_admin",
-
-        claim_uid=claim.uid,
+        "members_admin:claim_detail",
+        claim_id=claim.id,
     )
  
  # CLAIM DETAIL VIEW
 
-def _get_claim_detail_context(
+def get_claim_detail_context(
     claim,
     verification_form=None,
 ):
@@ -957,6 +959,9 @@ def _get_claim_detail_context(
 
     # ==========================================================
     # APPROVAL VERIFICATION
+    #
+    # Keep the existing verification record available for
+    # display/history. Do NOT delete or overwrite it.
     # ==========================================================
 
     approval_verification = (
@@ -1046,12 +1051,23 @@ def _get_claim_detail_context(
 
     # ==========================================================
     # DEFAULT VERIFICATION FORM
+    #
+    # A RECEIVED claim or a reopened OPEN claim is reviewable.
+    #
+    # IMPORTANT:
+    # Do not check `not approval_verification` here.
+    #
+    # A previous verification record is historical evidence
+    # from an earlier review cycle. It must NOT prevent a fresh
+    # blank verification form from being displayed.
     # ==========================================================
 
     if (
         verification_form is None
-        and claim.status == Claim.STATUS_RECEIVED
-        and not approval_verification
+        and claim.status in [
+            Claim.STATUS_RECEIVED,
+            Claim.STATUS_OPEN,
+        ]
     ):
 
         verification_form = (
@@ -1104,14 +1120,12 @@ def claim_detail_admin(request, claim_id):
     Display complete claim details.
 
     Includes:
-
-    - Claim information
-    - Claim bank details
-    - Claimant declaration
-    - Supporting documents
-    - Approval verification
-    - Payment request information
-    - Paid and unpaid member information
+    - claim information;
+    - bank details;
+    - submission declaration;
+    - supporting documents;
+    - approval verification;
+    - payment request information.
 
     This view does not approve or reject the claim.
     """
@@ -1164,14 +1178,6 @@ def claim_detail_admin(request, claim_id):
     # ==========================================================
     # SUPPORTING DOCUMENTS
     # ==========================================================
-    #
-    # IMPORTANT:
-    # This is a queryset, not a single document. Every
-    # MemberDocument linked to this claim is returned.
-    #
-    # Do not use .first() or [:1] here: claims can have
-    # multiple supporting documents.
-    #
 
     documents = (
         MemberDocument.objects
@@ -1195,18 +1201,10 @@ def claim_detail_admin(request, claim_id):
         .first()
     )
 
-    # ==========================================================
-    # DEFAULT PAYMENT VALUES
-    # ==========================================================
-
     paid_members = []
-
     unpaid_members = []
-
     total = 0
-
     paid_count = 0
-
     total_paid_amount = 0
 
     # ==========================================================
@@ -1275,15 +1273,20 @@ def claim_detail_admin(request, claim_id):
 
     # ==========================================================
     # APPROVAL VERIFICATION FORM
+    #
+    # Both a newly received claim and a reopened OPEN claim
+    # require a fresh verification cycle.
+    #
+    # Do NOT require `not approval_verification` here.
+    # Existing verification records are retained as history.
     # ==========================================================
 
     verification_form = None
 
-    if (
-        claim.status
-        == Claim.STATUS_RECEIVED
-        and not approval_verification
-    ):
+    if claim.status in [
+        Claim.STATUS_RECEIVED,
+        Claim.STATUS_OPEN,
+    ]:
 
         verification_form = (
             ClaimApprovalVerificationForm()

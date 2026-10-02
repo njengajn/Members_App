@@ -478,6 +478,16 @@ def update_member_status(request, member_id):
     #
     member.save()
 
+    AuditLog.log_action(
+        admin=request.user,
+        action=AuditLog.ACTION_MEMBER_STATUS,
+        member=member,
+        message=(
+            f"Member status changed from "
+            f"{old_status} to {new_status}"
+        ),
+    )
+
     messages.success(
         request,
         "Member status updated successfully.",
@@ -573,6 +583,13 @@ def approve_member(request, pk):
     # Do NOT allocate UID here.
 
     member.save()
+
+    AuditLog.log_action(
+        admin=request.user,
+        action=AuditLog.ACTION_MEMBER_STATUS,
+        member=member,
+        message="Member application status changed from pending to approved",
+    )
 
     messages.success(
         request,
@@ -682,12 +699,27 @@ def update_dependant_inline(request, dependant_id):
         # -----------------------------------
         # UPDATE FIELDS (SAFE)
         # -----------------------------------
-        dependant.status = request.POST.get("status", dependant.status)
+
+        old_status = dependant.status
+        new_status = request.POST.get("status", dependant.status)
+
+        dependant.status = new_status
 
         # -----------------------------------
         # SAVE
         # -----------------------------------
+
         dependant.save(update_fields=["status"])
+
+        AuditLog.log_action(
+            admin=request.user,
+            action=AuditLog.ACTION_DEPENDANT_UPDATE,
+            member=dependant.member,
+            message=(
+                f"Dependant {dependant.id} status changed "
+                f"from {old_status} to {new_status}"
+            ),
+        )
 
         messages.success(request, "Dependant status updated successfully.")
 
@@ -715,6 +747,14 @@ def edit_next_of_kin(request, member_id):
         nok.phone = request.POST.get("phone")
         nok.email = request.POST.get("email")
         nok.save()
+
+        AuditLog.log_action(
+            admin=request.user,
+            action=AuditLog.ACTION_NOK_UPDATE,
+            member=member,
+            message="Next of Kin details updated",
+        )
+
 
         messages.success(request, "Next of Kin updated.")
 

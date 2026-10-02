@@ -14,7 +14,7 @@ from django.db import transaction
 from .admin_auth import admin_required
 
 @login_required
-def approve_claim_view(request, claim_uid):
+def approve_claim_view(request, claim_id):
     """
     Approve a claim
 
@@ -27,7 +27,7 @@ def approve_claim_view(request, claim_uid):
     # ======================================================
     # GET CLAIM FIRST (🔥 FIX ORDER)
     # ======================================================
-    claim = get_object_or_404(Claim, uid=claim_uid)
+    claim = get_object_or_404(Claim, uid=claim_id)
 
     # ======================================================
     # PREVENT SELF APPROVAL
@@ -137,8 +137,8 @@ def claim_list(request):
 
     
 @staff_member_required
-def admin_claim_detail(request, claim_uid):
-        claim = get_object_or_404(Claim, uid=claim_uid)
+def admin_claim_detail(request, claim_id):
+        claim = get_object_or_404(Claim, uid=claim_id)
         return render(
             request,
             "members/admin/claim_detail.html",

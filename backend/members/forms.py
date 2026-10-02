@@ -1219,76 +1219,48 @@ class ClaimApprovalVerificationForm(forms.ModelForm):
     # ==========================================================
 
     details_match_welfare_record = forms.TypedChoiceField(
-
         label=(
             "Details in this form match current details "
             "in KRO welfare record."
         ),
-
         choices=[
-
             ("yes", "Yes"),
-
             ("no", "No"),
         ],
-
-        coerce=lambda value: value == "yes",
-
         empty_value=None,
-
         widget=forms.RadioSelect,
-
         required=True,
     )
 
 
     telephone_matches_record = forms.TypedChoiceField(
-
         label=(
             "Telephone number matches the number on record "
             "and has not been recently changed."
         ),
-
         choices=[
-
             ("yes", "Yes"),
-
             ("no", "No"),
         ],
-
-        coerce=lambda value: value == "yes",
-
         empty_value=None,
-
         widget=forms.RadioSelect,
-
         required=True,
     )
 
 
     information_correct_declaration = forms.TypedChoiceField(
-
         label=(
             "The information provided is correct to the "
             "best of my knowledge."
         ),
-
         choices=[
-
             ("yes", "Yes"),
-
             ("no", "No"),
         ],
-
-        coerce=lambda value: value == "yes",
-
         empty_value=None,
-
         widget=forms.RadioSelect,
-
         required=True,
     )
-
 
     class Meta:
 
