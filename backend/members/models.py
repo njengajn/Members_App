@@ -1856,6 +1856,7 @@ class AuditLog(models.Model):
     ACTION_PAYMENT_REJECTED = "payment_rejected"
     ACTION_PAYMENT_PROOF_UPLOADED = "payment_proof_uploaded"
     ACTION_CLAIM_APPROVED = "claim_approved"
+    ACTION_CLAIM_REJECTED = "claim_rejected"
 
     ACTION_CHOICES = [
         (ACTION_MEMBER_STATUS, "Member Status Change"),
@@ -1866,6 +1867,7 @@ class AuditLog(models.Model):
         (ACTION_PAYMENT_REJECTED, "Payment Rejected"),
         (ACTION_PAYMENT_PROOF_UPLOADED, "Payment Proof Uploaded"),
         (ACTION_CLAIM_APPROVED, "Claim Approved"),
+        (ACTION_CLAIM_REJECTED, "Claim Rejected"),
     ]
 
     # =====================================================

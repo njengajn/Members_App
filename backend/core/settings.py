@@ -341,26 +341,15 @@ TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
 SITE_URL = "https://i.ibb.co/39c3sC5s"
 
 # =========================================================
-# MEMBER PORTAL
+# MEMBER PORTAL / PAYMENT URL
 # =========================================================
 
-MEMBER_PORTAL_URL = (
-    "http://127.0.0.1:8000"
-)
+MEMBER_PORTAL_URL = os.getenv(
+    "MEMBER_PORTAL_URL",
+    "http://127.0.0.1:8000",
+).rstrip("/")
 
-#==========================
-#MEMBER_PORTAL_URL = (
- #   "https://www.kro.com"
-#)
-#======================
-PAYMENTS_PORTAL_URL = (
-    f"{MEMBER_PORTAL_URL}/payments"
-)
-
-
-
-
-
-
-
-
+PAYMENTS_PORTAL_URL = os.getenv(
+    "PAYMENTS_PORTAL_URL",
+    f"{MEMBER_PORTAL_URL}/payments",
+).rstrip("/")

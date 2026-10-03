@@ -15,6 +15,9 @@ from backend.members.models import (
     Member,
     AuditLog,
 )
+from backend.members.services.member_status_service import (
+    retire_member,
+)
 
 # ==========================================================
 # MAIN LIFECYCLE ENGINE
@@ -35,7 +38,6 @@ def process_payment_lifecycle():
     1. Automatically closes overdue requests
 
     2. Retirement applies ONLY to:
-        - membership
         - subscription
         - claim
 
@@ -80,6 +82,8 @@ def process_payment_lifecycle():
         # -------------------------------------------------
         # AUTO CLOSE ACTIVE OVERDUE REQUESTS
         # -------------------------------------------------
+        # All overdue request types are closed automatically.
+        # This is separate from the retirement rule below.
 
         if pr.status == PaymentRequest.STATUS_ACTIVE:
 
@@ -90,9 +94,11 @@ def process_payment_lifecycle():
         # -------------------------------------------------
         # ONLY THESE TYPES TRIGGER RETIREMENT
         # -------------------------------------------------
+        # Membership requests do NOT retire active members.
+        # Only unpaid subscription and claim requests can
+        # trigger automatic retirement.
 
         if pr.request_type not in [
-            "membership",
             "subscription",
             "claim",
         ]:
@@ -181,6 +187,8 @@ def process_payment_lifecycle():
             # ---------------------------------------------
             # SKIP RETIRED
             # ---------------------------------------------
+            # Normally already excluded by the queryset,
+            # but retain this guard for safety.
 
             if member.status == Member.STATUS_RETIRED:
                 continue
@@ -188,6 +196,8 @@ def process_payment_lifecycle():
             # ---------------------------------------------
             # TRUE PAYMENT STATUS
             # ---------------------------------------------
+            # A member who has actually paid this request
+            # must never be retired by this lifecycle run.
 
             if member.id in paid_member_ids:
                 continue
@@ -195,10 +205,14 @@ def process_payment_lifecycle():
             # =================================================
             # RETIRE UNPAID MEMBER
             # =================================================
+            # Use the central retirement service so that all
+            # retirement rules and related records are applied
+            # consistently.
 
-            member.retire(
+            retire_member(
+                member,
                 reason=f"non_payment_{pr.request_type}",
-                admin_user=None
+                performed_by=None,
             )
 
             # ---------------------------------------------

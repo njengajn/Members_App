@@ -723,6 +723,22 @@ def reject_claim(request, claim_id):
     )
 
     # ==========================================================
+    # AUDIT CLAIM REJECTION
+    # ==========================================================
+    # Record who rejected the claim and the reason supplied
+    # during the rejection process.
+
+    AuditLog.log_action(
+        admin=request.user,
+        action=AuditLog.ACTION_CLAIM_REJECTED,
+        member=claim.member,
+        message=(
+            f"Claim {claim.uid} rejected. "
+            f"Reason: {rejection_reason}"
+        ),
+    )
+
+    # ==========================================================
     # SUCCESS
     # ==========================================================
 
