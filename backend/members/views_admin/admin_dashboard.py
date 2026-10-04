@@ -89,10 +89,14 @@ def admin_dashboard(request):
         if pr.status == PaymentRequest.STATUS_ACTIVE:
             active_requests.append(pr)
 
-    payment_requests_active = len(active_requests)
+    #payment_requests_active = len(active_requests)
     completed_payment_requests = len(completed_requests)
     in_progress_requests_count = len(in_progress_requests)
     pending_requests_count = len(pending_requests)
+    
+    payment_requests_active = PaymentRequest.objects.filter(
+            status=PaymentRequest.STATUS_ACTIVE
+        ).count()
 
     payment_requests_closed = PaymentRequest.objects.filter(
         status=PaymentRequest.STATUS_CLOSED
