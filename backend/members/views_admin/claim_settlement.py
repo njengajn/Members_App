@@ -123,7 +123,6 @@ def start_claim_settlement(request, request_id):
 
     return redirect("members_admin:claim_settlement_detail", settlement.id)
 
-
 # =========================================================
 # RECONCILIATION
 # =========================================================
@@ -136,7 +135,8 @@ def reconcile_claim(request, request_id):
     CLAIM FLOW
     ------------------------------------------------
     deductions
-    -> approval
+    -> reconciliation prepared
+    -> separate approval
     -> finalised
 
     NON-CLAIM FLOW
@@ -144,6 +144,18 @@ def reconcile_claim(request, request_id):
     reconciliation report
     -> confirm
     -> finalised
+
+    BUSINESS RULES
+    ------------------------------------------------
+    1. Payment request must already be CLOSED.
+
+    2. The administrator who closed the request cannot
+       reconcile that same request.
+
+    3. Reconciliation must NOT invoke the global payment
+       lifecycle.
+
+    4. Reconciliation affects ONLY this request.
     """
 
     payment_request = get_object_or_404(
@@ -167,7 +179,36 @@ def reconcile_claim(request, request_id):
             payment_request.id
         )
 
-    claim = getattr(payment_request, "claim", None)
+    # =====================================================
+    # SEGREGATION OF DUTIES
+    # =====================================================
+    #
+    # The administrator who closed the request cannot
+    # reconcile the same request.
+    #
+    # This applies to BOTH claim and non-claim requests.
+    # =====================================================
+
+    if (
+        payment_request.closed_by
+        and payment_request.closed_by == request.user
+    ):
+
+        messages.error(
+            request,
+            "You cannot reconcile a payment request that you closed."
+        )
+
+        return redirect(
+            "members_admin:admin_payment_detail",
+            payment_request.id
+        )
+
+    claim = getattr(
+        payment_request,
+        "claim",
+        None
+    )
 
     # =====================================================
     # CLAIM FLOW
@@ -223,7 +264,9 @@ def reconcile_claim(request, request_id):
 
             if formset.is_valid():
 
-                instances = formset.save(commit=False)
+                instances = formset.save(
+                    commit=False
+                )
 
                 for obj in instances:
 
@@ -337,24 +380,30 @@ def reconcile_claim(request, request_id):
 
         if request.method == "POST":
 
-            # ---------------------------------------------
-            # MARK RECONCILED
-            # ---------------------------------------------
-
             payment_request.is_reconciled = True
 
             payment_request.reconciled_by = request.user
 
             payment_request.reconciled_at = timezone.now()
 
-            payment_request.save()
+            payment_request.save(
+                update_fields=[
+                    "is_reconciled",
+                    "reconciled_by",
+                    "reconciled_at",
+                    "updated_at",
+                ]
+            )
 
-            # =============================================
+            # -------------------------------------------------
             # IMPORTANT:
-            # RUN LIFECYCLE FOR MEMBERSHIP/SUBSCRIPTION
-            # =============================================
-
-            process_payment_lifecycle()
+            #
+            # DO NOT RUN process_payment_lifecycle() HERE.
+            #
+            # The request has already been closed.
+            # Reconciliation must not process unrelated
+            # payment requests.
+            # -------------------------------------------------
 
             messages.success(
                 request,
@@ -379,7 +428,6 @@ def reconcile_claim(request, request_id):
             }
         )
 
-
 @admin_required
 def confirm_claim_settlement(request, settlement_id):
 
@@ -393,8 +441,6 @@ def confirm_claim_settlement(request, settlement_id):
 
     return redirect("members_admin:claim_settlement_detail", settlement.id)
 
-
-
 @admin_required
 def approve_claim_settlement(request, settlement_id):
 
@@ -406,6 +452,11 @@ def approve_claim_settlement(request, settlement_id):
     # -----------------------------------
     # PREVENT SELF APPROVAL
     # -----------------------------------
+    #
+    # The administrator who prepared the reconciliation
+    # cannot approve that same reconciliation.
+    # -----------------------------------
+
     if settlement.prepared_by == request.user:
 
         messages.error(
@@ -421,24 +472,38 @@ def approve_claim_settlement(request, settlement_id):
     # -----------------------------------
     # APPROVE
     # -----------------------------------
+
     settlement.is_approved = True
+
     settlement.approved_by = request.user
+
     settlement.settlement_date = timezone.now()
 
     settlement.save()
-    
-    # =====================================================
-    # RUN PAYMENT LIFECYCLE
-    # =====================================================
 
-    process_payment_lifecycle()
+    # =====================================================
+    # DO NOT RUN PAYMENT LIFECYCLE HERE
+    # =====================================================
+    #
+    # The payment request was already closed before
+    # reconciliation.
+    #
+    # Running process_payment_lifecycle() here would
+    # incorrectly process unrelated overdue requests.
+    #
+    # Claim-causer retirement is handled by the payment
+    # lifecycle at the appropriate close/settlement point,
+    # not by this global approval operation.
+    # =====================================================
 
     # -----------------------------------
     # CLOSE CLAIM
     # -----------------------------------
+
     claim = settlement.claim
 
     claim.status = Claim.STATUS_SETTLED
+
     claim.settlement_date = timezone.now()
 
     claim.save()

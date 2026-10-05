@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.utils import timezone
 
 from backend.members.services.member_status_service import retire_member
+from backend.members.services.payment_lifecycle import process_payment_lifecycle
 from .admin_auth import admin_required
 from backend.members.models import AuditLog, Member, PaymentRequest, Payment, Claim, MembershipStatusHistory
 from django.contrib.admin.views.decorators import staff_member_required
@@ -1034,17 +1035,120 @@ def payment_request_paid_members(request, pk):
 
 @admin_required
 def update_payment_request_status(request, request_id):
+    """
+    Explicitly update the status of ONE payment request.
 
-    payment_request = get_object_or_404(PaymentRequest, id=request_id)
+    BUSINESS RULES
+    ---------------------------------------------------------
+    1. The request is identified by request_id.
+
+    2. Closing this request must affect ONLY this request.
+
+    3. Explicit closing uses the request-specific payment
+       lifecycle.
+
+    4. The administrator performing the close is recorded.
+
+    5. Reconciliation is a separate operation.
+
+    6. The administrator who closes the request cannot
+       subsequently reconcile that same request.
+    """
+
+    payment_request = get_object_or_404(
+        PaymentRequest,
+        id=request_id
+    )
+
     if request.method == "POST":
+
         new_status = request.POST.get("status")
-        if new_status in ["active", "closed"]:
-            payment_request.status = new_status
-            payment_request.save()
-            messages.success(request, "Payment request status updated.")
 
-    return redirect("members_admin:admin_payments_list")
+        if new_status not in [
+            PaymentRequest.STATUS_ACTIVE,
+            PaymentRequest.STATUS_CLOSED,
+        ]:
 
+            return redirect(
+                "members_admin:admin_payments_list"
+            )
+
+        # =================================================
+        # CLOSE
+        # =================================================
+
+        if new_status == PaymentRequest.STATUS_CLOSED:
+
+            if (
+                payment_request.status
+                == PaymentRequest.STATUS_CLOSED
+            ):
+
+                messages.info(
+                    request,
+                    "Payment request is already closed."
+                )
+
+                return redirect(
+                    "members_admin:admin_payments_list"
+                )
+
+            # -------------------------------------------------
+            # IMPORTANT:
+            # Process ONLY this request.
+            #
+            # Do NOT call:
+            #
+            #     process_payment_lifecycle()
+            #
+            # without request_id.
+            # -------------------------------------------------
+
+            process_payment_lifecycle(
+                request_id=payment_request.id,
+                performed_by=request.user,
+            )
+
+            messages.success(
+                request,
+                "Payment request closed successfully."
+            )
+
+        # =================================================
+        # REOPEN
+        # =================================================
+
+        elif new_status == PaymentRequest.STATUS_ACTIVE:
+
+            payment_request.status = (
+                PaymentRequest.STATUS_ACTIVE
+            )
+
+            # -------------------------------------------------
+            # A reopened request is no longer currently closed.
+            # Clear the current closing actor/timestamp.
+            # -------------------------------------------------
+
+            payment_request.closed_by = None
+            payment_request.closed_at = None
+
+            payment_request.save(
+                update_fields=[
+                    "status",
+                    "closed_by",
+                    "closed_at",
+                    "updated_at",
+                ]
+            )
+
+            messages.success(
+                request,
+                "Payment request status updated."
+            )
+
+    return redirect(
+        "members_admin:admin_payments_list"
+    )
 
 
 @admin_required
@@ -2001,9 +2105,6 @@ def close_payment_request(request, pk):
             "payment_request": payment_request
         }
     )
-    
-
-
 
 @admin_required
 def export_payment_request_pdf(request, pk):
@@ -2017,6 +2118,10 @@ def export_payment_request_pdf(request, pk):
     ✔ paid/unpaid statistics
     ✔ accounting-style tables
     ✔ compliance pie chart
+
+    IMPORTANT:
+    The member population and compliance calculation
+    deliberately match the Payment Request Detail page.
     """
 
     payment_request = get_object_or_404(
@@ -2025,51 +2130,81 @@ def export_payment_request_pdf(request, pk):
     )
 
     # =====================================================
-    # DETERMINE TARGET MEMBERS
+    # DETERMINE REQUIRED MEMBERS
+    # =====================================================
+    #
+    # This MUST match the logic used by the Payment Request
+    # Detail page.
+    #
+    # If a specific member is attached to the request,
+    # that member is the required member.
+    #
+    # Otherwise, the request applies to all active members.
+    #
+    # Do not add an organization requirement here.
+    # Doing so can incorrectly produce zero members for
+    # an "All Active Members" payment request.
     # =====================================================
 
-    if (
-        payment_request.viewable_by_all
-        and payment_request.member
-        and payment_request.member.organization
-    ):
+    if payment_request.member:
 
-        all_members = Member.objects.filter(
-            organization=payment_request.member.organization,
-            status=Member.STATUS_ACTIVE
-        )
-
-    elif payment_request.selected_members.exists():
-
-        all_members = payment_request.selected_members.all()
-
-    elif payment_request.member:
-
-        all_members = Member.objects.filter(
+        required_members = Member.objects.filter(
             id=payment_request.member.id
         )
 
     else:
 
-        all_members = Member.objects.none()
+        required_members = Member.objects.filter(
+            status="active"
+        )
+
+    # =====================================================
+    # PAID MEMBERS
+    # =====================================================
+    #
+    # Match the Payment Request Detail page:
+    #
+    #     payment_request.paid_members.all()
+    #
+    # This ensures the PDF reports the same paid-member
+    # population as the page the administrator is viewing.
+    # =====================================================
+
+    paid_members = payment_request.paid_members.all()
 
     # =====================================================
     # COUNTS
     # =====================================================
 
-    total_members = all_members.count()
+    total_members = required_members.count()
 
-    paid_count = payment_request.paid_members.count()
+    paid_count = paid_members.count()
 
     unpaid_count = max(
         0,
         total_members - paid_count
     )
 
+    # =====================================================
+    # COMPLIANCE
+    # =====================================================
+    #
+    # Compliance =
+    #
+    #     Paid Members
+    #     -------------
+    #     Active/Required Members
+    #
+    #     × 100
+    #
+    # Use ROUND to match the Payment Request Detail page.
+    # =====================================================
+
     compliance = 0
 
     if total_members > 0:
-        compliance = int(
+
+        compliance = round(
             (paid_count / total_members) * 100
         )
 
@@ -2149,6 +2284,7 @@ def export_payment_request_pdf(request, pk):
     # ---------------------------------------------
     # HANDLE EMPTY DATA SAFELY
     # ---------------------------------------------
+
     if paid_count == 0 and unpaid_count == 0:
 
         ax.text(
@@ -2164,9 +2300,15 @@ def export_payment_request_pdf(request, pk):
 
     else:
 
-        labels = ["Paid", "Unpaid"]
+        labels = [
+            "Paid",
+            "Unpaid"
+        ]
 
-        sizes = [paid_count, unpaid_count]
+        sizes = [
+            paid_count,
+            unpaid_count
+        ]
 
         ax.pie(
             sizes,

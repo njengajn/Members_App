@@ -1051,10 +1051,7 @@ class PaymentRequest(models.Model):
         blank=True,
         related_name="reconciled_requests"
     )
-    reconciled_at = models.DateTimeField(
-        null=True,
-        blank=True
-    )
+
     
     # =====================================================
     # ARCHIVE TRACKING
@@ -1078,6 +1075,45 @@ class PaymentRequest(models.Model):
             "Send notifications when this "
             "payment request is created."
         ),
+    )
+        # =====================================================
+    # CLOSING TRACKING
+    # =====================================================
+    #
+    # Records the administrator who explicitly closed this
+    # payment request.
+    #
+    # IMPORTANT:
+    # This is deliberately separate from authorised_by.
+    # authorised_by identifies the administrator who authorised
+    # the request; closed_by identifies the administrator who
+    # performed the closing action.
+    #
+    # This is also used to enforce segregation of duties:
+    # the administrator who closes a request cannot reconcile
+    # that same request.
+    # =====================================================
+
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="closed_payment_requests"
+    )
+
+    closed_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    # =====================================================
+    # RECONCILIATION TRACKING
+    # =====================================================
+
+    reconciled_at = models.DateTimeField(
+        null=True,
+        blank=True
     )
 
     # -----------------------------
