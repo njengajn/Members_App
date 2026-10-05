@@ -37,6 +37,8 @@ matplotlib.use("Agg")
 from collections import defaultdict
 from reportlab.lib.pagesizes import letter, A4
 from backend.members.services.notifications import (send_payment_request_notification)
+from io import BytesIO
+from django.contrib.staticfiles import finders
 
  
 @admin_required
@@ -2109,32 +2111,50 @@ def close_payment_request(request, pk):
 @admin_required
 def export_payment_request_pdf(request, pk):
     """
-    PROFESSIONAL PAYMENT REQUEST REPORT PDF
+    Export a comprehensive Payment Request PDF report.
 
-    Includes:
-    -----------------------------------------
-    ✔ request details
-    ✔ compliance summary
-    ✔ paid/unpaid statistics
-    ✔ accounting-style tables
-    ✔ compliance pie chart
+    REPORT CONTENT
+    ---------------------------------------------------------
+    1. Payment Request Details
+    2. Payment Summary
+       - Active/Required Members
+       - Paid Members
+       - Unpaid Members
+       - Compliance
+       - Total Collected
+    3. Payment Compliance Chart
+    4. Reconciliation Summary, when a claim settlement exists
+       - Total Collected
+       - Total Deductions
+       - Total Paid Out
+       - Notes
+    5. Itemised Deduction Breakdown
+    6. Final Financial Position
+    7. Authorisation / Settlement information
 
-    IMPORTANT:
-    The member population and compliance calculation
-    deliberately match the Payment Request Detail page.
+    IMPORTANT
+    ---------------------------------------------------------
+    The member population and compliance calculation MUST
+    match the Payment Request Detail page.
+
+    Settlement figures are taken from the existing
+    ClaimSettlement properties rather than being independently
+    recalculated.
     """
+
+    # =====================================================
+    # GET PAYMENT REQUEST
+    # =====================================================
 
     payment_request = get_object_or_404(
         PaymentRequest,
-        id=pk
+        pk=pk
     )
 
     # =====================================================
     # DETERMINE REQUIRED MEMBERS
-    # =====================================================
     #
-    # This MUST match the logic used by the Payment Request
-    # Detail page.
+    # This MUST match the Payment Request Detail page.
     #
     # If a specific member is attached to the request,
     # that member is the required member.
@@ -2142,8 +2162,6 @@ def export_payment_request_pdf(request, pk):
     # Otherwise, the request applies to all active members.
     #
     # Do not add an organization requirement here.
-    # Doing so can incorrectly produce zero members for
-    # an "All Active Members" payment request.
     # =====================================================
 
     if payment_request.member:
@@ -2160,20 +2178,16 @@ def export_payment_request_pdf(request, pk):
 
     # =====================================================
     # PAID MEMBERS
-    # =====================================================
     #
     # Match the Payment Request Detail page:
     #
     #     payment_request.paid_members.all()
-    #
-    # This ensures the PDF reports the same paid-member
-    # population as the page the administrator is viewing.
     # =====================================================
 
     paid_members = payment_request.paid_members.all()
 
     # =====================================================
-    # COUNTS
+    # MEMBER COUNTS
     # =====================================================
 
     total_members = required_members.count()
@@ -2187,7 +2201,6 @@ def export_payment_request_pdf(request, pk):
 
     # =====================================================
     # COMPLIANCE
-    # =====================================================
     #
     # Compliance =
     #
@@ -2196,8 +2209,6 @@ def export_payment_request_pdf(request, pk):
     #     Active/Required Members
     #
     #     × 100
-    #
-    # Use ROUND to match the Payment Request Detail page.
     # =====================================================
 
     compliance = 0
@@ -2208,78 +2219,372 @@ def export_payment_request_pdf(request, pk):
             (paid_count / total_members) * 100
         )
 
-    total_collected = payment_request.total_paid or 0
+    # =====================================================
+    # TOTAL COLLECTED
+    # =====================================================
+
+    total_collected = (
+        payment_request.total_paid or 0
+    )
+
+    # =====================================================
+    # FIND CLAIM SETTLEMENT
+    #
+    # Only claim payment requests have a settlement.
+    #
+    # The existing project uses:
+    #
+    #     payment_request.claim.settlement
+    #
+    # when a settlement exists.
+    # =====================================================
+
+    settlement = None
+
+    if payment_request.claim:
+
+        settlement = getattr(
+            payment_request.claim,
+            "settlement",
+            None
+        )
+
+    # =====================================================
+    # SETTLEMENT FINANCIAL DATA
+    #
+    # Use the existing settlement properties as the
+    # source of truth.
+    #
+    # total_collected
+    # total_deductions
+    # amount_paid
+    # =====================================================
+
+    settlement_total_collected = 0
+    settlement_total_deductions = 0
+    settlement_amount_paid = 0
+    deduction_items = []
+
+    if settlement:
+
+        settlement_total_collected = (
+            settlement.total_collected or 0
+        )
+
+        settlement_total_deductions = (
+            settlement.total_deductions or 0
+        )
+
+        settlement_amount_paid = (
+            settlement.amount_paid or 0
+        )
+
+        deduction_items = list(
+            settlement.deduction_items.all()
+        )
 
     # =====================================================
     # PDF BUFFER
     # =====================================================
 
-    buffer = io.BytesIO()
+    buffer = BytesIO()
+
+    # =====================================================
+    # PDF DOCUMENT
+    #
+    # Use A4 and normal margins so the report can naturally
+    # continue onto additional pages when required.
+    # =====================================================
 
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=letter
+        pagesize=A4,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36,
     )
 
+    # =====================================================
+    # STYLES
+    # =====================================================
+
     styles = getSampleStyleSheet()
+
+    title_style = styles["Title"]
+
+    heading_style = styles["Heading2"]
+
+    normal_style = styles["Normal"]
+
+    small_style = styles["BodyText"]
+
+    # =====================================================
+    # PDF ELEMENTS
+    # =====================================================
 
     elements = []
 
     # =====================================================
-    # TITLE
+    # REPORT LOGO
+    # =====================================================
+
+    logo_path = finders.find(
+        "images/logo.png"
+    )
+
+    if logo_path:
+
+        logo = Image(
+            logo_path,
+            width=100,
+            height=50,
+            hAlign="CENTER",
+        )
+
+        elements.append(
+            logo
+        )
+
+        elements.append(
+            Spacer(1, 8)
+        )
+
+    # =====================================================
+    # REPORT TITLE
     # =====================================================
 
     elements.append(
         Paragraph(
-            f"<b>Payment Request Report #{payment_request.id}</b>",
-            styles["Title"]
+            "<b>PAYMENT REQUEST REPORT</b>",
+            title_style
         )
     )
 
-    elements.append(Spacer(1, 12))
+    elements.append(
+        Spacer(1, 12)
+    )
 
     # =====================================================
-    # SUMMARY TABLE
+    # PAYMENT REQUEST DETAILS
     # =====================================================
+
+    request_description = (
+        payment_request.description
+        if getattr(payment_request, "description", None)
+        else "-"
+    )
+
+    # -----------------------------------------------------
+    # FORMAT DUE DATE
+    #
+    # Keep the date as YYYY-MM-DD.
+    # Show hour and minutes only.
+    #
+    # Example:
+    # 2026-05-03 00:00:00+00:00
+    # becomes:
+    # 2026-05-03 00:00
+    # -----------------------------------------------------
+
+    if payment_request.due_date:
+
+        due_date = payment_request.due_date.strftime(
+            "%Y-%m-%d %H:%M"
+        )
+
+    else:
+
+        due_date = "-"
+
+    elements.append(
+        Paragraph(
+            f"<b>Payment Request ID:</b> "
+            f"{payment_request.id}",
+            normal_style
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            f"<b>Payment Type:</b> "
+            f"{payment_request.request_type}",
+            normal_style
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            f"<b>Description:</b> "
+            f"{request_description}",
+            normal_style
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            f"<b>Due Date:</b> "
+            f"{due_date}",
+            normal_style
+        )
+    )
+
+    elements.append(
+        Spacer(1, 14)
+    )
+
+    # =====================================================
+    # PAYMENT SUMMARY
+    # =====================================================
+
+    elements.append(
+        Paragraph(
+            "Payment Summary",
+            heading_style
+        )
+    )
 
     summary_data = [
-        ["Field", "Value"],
-        ["Title", payment_request.title],
-        ["Type", payment_request.request_type.title()],
-        ["Amount", f"£{payment_request.amount}"],
-        ["Total Collected", f"£{total_collected}"],
-        ["Due Date", str(payment_request.due_date)],
-        ["Status", payment_request.status.title()],
-        ["Active Members", str(total_members)],
-        ["Paid Members", str(paid_count)],
-        ["Unpaid Members", str(unpaid_count)],
-        ["Compliance", f"{compliance}%"],
+        ["Description", "Value"],
+
+        [
+            "Active/Required Members",
+            f"{total_members:,}"
+        ],
+
+        [
+            "Paid Members",
+            f"{paid_count:,}"
+        ],
+
+        [
+            "Unpaid Members",
+            f"{unpaid_count:,}"
+        ],
+
+        [
+            "Compliance",
+            f"{compliance}%"
+        ],
+
+        [
+            "Total Collected",
+            f"£{total_collected:,.2f}"
+        ],
     ]
 
     summary_table = Table(
         summary_data,
-        colWidths=[180, 300]
+        colWidths=[360, 130],
+        repeatRows=1,
     )
 
-    summary_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.black),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), 1, colors.grey),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
-    ]))
+    summary_table.setStyle(
+        TableStyle([
 
-    elements.append(summary_table)
+            # Header
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, 0),
+                colors.grey
+            ),
 
-    elements.append(Spacer(1, 20))
+            (
+                "TEXTCOLOR",
+                (0, 0),
+                (-1, 0),
+                colors.white
+            ),
+
+            (
+                "FONTNAME",
+                (0, 0),
+                (-1, 0),
+                "Helvetica-Bold"
+            ),
+
+            # Body
+            (
+                "FONTNAME",
+                (0, 1),
+                (-1, -1),
+                "Helvetica"
+            ),
+
+            (
+                "FONTSIZE",
+                (0, 0),
+                (-1, -1),
+                9
+            ),
+
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey
+            ),
+
+            (
+                "ALIGN",
+                (1, 1),
+                (1, -1),
+                "RIGHT"
+            ),
+
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
+            ),
+
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            ),
+
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            ),
+        ])
+    )
+
+    elements.append(
+        summary_table
+    )
+
+    elements.append(
+        Spacer(1, 18)
+    )
 
     # =====================================================
-    # SAFE PIE CHART
+    # PAYMENT COMPLIANCE
     # =====================================================
 
-    chart_buffer = io.BytesIO()
+    elements.append(
+        Paragraph(
+            "Payment Compliance",
+            heading_style
+        )
+    )
 
-    fig, ax = plt.subplots(figsize=(4, 4))
+    # -----------------------------------------------------
+    # CREATE COMPLIANCE CHART
+    # -----------------------------------------------------
+
+    chart_buffer = BytesIO()
+
+    fig, ax = plt.subplots(
+        figsize=(4, 4)
+    )
 
     # ---------------------------------------------
     # HANDLE EMPTY DATA SAFELY
@@ -2291,12 +2596,11 @@ def export_payment_request_pdf(request, pk):
             0.5,
             0.5,
             "No member data",
-            horizontalalignment="center",
-            verticalalignment="center",
-            fontsize=12
+            ha="center",
+            va="center"
         )
 
-        ax.axis("off")
+        ax.set_axis_off()
 
     else:
 
@@ -2313,58 +2617,562 @@ def export_payment_request_pdf(request, pk):
         ax.pie(
             sizes,
             labels=labels,
-            autopct="%1.1f%%",
+            autopct="%1.0f%%",
             startangle=90
         )
 
-        ax.axis("equal")
+        ax.set_title(
+            f"Payment Compliance: {compliance}%"
+        )
 
-    plt.tight_layout()
+    fig.tight_layout()
 
-    plt.savefig(
+    fig.savefig(
         chart_buffer,
-        format="png"
+        format="png",
+        dpi=150,
+        bbox_inches="tight"
     )
 
-    plt.close()
+    plt.close(fig)
 
     chart_buffer.seek(0)
 
-    elements.append(
-        Paragraph(
-            "<b>Compliance Overview</b>",
-            styles["Heading2"]
-        )
-    )
-
-    elements.append(Spacer(1, 10))
-
     chart_image = Image(
         chart_buffer,
-        width=250,
-        height=250
+        width=280,
+        height=280
     )
 
-    elements.append(chart_image)
+    elements.append(
+        chart_image
+    )
+
+    elements.append(
+        Spacer(1, 18)
+    )
+
+    # =====================================================
+    # CLAIM SETTLEMENT / RECONCILIATION
+    #
+    # Only display this section when a settlement exists.
+    #
+    # Ordinary membership/subscription/payment requests
+    # therefore retain the normal report without settlement
+    # information.
+    # =====================================================
+
+    if settlement:
+
+        # =================================================
+        # RECONCILIATION SUMMARY
+        # =================================================
+
+        elements.append(
+            Paragraph(
+                "Reconciliation Summary",
+                heading_style
+            )
+        )
+
+        reconciliation_data = [
+            ["Description", "Amount (£)"],
+
+            [
+                "Total Collected",
+                f"{settlement_total_collected:,.2f}"
+            ],
+
+            [
+                "Total Deductions",
+                f"{settlement_total_deductions:,.2f}"
+            ],
+
+            [
+                "Total Paid Out",
+                f"{settlement_amount_paid:,.2f}"
+            ],
+        ]
+
+        reconciliation_table = Table(
+            reconciliation_data,
+            colWidths=[360, 130],
+            repeatRows=1,
+        )
+
+        reconciliation_table.setStyle(
+            TableStyle([
+
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.grey
+                ),
+
+                (
+                    "TEXTCOLOR",
+                    (0, 0),
+                    (-1, 0),
+                    colors.white
+                ),
+
+                (
+                    "FONTNAME",
+                    (0, 0),
+                    (-1, 0),
+                    "Helvetica-Bold"
+                ),
+
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.grey
+                ),
+
+                (
+                    "ALIGN",
+                    (1, 1),
+                    (1, -1),
+                    "RIGHT"
+                ),
+
+                (
+                    "FONTNAME",
+                    (0, 3),
+                    (-1, 3),
+                    "Helvetica-Bold"
+                ),
+
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    6
+                ),
+
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    6
+                ),
+            ])
+        )
+
+        elements.append(
+            reconciliation_table
+        )
+
+        elements.append(
+            Spacer(1, 12)
+        )
+
+        # =================================================
+        # DEDUCTIONS BREAKDOWN
+        # =================================================
+
+        elements.append(
+            Paragraph(
+                "Deductions Breakdown",
+                heading_style
+            )
+        )
+
+        if deduction_items:
+
+            deduction_data = [
+                [
+                    "Item",
+                    "Amount (£)"
+                ]
+            ]
+
+            for deduction in deduction_items:
+
+                deduction_data.append(
+                    [
+                        deduction.title,
+                        f"{deduction.amount:,.2f}"
+                    ]
+                )
+
+            # ---------------------------------------------
+            # TOTAL DEDUCTIONS ROW
+            # ---------------------------------------------
+
+            deduction_data.append(
+                [
+                    "TOTAL DEDUCTIONS",
+                    f"{settlement_total_deductions:,.2f}"
+                ]
+            )
+
+            deduction_table = Table(
+                deduction_data,
+                colWidths=[360, 130],
+                repeatRows=1,
+            )
+
+            deduction_table.setStyle(
+                TableStyle([
+
+                    # Header
+                    (
+                        "BACKGROUND",
+                        (0, 0),
+                        (-1, 0),
+                        colors.grey
+                    ),
+
+                    (
+                        "TEXTCOLOR",
+                        (0, 0),
+                        (-1, 0),
+                        colors.white
+                    ),
+
+                    (
+                        "FONTNAME",
+                        (0, 0),
+                        (-1, 0),
+                        "Helvetica-Bold"
+                    ),
+
+                    # Body
+                    (
+                        "GRID",
+                        (0, 0),
+                        (-1, -1),
+                        0.5,
+                        colors.grey
+                    ),
+
+                    (
+                        "ALIGN",
+                        (1, 1),
+                        (1, -1),
+                        "RIGHT"
+                    ),
+
+                    (
+                        "FONTNAME",
+                        (0, -1),
+                        (-1, -1),
+                        "Helvetica-Bold"
+                    ),
+
+                    (
+                        "TOPPADDING",
+                        (0, 0),
+                        (-1, -1),
+                        6
+                    ),
+
+                    (
+                        "BOTTOMPADDING",
+                        (0, 0),
+                        (-1, -1),
+                        6
+                    ),
+                ])
+            )
+
+            elements.append(
+                deduction_table
+            )
+
+        else:
+
+            elements.append(
+                Paragraph(
+                    "No deductions recorded.",
+                    normal_style
+                )
+            )
+
+        elements.append(
+            Spacer(1, 16)
+        )
+
+        # =================================================
+        # FINAL FINANCIAL POSITION
+        # =================================================
+
+        elements.append(
+            Paragraph(
+                "Final Financial Position",
+                heading_style
+            )
+        )
+
+        final_financial_data = [
+
+            [
+                "Total Collected",
+                f"£{settlement_total_collected:,.2f}"
+            ],
+
+            [
+                "Less: Total Deductions",
+                f"£{settlement_total_deductions:,.2f}"
+            ],
+
+            [
+                "TOTAL PAID OUT",
+                f"£{settlement_amount_paid:,.2f}"
+            ],
+        ]
+
+        final_financial_table = Table(
+            final_financial_data,
+            colWidths=[360, 130],
+        )
+
+        final_financial_table.setStyle(
+            TableStyle([
+
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.grey
+                ),
+
+                (
+                    "ALIGN",
+                    (1, 0),
+                    (1, -1),
+                    "RIGHT"
+                ),
+
+                (
+                    "FONTNAME",
+                    (0, 0),
+                    (-1, 1),
+                    "Helvetica"
+                ),
+
+                (
+                    "FONTNAME",
+                    (0, 2),
+                    (-1, 2),
+                    "Helvetica-Bold"
+                ),
+
+                (
+                    "BACKGROUND",
+                    (0, 2),
+                    (-1, 2),
+                    colors.lightgrey
+                ),
+
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    7
+                ),
+
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    7
+                ),
+            ])
+        )
+
+        elements.append(
+            final_financial_table
+        )
+
+        elements.append(
+            Spacer(1, 16)
+        )
+
+        # =================================================
+        # NOTES
+        # =================================================
+
+        elements.append(
+            Paragraph(
+                "Notes",
+                heading_style
+            )
+        )
+
+        notes = (
+            settlement.notes
+            if settlement.notes
+            else "-"
+        )
+
+        elements.append(
+            Paragraph(
+                str(notes),
+                normal_style
+            )
+        )
+
+        elements.append(
+            Spacer(1, 14)
+        )
+
+        # =================================================
+        # AUTHORISATION
+        # =================================================
+
+        elements.append(
+            Paragraph(
+                "Authorisation",
+                heading_style
+            )
+        )
+
+        prepared_by = (
+            settlement.prepared_by
+            if settlement.prepared_by
+            else "-"
+        )
+
+        approved_by = (
+            settlement.approved_by
+            if settlement.approved_by
+            else "Pending"
+        )
+
+        # -------------------------------------------------
+        # FORMAT SETTLEMENT DATE
+        #
+        # Keep the date as YYYY-MM-DD.
+        # Show hour and minutes only.
+        #
+        # Example:
+        # 2026-05-07 00:31:23.176159+00:00
+        # becomes:
+        # 2026-05-07 00:31
+        # -------------------------------------------------
+
+        if settlement.settlement_date:
+
+            settlement_date = (
+                settlement.settlement_date.strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+            )
+
+        else:
+
+            settlement_date = "-"
+
+        approval_status = (
+            "Finalised"
+            if settlement.is_approved
+            else "Pending Approval"
+        )
+
+        authorisation_data = [
+
+            [
+                "Prepared By",
+                str(prepared_by)
+            ],
+
+            [
+                "Approved By",
+                str(approved_by)
+            ],
+
+            [
+                "Settlement Date",
+                settlement_date
+            ],
+
+            [
+                "Status",
+                approval_status
+            ],
+        ]
+
+        authorisation_table = Table(
+            authorisation_data,
+            colWidths=[180, 310],
+        )
+
+        authorisation_table.setStyle(
+            TableStyle([
+
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.grey
+                ),
+
+                (
+                    "FONTNAME",
+                    (0, 0),
+                    (0, -1),
+                    "Helvetica-Bold"
+                ),
+
+                (
+                    "VALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "TOP"
+                ),
+
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    6
+                ),
+
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    6
+                ),
+            ])
+        )
+
+        elements.append(
+            authorisation_table
+        )
 
     # =====================================================
     # BUILD PDF
     # =====================================================
 
-    doc.build(elements)
+    doc.build(
+        elements
+    )
 
-    pdf = buffer.getvalue()
+    # =====================================================
+    # HTTP RESPONSE
+    # =====================================================
 
-    buffer.close()
+    buffer.seek(0)
 
     response = HttpResponse(
+        buffer.getvalue(),
         content_type="application/pdf"
     )
 
-    response["Content-Disposition"] = (
-        f'attachment; filename="payment_request_{payment_request.id}.pdf"'
+    response[
+        "Content-Disposition"
+    ] = (
+        f'inline; '
+        f'filename="payment_request_report_'
+        f'{payment_request.id}.pdf"'
     )
-
-    response.write(pdf)
 
     return response
