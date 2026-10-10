@@ -33,7 +33,7 @@
             {% endif %}
 
             <li>Children (if any)</li>
-            <li>Parents (if alive)</li>
+            <li>Parents (status captured in Step 2)</li>
             <li>Maternal siblings only</li>
 
         </ul>
@@ -47,7 +47,9 @@
       method="post"
       action="{% url 'members:register_step_4' %}"
       data-marital-status="{{ marital_status }}"
-      data-married-value="MARRIED">
+      data-married-value="MARRIED"
+      data-mother-status="{{ mother_status }}"
+      data-father-status="{{ father_status }}">
 
     {% csrf_token %}
 
@@ -95,7 +97,7 @@
 
             <div class="row g-3">
 
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-4 dependant-name-field">
 
                     <label class="form-label">
                         First Name
@@ -103,7 +105,7 @@
 
                     <input
                         name="dep_1_first"
-                        class="form-control"
+                        class="form-control dependant-first-name"
                         placeholder="Enter first name"
                         required
                     >
@@ -111,7 +113,7 @@
                 </div>
 
 
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-4 dependant-name-field">
 
                     <label class="form-label">
                         Middle Name
@@ -119,14 +121,14 @@
 
                     <input
                         name="dep_1_middle"
-                        class="form-control"
+                        class="form-control dependant-middle-name"
                         placeholder="Enter middle name"
                     >
 
                 </div>
 
 
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-4 dependant-name-field">
 
                     <label class="form-label">
                         Surname
@@ -134,7 +136,7 @@
 
                     <input
                         name="dep_1_surname"
-                        class="form-control"
+                        class="form-control dependant-surname"
                         placeholder="Enter surname"
                         required
                     >
@@ -150,7 +152,7 @@
 
             <div class="row g-3 mt-1">
 
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-6 dependant-dob-field">
 
                     <label class="form-label">
                         Date of Birth
@@ -159,7 +161,7 @@
                     <input
                         type="date"
                         name="dep_1_dob"
-                        class="form-control"
+                        class="form-control dependant-dob"
                         required
                     >
 
@@ -187,19 +189,9 @@
                         </option>
 
                         {% if marital_status == "MARRIED" %}
-
-                            <!--
-                                Spouse remains visible for married members.
-
-                                JavaScript disables this option after
-                                one spouse has been entered.
-
-                                The backend remains authoritative.
-                            -->
                             <option value="SPOUSE">
                                 Spouse
                             </option>
-
                         {% endif %}
 
                         <option value="SIBLING">
@@ -218,7 +210,7 @@
 
 
             <!-- ================================================= -->
-            <!-- PARENT DETAILS -->
+            <!-- PARENT TYPE / STATUS -->
             <!-- ================================================= -->
 
             <div
@@ -259,24 +251,12 @@
                         Parent Status
                     </label>
 
-                    <select
-                        name="dep_1_parent_status"
-                        class="form-select dependant-parent-status"
+                    <div
+                        class="form-control bg-light dependant-parent-status-display"
+                        aria-live="polite"
                     >
-
-                        <option value="">
-                            Select parent status
-                        </option>
-
-                        <option value="ALIVE">
-                            Alive
-                        </option>
-
-                        <option value="DECEASED">
-                            Deceased
-                        </option>
-
-                    </select>
+                        Select Mother or Father to see the status captured in Step 2.
+                    </div>
 
                 </div>
 
@@ -562,3 +542,4 @@
 </style>
 
 {% endblock %}
+

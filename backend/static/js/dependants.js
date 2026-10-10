@@ -1,1399 +1,588 @@
-console.log("DEPENDANTS JS LOADED");
+/*
+=====================================================================
+REGISTRATION STEP 4 – DEPENDANTS
+=====================================================================
 
+Complete Step 4 JavaScript.
+
+Parent status is captured once in Step 2.
+This file never asks the user to select parent status again.
+The selected Mother/Father determines which Step 2 status applies.
+
+The server remains authoritative and validates/sanitises all submitted
+values. This JavaScript only controls the user interface.
+=====================================================================
+*/
 
 (function () {
+    "use strict";
 
-    console.log("INIT RUNNING");
+    document.addEventListener("DOMContentLoaded", function () {
+        const addButton = document.getElementById("addDepBtn");
+        const container = document.getElementById("dependantsList");
+        const indexesInput = document.getElementById("dependantIndexes");
+        const cachedElement = document.getElementById("cachedDependants");
+        const form = document.getElementById("registerStep4");
 
+        if (!addButton || !container || !indexesInput || !form) {
+            return;
+        }
 
-    /* =====================================================
-     * PAGE ELEMENTS
-     * ===================================================== */
+        const maritalStatus = String(
+            form.dataset.maritalStatus || ""
+        ).toUpperCase();
 
-    const addBtn =
-        document.getElementById("addDepBtn");
+        const isMarried = maritalStatus === String(
+            form.dataset.marriedValue || "MARRIED"
+        ).toUpperCase();
 
-    const container =
-        document.getElementById("dependantsList");
+        const parentStatuses = {
+            MOTHER: String(form.dataset.motherStatus || "").toUpperCase(),
+            FATHER: String(form.dataset.fatherStatus || "").toUpperCase()
+        };
 
-    const indexesInput =
-        document.getElementById("dependantIndexes");
+        let cachedDependants = [];
+        let nextIndex = 1;
 
-    const cachedElement =
-        document.getElementById("cachedDependants");
-
-
-    if (
-        !addBtn
-        || !container
-        || !indexesInput
-    ) {
-
-        console.log("❌ Elements not found");
-
-        return;
-    }
-
-
-    /* =====================================================
-     * CACHED DEPENDANTS
-     * ===================================================== */
-
-    let cachedDependants = [];
-
-
-    if (cachedElement) {
-
-        try {
-
-            cachedDependants =
-                JSON.parse(
+        if (cachedElement) {
+            try {
+                cachedDependants = JSON.parse(
                     cachedElement.textContent
                 ) || [];
-
-        } catch (error) {
-
-            console.error(
-                "Unable to load cached dependant data:",
-                error
-            );
-
+            } catch (error) {
+                console.error(
+                    "Unable to restore cached dependant data.",
+                    error
+                );
+            }
         }
-    }
 
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
 
-    /* =====================================================
-     * MEMBER MARITAL STATUS
-     * =====================================================
-     *
-     * The template supplies:
-     *
-     *     data-marital-status
-     *     data-married-value
-     *
-     * This is used for browser-side presentation only.
-     *
-     * The backend remains authoritative.
-     * ===================================================== */
+        function updateIndexes() {
+            const indexes = [];
 
-    const registerForm =
-        document.getElementById("registerStep4");
-
-
-    const maritalStatus =
-        registerForm
-            ? String(
-                registerForm.getAttribute(
-                    "data-marital-status"
-                ) || ""
-            )
-                .trim()
-                .toUpperCase()
-            : "";
-
-
-    const marriedValue =
-        registerForm
-            ? String(
-                registerForm.getAttribute(
-                    "data-married-value"
-                ) || ""
-            )
-                .trim()
-                .toUpperCase()
-            : "";
-
-
-    /*
-     * IMPORTANT:
-     *
-     * There must be only ONE declaration of isMarried.
-     * The previous version contained a duplicate declaration,
-     * which caused a JavaScript syntax error.
-     */
-
-    const isMarried =
-        maritalStatus !== ""
-        && marriedValue !== ""
-        && maritalStatus === marriedValue;
-
-
-    /* =====================================================
-     * NEXT UNIQUE INDEX
-     * ===================================================== */
-
-    let nextIndex = 1;
-
-
-    /* =====================================================
-     * ESCAPE HTML
-     * ===================================================== */
-
-    function escapeHtml(value) {
-
-        return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-
-    }
-
-
-    /* =====================================================
-     * UPDATE INDEX LIST
-     * ===================================================== */
-
-    function updateIndexes() {
-
-        const indexes = [];
-
-
-        container
-            .querySelectorAll(
-                ".dependant-item"
-            )
-            .forEach(function (item) {
-
-                const index =
-                    item.dataset.dependantIndex;
-
-
-                if (index) {
-
-                    indexes.push(index);
-
-                }
-
-            });
-
-
-        indexesInput.value =
-            indexes.join(",");
-
-    }
-
-
-    /* =====================================================
-     * UPDATE VISIBLE NUMBERS
-     * ===================================================== */
-
-    function updateVisibleNumbers() {
-
-        const items =
             container.querySelectorAll(
                 ".dependant-item"
-            );
+            ).forEach(function (card) {
+                if (card.dataset.dependantIndex) {
+                    indexes.push(card.dataset.dependantIndex);
+                }
+            });
 
+            indexesInput.value = indexes.join(",");
+        }
 
-        items.forEach(
-            function (item, position) {
-
-                const number =
-                    item.querySelector(
-                        ".dependant-number"
-                    );
-
+        function updateNumbers() {
+            container.querySelectorAll(
+                ".dependant-item"
+            ).forEach(function (card, position) {
+                const number = card.querySelector(
+                    ".dependant-number"
+                );
 
                 if (number) {
-
-                    number.textContent =
-                        `Dependant ${position + 1}`;
-
+                    number.textContent = "Dependant " + (position + 1);
                 }
+            });
+        }
 
-            }
-        );
+        function setIdentityState(card, required) {
+            const first = card.querySelector(
+                ".dependant-first-name"
+            );
+            const surname = card.querySelector(
+                ".dependant-surname"
+            );
+            const dob = card.querySelector(
+                ".dependant-dob"
+            );
 
-    }
+            [first, surname, dob].forEach(function (field) {
+                if (field) {
+                    field.required = required;
+                }
+            });
+        }
 
+        function clearIdentity(card) {
+            const fields = [
+                ".dependant-first-name",
+                ".dependant-middle-name",
+                ".dependant-surname",
+                ".dependant-dob"
+            ];
 
-    /* =====================================================
-     * SET LOCATION STATE
-     * ===================================================== */
+            fields.forEach(function (selector) {
+                const field = card.querySelector(selector);
+                if (field) {
+                    field.value = "";
+                }
+            });
+        }
 
-    function setLocationState(
-        card,
-        visible,
-        required
-    ) {
+        function clearLocation(card) {
+            const fields = [
+                ".dependant-country",
+                ".dependant-county",
+                ".dependant-sub-county-town"
+            ];
 
-        const locationFields =
-            card.querySelector(
+            fields.forEach(function (selector) {
+                const field = card.querySelector(selector);
+                if (field) {
+                    field.value = "";
+                    field.required = false;
+                }
+            });
+        }
+
+        function setLocation(card, visible, required) {
+            const wrapper = card.querySelector(
                 ".dependant-location-fields"
             );
 
-        const country =
-            card.querySelector(
-                ".dependant-country"
-            );
-
-        const county =
-            card.querySelector(
-                ".dependant-county"
-            );
-
-        const subCountyTown =
-            card.querySelector(
+            const fields = [
+                ".dependant-country",
+                ".dependant-county",
                 ".dependant-sub-county-town"
-            );
+            ];
 
-
-        if (locationFields) {
-
-            if (visible) {
-
-                locationFields.classList.remove(
-                    "d-none"
-                );
-
-            } else {
-
-                locationFields.classList.add(
-                    "d-none"
-                );
-
+            if (wrapper) {
+                wrapper.classList.toggle("d-none", !visible);
             }
 
+            fields.forEach(function (selector) {
+                const field = card.querySelector(selector);
+                if (field) {
+                    field.required = required;
+                }
+            });
         }
 
-
-        if (country) {
-
-            country.required =
-                required;
-
-        }
-
-
-        if (county) {
-
-            county.required =
-                required;
-
-        }
-
-
-        if (subCountyTown) {
-
-            subCountyTown.required =
-                required;
-
-        }
-
-    }
-
-
-    /* =====================================================
-     * CLEAR LOCATION FIELDS
-     * ===================================================== */
-
-    function clearLocationFields(card) {
-
-        const country =
-            card.querySelector(
-                ".dependant-country"
-            );
-
-        const county =
-            card.querySelector(
-                ".dependant-county"
-            );
-
-        const subCountyTown =
-            card.querySelector(
-                ".dependant-sub-county-town"
-            );
-
-
-        if (country) {
-
-            country.value = "";
-
-        }
-
-
-        if (county) {
-
-            county.value = "";
-
-        }
-
-
-        if (subCountyTown) {
-
-            subCountyTown.value = "";
-
-        }
-
-    }
-
-
-    /* =====================================================
-     * UPDATE PARENT LOCATION
-     * =====================================================
-     *
-     * Parent:
-     *
-     *     ALIVE
-     *         -> location shown and required
-     *
-     *     DECEASED
-     *         -> location hidden and not required
-     * ===================================================== */
-
-    function updateParentLocationFields(card) {
-
-        if (!card) {
-
-            return;
-
-        }
-
-
-        const relationship =
-            card.querySelector(
-                ".dependant-relationship"
-            );
-
-        const parentStatus =
-            card.querySelector(
-                ".dependant-parent-status"
-            );
-
-
-        if (
-            !relationship
-            || !parentStatus
-        ) {
-
-            return;
-
-        }
-
-
-        const relationshipValue =
-            String(
-                relationship.value || ""
-            ).toUpperCase();
-
-
-        const statusValue =
-            String(
-                parentStatus.value || ""
-            ).toUpperCase();
-
-
-        if (
-            relationshipValue === "PARENT"
-            && statusValue === "ALIVE"
-        ) {
-
-            setLocationState(
-                card,
-                true,
-                true
-            );
-
-        } else {
-
-            setLocationState(
-                card,
-                false,
-                false
-            );
-
-        }
-
-    }
-
-
-    /* =====================================================
-     * UPDATE DEPENDANT CONDITIONAL FIELDS
-     * ===================================================== */
-
-    function updateDependantConditionalFields(card) {
-
-        if (!card) {
-
-            return;
-
-        }
-
-
-        const relationship =
-            card.querySelector(
-                ".dependant-relationship"
-            );
-
-        const parentFields =
-            card.querySelector(
-                ".dependant-parent-fields"
-            );
-
-        const parentType =
-            card.querySelector(
+        function getParentStatus(card) {
+            const parentType = card.querySelector(
                 ".dependant-parent-type"
             );
 
-        const parentStatus =
-            card.querySelector(
-                ".dependant-parent-status"
-            );
+            if (!parentType) {
+                return "";
+            }
 
-
-        if (
-            !relationship
-            || !parentFields
-        ) {
-
-            return;
-
+            return parentStatuses[
+                String(parentType.value || "").toUpperCase()
+            ] || "";
         }
 
+        function updateParentStatusDisplay(card) {
+            const parentType = card.querySelector(
+                ".dependant-parent-type"
+            );
+            const display = card.querySelector(
+                ".dependant-parent-status-display"
+            );
 
-        const relationshipValue =
-            String(
+            if (!display) {
+                return;
+            }
+
+            const type = String(
+                parentType ? parentType.value : ""
+            ).toUpperCase();
+
+            const status = parentStatuses[type] || "";
+
+            const labels = {
+                ALIVE: "Alive",
+                DECEASED: "Deceased",
+                UNKNOWN: "Unknown"
+            };
+
+            if (!type) {
+                display.textContent =
+                    "Select Mother or Father to see the status captured in Step 2.";
+                return;
+            }
+
+            display.textContent =
+                labels[status] ||
+                "Parent status is missing. Return to Step 2.";
+        }
+
+        function updateConditionalFields(card) {
+            const relationship = card.querySelector(
+                ".dependant-relationship"
+            );
+            const parentFields = card.querySelector(
+                ".dependant-parent-fields"
+            );
+            const parentType = card.querySelector(
+                ".dependant-parent-type"
+            );
+
+            if (!relationship || !parentFields) {
+                return;
+            }
+
+            const relationshipValue = String(
                 relationship.value || ""
             ).toUpperCase();
 
-
-        /* =================================================
-         * RESET
-         * ================================================= */
-
-        parentFields.classList.add(
-            "d-none"
-        );
-
-
-        if (parentType) {
-
-            parentType.required =
-                false;
-
-        }
-
-
-        if (parentStatus) {
-
-            parentStatus.required =
-                false;
-
-        }
-
-
-        setLocationState(
-            card,
-            false,
-            false
-        );
-
-
-        /* =================================================
-         * CHILD
-         * ================================================= */
-
-        if (
-            relationshipValue === "CHILD"
-        ) {
-
-            return;
-
-        }
-
-
-        /* =================================================
-         * SPOUSE
-         * ================================================= */
-
-        if (
-            relationshipValue === "SPOUSE"
-        ) {
-
-            /*
-             * Spouse is only valid for a married member.
-             *
-             * The backend performs the authoritative check.
-             */
-
-            if (!isMarried) {
-
-                relationship.value = "";
-
-                clearLocationFields(card);
-
-                return;
-
-            }
-
-
-            setLocationState(
-                card,
-                true,
-                true
-            );
-
-            return;
-
-        }
-
-
-        /* =================================================
-         * SIBLING
-         * ================================================= */
-
-        if (
-            relationshipValue === "SIBLING"
-        ) {
-
-            setLocationState(
-                card,
-                true,
-                true
-            );
-
-            return;
-
-        }
-
-
-        /* =================================================
-         * PARENT
-         * ================================================= */
-
-        if (
-            relationshipValue === "PARENT"
-        ) {
-
-            parentFields.classList.remove(
-                "d-none"
-            );
-
+            parentFields.classList.add("d-none");
 
             if (parentType) {
-
-                parentType.required =
-                    true;
-
+                parentType.required = false;
             }
 
+            setIdentityState(card, true);
+            setLocation(card, false, false);
 
-            if (parentStatus) {
-
-                parentStatus.required =
-                    true;
-
+            if (relationshipValue === "CHILD") {
+                clearLocation(card);
+                return;
             }
 
+            if (relationshipValue === "SPOUSE") {
+                if (!isMarried) {
+                    relationship.value = "";
+                    clearLocation(card);
+                    return;
+                }
 
-            updateParentLocationFields(
-                card
-            );
+                setLocation(card, true, true);
+                return;
+            }
 
-            return;
+            if (relationshipValue === "SIBLING") {
+                setLocation(card, true, true);
+                return;
+            }
 
+            if (relationshipValue === "PARENT") {
+                parentFields.classList.remove("d-none");
+
+                if (parentType) {
+                    parentType.required = true;
+                }
+
+                updateParentStatusDisplay(card);
+
+                const status = getParentStatus(card);
+
+                if (status === "UNKNOWN") {
+                    clearIdentity(card);
+                    clearLocation(card);
+                    setIdentityState(card, false);
+                    return;
+                }
+
+                if (status === "ALIVE") {
+                    setIdentityState(card, true);
+                    setLocation(card, true, true);
+                    return;
+                }
+
+                if (status === "DECEASED") {
+                    setIdentityState(card, true);
+                    clearLocation(card);
+                    setLocation(card, false, false);
+                    return;
+                }
+
+                setIdentityState(card, true);
+                clearLocation(card);
+                return;
+            }
+
+            clearLocation(card);
         }
 
-
-        /* =================================================
-         * EMPTY
-         * ================================================= */
-
-        clearLocationFields(card);
-
-    }
-
-
-    /* =====================================================
-     * APPLY RELATIONSHIP LIMITS
-     * ===================================================== */
-
-    function applyRelationshipLimits() {
-
-        const relationshipSelects =
-            container.querySelectorAll(
+        function applyRelationshipLimits() {
+            const relationshipSelects = container.querySelectorAll(
                 ".dependant-relationship"
             );
 
+            let spouseCount = 0;
+            let parentCount = 0;
 
-        let spouseCount = 0;
+            relationshipSelects.forEach(function (select) {
+                const value = String(
+                    select.value || ""
+                ).toUpperCase();
 
-        let parentCount = 0;
-
-
-        relationshipSelects.forEach(
-            function (select) {
-
-                const value =
-                    String(
-                        select.value || ""
-                    )
-                        .trim()
-                        .toUpperCase();
-
-
-                if (
-                    value === "SPOUSE"
-                ) {
-
-                    spouseCount++;
-
+                if (value === "SPOUSE") {
+                    spouseCount += 1;
                 }
 
-
-                if (
-                    value === "PARENT"
-                ) {
-
-                    parentCount++;
-
+                if (value === "PARENT") {
+                    parentCount += 1;
                 }
+            });
 
-            }
-        );
+            relationshipSelects.forEach(function (select) {
+                const spouse = select.querySelector(
+                    'option[value="SPOUSE"]'
+                );
+                const parent = select.querySelector(
+                    'option[value="PARENT"]'
+                );
 
-
-        relationshipSelects.forEach(
-            function (select) {
-
-                const spouseOption =
-                    select.querySelector(
-                        'option[value="SPOUSE"]'
+                if (spouse) {
+                    spouse.disabled = (
+                        !isMarried ||
+                        (
+                            spouseCount >= 1 &&
+                            select.value !== "SPOUSE"
+                        )
                     );
+                }
 
-                const parentOption =
-                    select.querySelector(
-                        'option[value="PARENT"]'
+                if (parent) {
+                    parent.disabled = (
+                        parentCount >= 2 &&
+                        select.value !== "PARENT"
                     );
-
-
-                /* -----------------------------------------
-                 * SPOUSE
-                 * ----------------------------------------- */
-
-                if (spouseOption) {
-
-                    spouseOption.disabled =
-                        !isMarried
-                        || (
-                            spouseCount >= 1
-                            && select.value !== "SPOUSE"
-                        );
-
                 }
-
-
-                /* -----------------------------------------
-                 * PARENT
-                 * ----------------------------------------- */
-
-                if (parentOption) {
-
-                    parentOption.disabled =
-                        parentCount >= 2
-                        && select.value !== "PARENT";
-
-                }
-
-            }
-        );
-
-    }
-
-
-    /* =====================================================
-     * CREATE DEPENDANT
-     * ===================================================== */
-
-    function createDependant(
-        data = null,
-        forcedIndex = null
-    ) {
-
-        const index =
-            forcedIndex !== null
-                ? String(forcedIndex)
-                : String(nextIndex++);
-
-
-        const numericIndex =
-            parseInt(index, 10);
-
-
-        if (
-            !Number.isNaN(numericIndex)
-            && numericIndex >= nextIndex
-        ) {
-
-            nextIndex =
-                numericIndex + 1;
-
+            });
         }
 
-
-        const div =
-            document.createElement("div");
-
-
-        div.className =
-            "dependant-item dependant-card";
-
-
-        div.dataset.dependantIndex =
-            index;
-
-
-        div.style.opacity = "0";
-
-        div.style.transform =
-            "translateY(10px)";
-
-        div.style.transition =
-            "all 0.3s ease";
-
-
-        const first =
-            data?.first_name || "";
-
-        const middle =
-            data?.middle_name || "";
-
-        const surname =
-            data?.surname || "";
-
-        const dob =
-            data?.dob || "";
-
-        const relationship =
-            data?.relationship || "";
-
-        const parentType =
-            data?.parent_type || "";
-
-        const parentStatus =
-            data?.parent_status || "";
-
-        const country =
-            data?.country || "";
-
-        const county =
-            data?.county || "";
-
-        const subCountyTown =
-            data?.sub_county_town || "";
-
-
-        /* =================================================
-         * CREATE CARD HTML
-         * ================================================= */
-
-        div.innerHTML = `
-
-            <div class="dependant-header">
-
-                <span class="dependant-number">
-                    Dependant
-                </span>
-
-            </div>
-
-
-            <!-- ========================================= -->
-            <!-- NAMES -->
-            <!-- ========================================= -->
-
-            <div class="row g-3">
-
-                <div class="col-12 col-md-4">
-
-                    <label class="form-label">
-                        First Name
-                    </label>
-
-                    <input
-                        name="dep_${index}_first"
-                        class="form-control"
-                        placeholder="Enter first name"
-                        value="${escapeHtml(first)}"
-                        required
-                    >
-
-                </div>
-
-
-                <div class="col-12 col-md-4">
-
-                    <label class="form-label">
-                        Middle Name
-                    </label>
-
-                    <input
-                        name="dep_${index}_middle"
-                        class="form-control"
-                        placeholder="Enter middle name"
-                        value="${escapeHtml(middle)}"
-                    >
-
-                </div>
-
-
-                <div class="col-12 col-md-4">
-
-                    <label class="form-label">
-                        Surname
-                    </label>
-
-                    <input
-                        name="dep_${index}_surname"
-                        class="form-control"
-                        placeholder="Enter surname"
-                        value="${escapeHtml(surname)}"
-                        required
-                    >
-
-                </div>
-
-            </div>
-
-
-            <!-- ========================================= -->
-            <!-- DOB + RELATIONSHIP -->
-            <!-- ========================================= -->
-
-            <div class="row g-3 mt-1">
-
-                <div class="col-12 col-md-6">
-
-                    <label class="form-label">
-                        Date of Birth
-                    </label>
-
-                    <input
-                        type="date"
-                        name="dep_${index}_dob"
-                        class="form-control"
-                        value="${escapeHtml(dob)}"
-                        required
-                    >
-
-                </div>
-
-
-                <div class="col-12 col-md-6">
-
-                    <label class="form-label">
-                        Relationship
-                    </label>
-
-                    <select
-                        name="dep_${index}_relation"
-                        class="form-select dependant-relationship"
-                        required
-                    >
-
-                        <option
-                            value=""
-                            ${!relationship ? "selected" : ""}
-                        >
-                            Select relationship
-                        </option>
-
-
-                        <option
-                            value="CHILD"
-                            ${relationship === "CHILD" ? "selected" : ""}
-                        >
-                            Child
-                        </option>
-
-
-                        ${
-                            isMarried
-                                ? `
-                                    <option
-                                        value="SPOUSE"
-                                        ${relationship === "SPOUSE" ? "selected" : ""}
-                                    >
-                                        Spouse
-                                    </option>
-                                `
-                                : ""
-                        }
-
-
-                        <option
-                            value="SIBLING"
-                            ${relationship === "SIBLING" ? "selected" : ""}
-                        >
-                            Sibling
-                        </option>
-
-
-                        <option
-                            value="PARENT"
-                            ${relationship === "PARENT" ? "selected" : ""}
-                        >
-                            Parent
-                        </option>
-
-                    </select>
-
-                </div>
-
-            </div>
-
-
-            <!-- ========================================= -->
-            <!-- PARENT TYPE / STATUS -->
-            <!-- ========================================= -->
-
-            <div
-                class="row g-3 mt-1 dependant-parent-fields d-none"
-            >
-
-                <div class="col-12 col-md-6">
-
-                    <label class="form-label">
-                        Parent Type
-                    </label>
-
-                    <select
-                        name="dep_${index}_parent_type"
-                        class="form-select dependant-parent-type"
-                    >
-
-                        <option value="">
-                            Select parent type
-                        </option>
-
-                        <option
-                            value="MOTHER"
-                            ${parentType === "MOTHER" ? "selected" : ""}
-                        >
-                            Mother
-                        </option>
-
-                        <option
-                            value="FATHER"
-                            ${parentType === "FATHER" ? "selected" : ""}
-                        >
-                            Father
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-                <div class="col-12 col-md-6">
-
-                    <label class="form-label">
-                        Parent Status
-                    </label>
-
-                    <select
-                        name="dep_${index}_parent_status"
-                        class="form-select dependant-parent-status"
-                    >
-
-                        <option value="">
-                            Select parent status
-                        </option>
-
-                        <option
-                            value="ALIVE"
-                            ${parentStatus === "ALIVE" ? "selected" : ""}
-                        >
-                            Alive
-                        </option>
-
-                        <option
-                            value="DECEASED"
-                            ${parentStatus === "DECEASED" ? "selected" : ""}
-                        >
-                            Deceased
-                        </option>
-
-                    </select>
-
-                </div>
-
-            </div>
-
-
-            <!-- ========================================= -->
-            <!-- LOCATION -->
-            <!-- ========================================= -->
-
-            <div
-                class="row g-3 mt-1 dependant-location-fields d-none"
-            >
-
-                <div class="col-12 col-md-4">
-
-                    <label class="form-label">
-                        Country
-                    </label>
-
-                    <input
-                        type="text"
-                        name="dep_${index}_country"
-                        class="form-control dependant-country"
-                        placeholder="Enter country"
-                        value="${escapeHtml(country)}"
-                    >
-
-                </div>
-
-
-                <div class="col-12 col-md-4">
-
-                    <label class="form-label">
-                        County
-                    </label>
-
-                    <input
-                        type="text"
-                        name="dep_${index}_county"
-                        class="form-control dependant-county"
-                        placeholder="Enter county"
-                        value="${escapeHtml(county)}"
-                    >
-
-                </div>
-
-
-                <div class="col-12 col-md-4">
-
-                    <label class="form-label">
-                        Sub-county / Town
-                    </label>
-
-                    <input
-                        type="text"
-                        name="dep_${index}_sub_county_town"
-                        class="form-control dependant-sub-county-town"
-                        placeholder="Enter sub-county / town"
-                        value="${escapeHtml(subCountyTown)}"
-                    >
-
-                </div>
-
-            </div>
-
-
-            <!-- ========================================= -->
-            <!-- REMOVE -->
-            <!-- ========================================= -->
-
-            <button
-                type="button"
-                class="btn btn-sm btn-danger mt-3 remove-dep"
-            >
-                Remove
-            </button>
-
-        `;
-
-
-        container.appendChild(div);
-
-
-        /* =================================================
-         * RELATIONSHIP CHANGE
-         * ================================================= */
-
-        const relationshipSelect =
-            div.querySelector(
+        function bindCard(card) {
+            const relationship = card.querySelector(
                 ".dependant-relationship"
             );
+            const parentType = card.querySelector(
+                ".dependant-parent-type"
+            );
+            const removeButton = card.querySelector(
+                ".remove-dep"
+            );
 
-
-        if (relationshipSelect) {
-
-            relationshipSelect.addEventListener(
-                "change",
-                function () {
-
-                    updateDependantConditionalFields(
-                        div
-                    );
-
+            if (relationship) {
+                relationship.addEventListener("change", function () {
+                    updateConditionalFields(card);
                     applyRelationshipLimits();
-
-                }
-            );
-
-        }
-
-
-        /* =================================================
-         * PARENT STATUS CHANGE
-         * ================================================= */
-
-        const parentStatusSelect =
-            div.querySelector(
-                ".dependant-parent-status"
-            );
-
-
-        if (parentStatusSelect) {
-
-            parentStatusSelect.addEventListener(
-                "change",
-                function () {
-
-                    updateParentLocationFields(
-                        div
-                    );
-
-                }
-            );
-
-        }
-
-
-        /* =================================================
-         * INITIAL CONDITIONAL STATE
-         * ================================================= */
-
-        updateDependantConditionalFields(
-            div
-        );
-
-
-        updateVisibleNumbers();
-
-        updateIndexes();
-
-        applyRelationshipLimits();
-
-
-        /* =================================================
-         * CARD ANIMATION
-         * ================================================= */
-
-        setTimeout(
-            function () {
-
-                div.style.opacity = "1";
-
-                div.style.transform =
-                    "translateY(0)";
-
-            },
-            10
-        );
-
-    }
-
-
-    /* =====================================================
-     * RESTORE CACHED DEPENDANTS
-     * ===================================================== */
-
-    if (
-        cachedDependants.length > 0
-    ) {
-
-        container.innerHTML = "";
-
-        nextIndex = 1;
-
-
-        cachedDependants.forEach(
-            function (data, position) {
-
-                /*
-                 * Cached registration data does not
-                 * necessarily contain the original form
-                 * index.
-                 *
-                 * Use sequential unique indexes when
-                 * restoring the cached data.
-                 */
-
-                createDependant(
-                    data,
-                    position + 1
-                );
-
-            }
-        );
-
-
-    } else {
-
-        /*
-         * The original first dependant card is already
-         * present in the template.
-         */
-
-        const firstItem =
-            container.querySelector(
-                ".dependant-item"
-            );
-
-
-        if (firstItem) {
-
-            firstItem.dataset.dependantIndex =
-                "1";
-
-
-            nextIndex = 2;
-
-
-            /* =========================================
-             * INITIAL RELATIONSHIP HANDLER
-             * ========================================= */
-
-            const relationshipSelect =
-                firstItem.querySelector(
-                    ".dependant-relationship"
-                );
-
-
-            if (relationshipSelect) {
-
-                relationshipSelect.addEventListener(
-                    "change",
-                    function () {
-
-                        updateDependantConditionalFields(
-                            firstItem
-                        );
-
-                        applyRelationshipLimits();
-
-                    }
-                );
-
+                });
             }
 
-
-            /* =========================================
-             * INITIAL PARENT STATUS HANDLER
-             * ========================================= */
-
-            const parentStatusSelect =
-                firstItem.querySelector(
-                    ".dependant-parent-status"
-                );
-
-
-            if (parentStatusSelect) {
-
-                parentStatusSelect.addEventListener(
-                    "change",
-                    function () {
-
-                        updateParentLocationFields(
-                            firstItem
-                        );
-
-                    }
-                );
-
+            if (parentType) {
+                parentType.addEventListener("change", function () {
+                    updateParentStatusDisplay(card);
+                    updateConditionalFields(card);
+                });
             }
 
+            if (removeButton) {
+                removeButton.addEventListener("click", function () {
+                    card.remove();
+                    updateIndexes();
+                    updateNumbers();
+                    applyRelationshipLimits();
+                });
+            }
 
-            /* =========================================
-             * INITIAL CONDITIONAL STATE
-             * ========================================= */
-
-            updateDependantConditionalFields(
-                firstItem
-            );
-
+            updateConditionalFields(card);
         }
 
-
-        updateIndexes();
-
-        updateVisibleNumbers();
-
-        applyRelationshipLimits();
-
-    }
-
-
-    /* =====================================================
-     * ADD DEPENDANT
-     * ===================================================== */
-
-    addBtn.addEventListener(
-        "click",
-        function () {
-
-            createDependant();
-
-        }
-    );
-
-
-    /* =====================================================
-     * REMOVE DEPENDANT
-     * ===================================================== */
-
-    container.addEventListener(
-        "click",
-        function (event) {
+        function createCard(data, forcedIndex) {
+            const index = forcedIndex || String(nextIndex++);
+            const numericIndex = parseInt(index, 10);
 
             if (
-                !event.target.classList.contains(
-                    "remove-dep"
-                )
+                !Number.isNaN(numericIndex) &&
+                numericIndex >= nextIndex
             ) {
-
-                return;
-
+                nextIndex = numericIndex + 1;
             }
 
+            const card = document.createElement("div");
+            card.className = "dependant-item dependant-card";
+            card.dataset.dependantIndex = index;
 
-            const item =
-                event.target.closest(
-                    ".dependant-item"
-                );
+            const relationship = String(
+                data.relationship || ""
+            ).toUpperCase();
 
+            const parentType = String(
+                data.parent_type || ""
+            ).toUpperCase();
 
-            if (!item) {
+            card.innerHTML = `
+                <div class="dependant-header">
+                    <span class="dependant-number">Dependant</span>
+                </div>
 
-                return;
+                <div class="row g-3">
+                    <div class="col-12 col-md-4 dependant-name-field">
+                        <label class="form-label">First Name</label>
+                        <input
+                            name="dep_${index}_first"
+                            class="form-control dependant-first-name"
+                            placeholder="Enter first name"
+                            value="${escapeHtml(data.first_name || "")}"
+                            required
+                        >
+                    </div>
 
-            }
+                    <div class="col-12 col-md-4 dependant-name-field">
+                        <label class="form-label">Middle Name</label>
+                        <input
+                            name="dep_${index}_middle"
+                            class="form-control dependant-middle-name"
+                            placeholder="Enter middle name"
+                            value="${escapeHtml(data.middle_name || "")}"
+                        >
+                    </div>
 
+                    <div class="col-12 col-md-4 dependant-name-field">
+                        <label class="form-label">Surname</label>
+                        <input
+                            name="dep_${index}_surname"
+                            class="form-control dependant-surname"
+                            placeholder="Enter surname"
+                            value="${escapeHtml(data.surname || "")}"
+                            required
+                        >
+                    </div>
+                </div>
 
-            item.style.opacity = "0";
+                <div class="row g-3 mt-1">
+                    <div class="col-12 col-md-6 dependant-dob-field">
+                        <label class="form-label">Date of Birth</label>
+                        <input
+                            type="date"
+                            name="dep_${index}_dob"
+                            class="form-control dependant-dob"
+                            value="${escapeHtml(data.dob || "")}"
+                            required
+                        >
+                    </div>
 
-            item.style.transform =
-                "translateY(-10px)";
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Relationship</label>
+                        <select
+                            name="dep_${index}_relation"
+                            class="form-select dependant-relationship"
+                            required
+                        >
+                            <option value="">Select relationship</option>
+                            <option value="CHILD" ${relationship === "CHILD" ? "selected" : ""}>Child</option>
+                            ${isMarried ? `<option value="SPOUSE" ${relationship === "SPOUSE" ? "selected" : ""}>Spouse</option>` : ""}
+                            <option value="SIBLING" ${relationship === "SIBLING" ? "selected" : ""}>Sibling</option>
+                            <option value="PARENT" ${relationship === "PARENT" ? "selected" : ""}>Parent</option>
+                        </select>
+                    </div>
+                </div>
 
+                <div class="row g-3 mt-1 dependant-parent-fields d-none">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Parent Type</label>
+                        <select
+                            name="dep_${index}_parent_type"
+                            class="form-select dependant-parent-type"
+                        >
+                            <option value="">Select parent type</option>
+                            <option value="MOTHER" ${parentType === "MOTHER" ? "selected" : ""}>Mother</option>
+                            <option value="FATHER" ${parentType === "FATHER" ? "selected" : ""}>Father</option>
+                        </select>
+                    </div>
 
-            setTimeout(
-                function () {
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Parent Status</label>
+                        <div
+                            class="form-control bg-light dependant-parent-status-display"
+                            aria-live="polite"
+                        >
+                            Select Mother or Father to see the status captured in Step 2.
+                        </div>
+                    </div>
+                </div>
 
-                    item.remove();
+                <div class="row g-3 mt-1 dependant-location-fields d-none">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">Country</label>
+                        <input
+                            name="dep_${index}_country"
+                            class="form-control dependant-country"
+                            placeholder="Country"
+                            value="${escapeHtml(data.country || "")}"
+                        >
+                    </div>
 
-                    updateVisibleNumbers();
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">County</label>
+                        <input
+                            name="dep_${index}_county"
+                            class="form-control dependant-county"
+                            placeholder="County"
+                            value="${escapeHtml(data.county || "")}"
+                        >
+                    </div>
 
-                    updateIndexes();
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">Sub-county / Town</label>
+                        <input
+                            name="dep_${index}_sub_county_town"
+                            class="form-control dependant-sub-county-town"
+                            placeholder="Sub-county / Town"
+                            value="${escapeHtml(data.sub_county_town || "")}"
+                        >
+                    </div>
+                </div>
 
-                    /*
-                     * Removing a spouse or parent must
-                     * immediately make that relationship
-                     * available again.
-                     */
-                    applyRelationshipLimits();
+                <button
+                    type="button"
+                    class="btn btn-outline-danger btn-sm mt-3 remove-dep"
+                >
+                    Remove
+                </button>
+            `;
 
-                },
-                300
-            );
-
+            container.appendChild(card);
+            bindCard(card);
+            updateIndexes();
+            updateNumbers();
+            applyRelationshipLimits();
         }
-    );
 
+        addButton.addEventListener("click", function () {
+            createCard({}, String(nextIndex++));
+        });
 
+        /*
+         * Preserve the server-rendered first card when there is no cache.
+         * When cached data exists, replace the blank first card with the
+         * exact cached dependant collection.
+         */
+        const initialCards = Array.from(
+            container.querySelectorAll(".dependant-item")
+        );
+
+        if (cachedDependants.length > 0) {
+            initialCards.forEach(function (card) {
+                card.remove();
+            });
+
+            cachedDependants.forEach(function (data) {
+                createCard(
+                    data,
+                    String(nextIndex++)
+                );
+            });
+        } else {
+            initialCards.forEach(function (card) {
+                bindCard(card);
+            });
+        }
+
+        updateIndexes();
+        updateNumbers();
+        applyRelationshipLimits();
+    });
 })();

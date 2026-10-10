@@ -567,30 +567,40 @@ class NextOfKin(models.Model):
 
 
 class Dependant(models.Model):
-     
+
+    # ======================================================
+    # RELATIONSHIP TYPES
+    # ======================================================
+
     TYPE_SPOUSE = "SPOUSE"
     TYPE_CHILD = "CHILD"
     TYPE_SIBLING = "SIBLING"
     TYPE_PARENT = "PARENT"
+
     RELATIONSHIP_TYPE_CHOICES = [
         (TYPE_SPOUSE, "Spouse"),
         (TYPE_CHILD, "Child"),
         (TYPE_SIBLING, "Sibling"),
         (TYPE_PARENT, "Parent"),
     ]
+
+    # ======================================================
+    # DEPENDANT STATUS
+    # ======================================================
+
     STATUS_ACTIVE = "active"
     STATUS_PENDING = "pending"
     STATUS_RETIRED = "retired"
+
     DEP_STATUS_CHOICES = [
         (STATUS_ACTIVE, "Active"),
-        (STATUS_PENDING, "pending"),
+        (STATUS_PENDING, "Pending"),
         (STATUS_RETIRED, "Retired"),
-        
     ]
-    
-        # -----------------------------
-    # PARENT DETAILS
-    # -----------------------------
+
+    # ======================================================
+    # PARENT TYPE
+    # ======================================================
 
     PARENT_MOTHER = "MOTHER"
     PARENT_FATHER = "FATHER"
@@ -600,44 +610,83 @@ class Dependant(models.Model):
         (PARENT_FATHER, "Father"),
     ]
 
+    # ======================================================
+    # PARENT STATUS
+    # ======================================================
+    #
+    # UNKNOWN is a genuine business state.
+    #
+    # It does NOT mean:
+    #     "the member has not decided yet".
+    #
+    # It means the parent's status is genuinely unknown.
+    #
+    # An UNKNOWN parent:
+    #     • cannot have parent details recorded;
+    #     • can never become ACTIVE;
+    #     • is stored as RETIRED.
+    # ======================================================
+
     PARENT_ALIVE = "ALIVE"
     PARENT_DECEASED = "DECEASED"
+    PARENT_UNKNOWN = "UNKNOWN"
 
     PARENT_STATUS_CHOICES = [
         (PARENT_ALIVE, "Alive"),
         (PARENT_DECEASED, "Deceased"),
+        (PARENT_UNKNOWN, "Unknown"),
     ]
 
-    member = models.ForeignKey("Member", related_name="dependants", on_delete=models.CASCADE)
-    first_name = models.CharField(max_length=50, default="")
-    middle_name = models.CharField(max_length=50, blank=True, null=True)
-    surname = models.CharField(max_length=50, default="")
-    relationship = models.CharField(max_length=50, choices=RELATIONSHIP_TYPE_CHOICES, blank=True)
-    dob = models.DateField()
-    # -----------------------------
-    # FAMILY LOCATION
-    # -----------------------------
-    country = models.CharField(max_length=100, blank=True, null=True,)    
-    county = models.CharField(max_length=100, blank=True, null=True,)    
-    sub_county_town = models.CharField(max_length=150, blank=True, null=True,)
-    status = models.CharField(max_length=16, choices=DEP_STATUS_CHOICES, default=STATUS_PENDING)
-    parent_type = models.CharField(
-        max_length=10,
-        choices=PARENT_TYPE_CHOICES,
+    # ======================================================
+    # MEMBER
+    # ======================================================
+
+    member = models.ForeignKey(
+        "Member",
+        related_name="dependants",
+        on_delete=models.CASCADE,
+    )
+
+    # ======================================================
+    # PERSONAL DETAILS
+    # ======================================================
+    #
+    # first_name and surname retain their existing defaults.
+    # They are allowed to be empty for an UNKNOWN parent because
+    # an UNKNOWN parent must have no identifying details stored.
+    # ======================================================
+
+    first_name = models.CharField(
+        max_length=50,
+        default="",
+    )
+
+    middle_name = models.CharField(
+        max_length=50,
         blank=True,
         null=True,
     )
 
-    parent_status = models.CharField(
-        max_length=12,
-        choices=PARENT_STATUS_CHOICES,
-        blank=True,
-        null=True,
+    surname = models.CharField(
+        max_length=50,
+        default="",
     )
 
-    # -----------------------------
+    relationship = models.CharField(
+        max_length=50,
+        choices=RELATIONSHIP_TYPE_CHOICES,
+        blank=True,
+    )
+
+    # UNKNOWN parents have no DOB to capture.
+    dob = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    # ======================================================
     # FAMILY LOCATION
-    # -----------------------------
+    # ======================================================
 
     country = models.CharField(
         max_length=100,
@@ -656,13 +705,96 @@ class Dependant(models.Model):
         blank=True,
         null=True,
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+
+    # ======================================================
+    # STATUS
+    # ======================================================
+
+    status = models.CharField(
+        max_length=16,
+        choices=DEP_STATUS_CHOICES,
+        default=STATUS_PENDING,
+    )
+
+    # ======================================================
+    # PARENT DETAILS
+    # ======================================================
+
+    parent_type = models.CharField(
+        max_length=10,
+        choices=PARENT_TYPE_CHOICES,
+        blank=True,
+        null=True,
+    )
+
+    parent_status = models.CharField(
+        max_length=12,
+        choices=PARENT_STATUS_CHOICES,
+        blank=True,
+        null=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
 
     def full_name(self):
+        """
+        Return a useful display name.
+
+        UNKNOWN parents deliberately have no identifying
+        details. In that case, display the relationship/type
+        rather than producing an empty name.
+        """
+
+        if (
+            self.relationship == self.TYPE_PARENT
+            and self.parent_status == self.PARENT_UNKNOWN
+        ):
+            parent_type = dict(
+                self.PARENT_TYPE_CHOICES
+            ).get(
+                self.parent_type,
+                "Parent",
+            )
+
+            return f"{parent_type} (Unknown)"
+
         return f"{self.first_name} {self.surname} ({self.relationship})"
 
     def __str__(self):
-        return f"{self.full_name()} — {self.relationship} of {self.member}"
+        return (
+            f"{self.full_name()} — "
+            f"{self.relationship} of {self.member}"
+        )
+
+    def save(self, *args, **kwargs):
+        """
+        Enforce the UNKNOWN-parent business rule at model level.
+
+        This is an additional safety net for normal .save() calls.
+        Activation views/services still contain explicit guards,
+        because QuerySet.update() bypasses model.save().
+        """
+
+        if (
+            self.relationship == self.TYPE_PARENT
+            and self.parent_status == self.PARENT_UNKNOWN
+        ):
+            # UNKNOWN means there are no parent details.
+            self.first_name = ""
+            self.middle_name = ""
+            self.surname = ""
+            self.dob = None
+
+            self.country = ""
+            self.county = ""
+            self.sub_county_town = ""
+
+            # UNKNOWN parents can never be active or pending.
+            self.status = self.STATUS_RETIRED
+
+        super().save(*args, **kwargs)
     
 # ======================================================
 # ADDRESS MODEL

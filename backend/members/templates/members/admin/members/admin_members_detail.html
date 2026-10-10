@@ -1186,7 +1186,8 @@
                                                         openDependantUpdate(
                                                             '{{ d.id }}',
                                                             '{{ d.status }}',
-                                                            '{{ d.first_name|escapejs }} {{ d.surname|escapejs }}'
+                                                            '{{ d.first_name|escapejs }} {{ d.surname|escapejs }}',
+                                                             {% if d.relationship == 'PARENT' and d.parent_status == 'DECEASED' or d.relationship == 'PARENT' and d.parent_status == 'UNKNOWN' %}true{% else %}false{% endif %}
                                                         )
                                                     "
                                                 >
@@ -1456,7 +1457,6 @@
 
     </section>
 
-
     <!-- ===================================================== -->
     <!-- NEXT OF KIN -->
     <!-- ===================================================== -->
@@ -1473,7 +1473,6 @@
 
             </div>
 
-
             <div class="card-body">
 
                 {% if next_of_kin %}
@@ -1484,18 +1483,15 @@
                         {{ next_of_kin.surname }}
                     </p>
 
-
                     <p>
                         <strong>Relationship:</strong>
                         {{ next_of_kin.relationship }}
                     </p>
 
-
                     <p>
                         <strong>Phone:</strong>
                         {{ next_of_kin.phone }}
                     </p>
-
 
                     <p>
                         <strong>Email:</strong>
@@ -1510,7 +1506,6 @@
 
                 {% endif %}
 
-
                 <a
                     href="{% url 'members_admin:edit_next_of_kin' member.id %}"
                     class="btn btn-outline-primary btn-sm"
@@ -1523,6 +1518,7 @@
         </div>
 
     </section>
+
 
 
     <!-- ===================================================== -->
@@ -1965,7 +1961,8 @@ function confirmBulkDependantUpdate(form) {
 function openDependantUpdate(
     dependantId,
     currentStatus,
-    dependantName
+    dependantName,
+    protectedParent
 ) {
 
     const form =
@@ -1978,6 +1975,22 @@ function openDependantUpdate(
         document.getElementById(
             "singleDependantStatus"
         );
+
+
+    /*
+     * DECEASED and UNKNOWN parents are permanently protected.
+     * The backend remains the authoritative security control.
+     */
+    if (
+        protectedParent
+        && currentStatus !== "active"
+    ) {
+        alert(
+            "This parent cannot be activated because the parent status is " +
+            "Deceased or Unknown."
+        );
+        return;
+    }
 
 
     form.action =

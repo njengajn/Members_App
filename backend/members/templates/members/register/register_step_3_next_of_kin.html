@@ -3,200 +3,330 @@
 
 {% block register_content %}
 
+<!--
+==================================================================
+STEP 3 - NEXT OF KIN
+==================================================================
+Phone and email are validated in the browser for immediate feedback,
+and again by Django on POST. Browser validation is not authoritative.
+==================================================================
+-->
+
 <div class="mb-4">
-
-    <h4 class="fw-bold mb-1">
-        Next of Kin Details
-    </h4>
-
+    <h4 class="fw-bold mb-1">Next of Kin</h4>
     <p class="text-muted mb-0">
-        Please provide next of kin information
+        Please provide next of kin information.
     </p>
-
 </div>
 
-<form method="post"
-      action="{% url 'members:register_step_3' %}">
+{% if errors %}
+<div class="alert alert-danger" role="alert" aria-live="polite">
+    <strong>Please correct the following:</strong>
+    <ul class="mb-0">
+        {% for error in errors %}
+            <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
 
+<form
+    method="post"
+    id="registerStep3Form"
+    novalidate
+    data-member-email="{{ member_email|default:'' }}"
+>
     {% csrf_token %}
 
-    <input type="hidden"
-           name="step"
-           value="3">
-
-    <!-- ========================================= -->
-    <!-- PERSONAL DETAILS -->
-    <!-- ========================================= -->
-
     <div class="register-section mb-4">
-
-        <div class="section-title">
-            Personal Information
-        </div>
+        <div class="section-title">Next of Kin Details</div>
 
         <div class="row g-3">
 
             <div class="col-12 col-md-4">
-
-                <label class="form-label">
+                <label for="nok_first_name" class="form-label">
                     First Name
                 </label>
-
                 <input
+                    id="nok_first_name"
                     name="first_name"
                     class="form-control"
-                    placeholder="Enter first name"
                     value="{{ nok.first_name|default:'' }}"
+                    autocomplete="given-name"
                     required
                 >
-
             </div>
 
             <div class="col-12 col-md-4">
-
-                <label class="form-label">
+                <label for="nok_middle_name" class="form-label">
                     Middle Name
                 </label>
-
                 <input
+                    id="nok_middle_name"
                     name="middle_name"
                     class="form-control"
-                    placeholder="Enter middle name"
                     value="{{ nok.middle_name|default:'' }}"
+                    autocomplete="additional-name"
                 >
-
             </div>
 
             <div class="col-12 col-md-4">
-
-                <label class="form-label">
+                <label for="nok_surname" class="form-label">
                     Surname
                 </label>
-
                 <input
+                    id="nok_surname"
                     name="surname"
                     class="form-control"
-                    placeholder="Enter surname"
                     value="{{ nok.surname|default:'' }}"
+                    autocomplete="family-name"
                     required
                 >
-
             </div>
 
-        </div>
+            <div class="col-12">
+                <label for="relationship" class="form-label">
+                    Relationship
+                </label>
+                <input
+                    id="relationship"
+                    name="relationship"
+                    class="form-control"
+                    value="{{ nok.relationship|default:'' }}"
+                    placeholder="Enter relationship"
+                    required
+                >
+            </div>
 
-    </div>
-
-    <!-- ========================================= -->
-    <!-- CONTACT DETAILS -->
-    <!-- ========================================= -->
-
-    <div class="register-section mb-4">
-
-        <div class="section-title">
-            Contact Details
-        </div>
-
-        <div class="row g-3">
-
+            <!-- NEXT OF KIN PHONE -->
             <div class="col-12 col-md-6">
-
-                <label class="form-label">
+                <label for="nok_phone" class="form-label">
                     Phone Number
                 </label>
-
                 <input
+                    id="nok_phone"
+                    type="tel"
                     name="phone"
                     class="form-control"
-                    placeholder="Enter phone number"
                     value="{{ nok.phone|default:'' }}"
+                    placeholder="Include country code if applicable"
+                    autocomplete="tel"
+                    inputmode="tel"
+                    maxlength="30"
+                    aria-describedby="nok_phone_help nok_phone_error"
+                    {% if phone_error %}aria-invalid="true"{% endif %}
+                    required
                 >
-
+                <div id="nok_phone_help" class="form-text">
+                    Enter between 4 and 15 digits. International numbers
+                    are accepted. Spaces, +, parentheses, dots and hyphens
+                    may be used for formatting.
+                </div>
+                <div
+                    id="nok_phone_error"
+                    class="invalid-feedback"
+                    role="alert"
+                    aria-live="polite"
+                    {% if not phone_error %}hidden{% endif %}
+                >{{ phone_error }}</div>
             </div>
 
+            <!-- NEXT OF KIN EMAIL -->
             <div class="col-12 col-md-6">
-
-                <label class="form-label">
+                <label for="nok_email" class="form-label">
                     Email Address
                 </label>
-
                 <input
+                    id="nok_email"
                     type="email"
                     name="email"
                     class="form-control"
-                    placeholder="Enter email address"
                     value="{{ nok.email|default:'' }}"
+                    placeholder="Enter email address"
+                    autocomplete="email"
+                    maxlength="254"
+                    aria-describedby="nok_email_help nok_email_error"
                     required
                 >
-
+                <div id="nok_email_help" class="form-text">
+                    Enter a valid email address. It must be different
+                    from the registering member's email.
+                </div>
+                <div
+                    id="nok_email_error"
+                    class="invalid-feedback"
+                    role="alert"
+                    aria-live="polite"
+                ></div>
             </div>
 
         </div>
-
     </div>
-
-    <!-- ========================================= -->
-    <!-- RELATIONSHIP -->
-    <!-- ========================================= -->
-
-    <div class="register-section mb-4">
-
-        <div class="section-title">
-            Relationship
-        </div>
-
-        <label class="form-label">
-            Relationship to Member
-        </label>
-
-        <input
-            name="relationship"
-            maxlength="50"
-            class="form-control"
-            placeholder="Example: Spouse, Sibling, Parent, Friend, Cousin, etc."
-            value="{{ nok.relationship|default:'' }}"
-            required
-        >
-
-    </div>
-
-    <!-- ========================================= -->
-    <!-- BUTTONS -->
-    <!-- ========================================= -->
 
     <div class="row g-2">
-
         <div class="col-12 col-md-6">
-
-            <a href="{% url 'members:register_step_2' %}"
-               class="btn btn-light w-100">
-
+            <a
+                href="{% url 'members:register_step_2' %}"
+                class="btn btn-light w-100"
+            >
                 Back
-
             </a>
-
         </div>
 
         <div class="col-12 col-md-6">
-
-            <button class="btn btn-primary w-100">
-
-                Continue
-
+            <button
+                type="submit"
+                class="btn btn-primary w-100"
+            >
+                Continue to Dependants
             </button>
-
         </div>
-
     </div>
 
 </form>
 
+<!--
+Do not load registration_validation.js here: it applies the UK-member-mobile
+rule to every input named "phone" and truncates values to 11/13 characters.
+This step has its own Next of Kin international-phone validation below.
+-->
+<script>
+(function () {
+    "use strict";
+
+    const form = document.getElementById("registerStep3Form");
+    const phoneInput = document.getElementById("nok_phone");
+    const phoneError = document.getElementById("nok_phone_error");
+    const emailInput = document.getElementById("nok_email");
+    const emailError = document.getElementById("nok_email_error");
+
+    if (!form || !phoneInput || !phoneError ||
+        !emailInput || !emailError) {
+        return;
+    }
+
+    const memberEmail = (
+        form.dataset.memberEmail || ""
+    ).trim().toLowerCase();
+
+    function showPhoneError(message) {
+        phoneInput.setCustomValidity(message);
+        phoneInput.classList.toggle("is-invalid", Boolean(message));
+        phoneInput.classList.toggle("is-valid", !message);
+        phoneError.textContent = message;
+    }
+
+    function validatePhone(showFeedback) {
+        const value = phoneInput.value.trim();
+        const allowed = /^\+?[0-9\s().-]+$/.test(value);
+        const digitCount = value.replace(/\D/g, "").length;
+
+        let error = "";
+
+        if (!value) {
+            error = "Enter the Next of Kin phone number.";
+        } else if (!allowed) {
+            error = "Use digits and common phone formatting characters only.";
+        } else if (digitCount < 4 || digitCount > 15) {
+            error = "The phone number must contain between 4 and 15 digits.";
+        }
+
+        phoneInput.setCustomValidity(error);
+
+        if (showFeedback) {
+            phoneInput.classList.toggle("is-invalid", Boolean(error));
+            phoneInput.classList.toggle("is-valid", !error);
+            phoneError.textContent = error;
+            phoneError.hidden = !error;
+        }
+
+        return error === "";
+    }
+
+    // Validate the entered value without silently removing characters.
+    // The same international-format rules are enforced by Django.
+    phoneInput.addEventListener("input", function () {
+        validatePhone(true);
+    });
+
+    phoneInput.addEventListener("blur", function () {
+        validatePhone(true);
+    });
+
+    function validateEmail(showFeedback) {
+        const value = emailInput.value.trim().toLowerCase();
+        let error = "";
+
+        if (!value) {
+            error = "Enter the Next of Kin email address.";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            error = "Enter a valid email address.";
+        } else if (memberEmail && value === memberEmail) {
+            error = "The Next of Kin email must differ from your own email.";
+        }
+
+        emailInput.setCustomValidity(error);
+
+        if (showFeedback) {
+            emailInput.classList.toggle("is-invalid", Boolean(error));
+            emailInput.classList.toggle("is-valid", !error);
+            emailError.textContent = error;
+        }
+
+        return error === "";
+    }
+
+    emailInput.addEventListener("input", function () {
+        validateEmail(true);
+    });
+
+    emailInput.addEventListener("blur", function () {
+        emailInput.value = emailInput.value.trim();
+        validateEmail(true);
+    });
+
+    form.addEventListener("submit", function (event) {
+        const phoneValid = validatePhone(true);
+        const emailValid = validateEmail(true);
+
+        if (!phoneValid || !emailValid) {
+            event.preventDefault();
+
+            if (!phoneValid) {
+                phoneInput.focus();
+                phoneInput.reportValidity();
+            } else {
+                emailInput.focus();
+                emailInput.reportValidity();
+            }
+
+            return;
+        }
+
+        // Because this form uses novalidate, explicitly check the
+        // remaining required fields as well.
+        const requiredFields = form.querySelectorAll(
+            "input[required]:not(#nok_phone):not(#nok_email)"
+        );
+
+        for (const field of requiredFields) {
+            if (!field.value.trim()) {
+                event.preventDefault();
+                field.focus();
+                field.reportValidity();
+                return;
+            }
+        }
+    });
+
+    // Set validity state without displaying errors when the page first opens.
+    validatePhone(false);
+    validateEmail(false);
+
+})();
+</script>
+
 <style>
-
-/* ========================================= */
-/* SECTIONS */
-/* ========================================= */
-
 .register-section {
     background: #f8fafc;
     border: 1px solid #edf1f5;
@@ -211,34 +341,12 @@
     color: #0d6efd;
 }
 
-/* ========================================= */
-/* MOBILE */
-/* ========================================= */
-
 @media (max-width: 768px) {
-
     .register-section {
-        padding: 0.9rem;
+        padding: 1rem;
         border-radius: 16px;
     }
-
-    .section-title {
-        font-size: 0.95rem;
-        margin-bottom: 0.85rem;
-    }
 }
-
-@media (max-width: 480px) {
-
-    .register-section {
-        padding: 0.8rem;
-    }
-
-    .section-title {
-        font-size: 0.92rem;
-    }
-}
-
 </style>
 
 {% endblock %}

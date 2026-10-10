@@ -158,14 +158,26 @@ Registration does not depend on the postcode lookup working.
                 placeholder="07123456789 or +447123456789"
                 autocomplete="tel"
                 inputmode="tel"
-                maxlength="16"
+                maxlength="13"
+                pattern="(07[0-9]{9}|\+447[0-9]{9})"
+                title="Enter exactly 11 digits beginning 07, or +447 followed by 9 digits. Do not include spaces or letters."
+                aria-describedby="phone-help phone-feedback"
+                aria-invalid="{% if phone_error %}true{% else %}false{% endif %}"
                 required
             >
 
-            <div class="form-text">
-                Enter an 11-digit UK mobile beginning with 07,
-                or the international +44 format.
+            <div id="phone-help" class="form-text">
+                Enter exactly 11 digits beginning with 07, or +447 followed by 9 digits.
+                Do not enter spaces, letters, or punctuation.
             </div>
+
+            <div
+                id="phone-feedback"
+                class="small mt-1 {% if phone_error %}text-danger{% else %}text-warning-emphasis{% endif %}"
+                role="status"
+                aria-live="polite"
+                {% if not phone_error %}hidden{% endif %}
+            >{{ phone_error }}</div>
 
         </div>
 
@@ -202,6 +214,97 @@ Registration does not depend on the postcode lookup working.
                     <option
                         value="{{ value }}"
                         {% if member.marital_status == value %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ label }}
+                    </option>
+
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+
+        <!-- ==================================================
+             MOTHER STATUS
+
+             Parent status is collected here so Step 4 can use it
+             without asking the member to select it a second time.
+             The view supplies parent_status_choices.
+             ================================================== -->
+
+        <div class="col-12 col-md-6">
+
+            <label
+                for="mother_status"
+                class="form-label"
+            >
+                Mother Status
+            </label>
+
+            <select
+                id="mother_status"
+                name="mother_status"
+                class="form-select"
+                required
+            >
+
+                <option value="">
+                    Select Mother's status
+                </option>
+
+                {% for value, label in parent_status_choices %}
+
+                    <option
+                        value="{{ value }}"
+                        {% if member.mother_status == value %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ label }}
+                    </option>
+
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+
+        <!-- ==================================================
+             FATHER STATUS
+
+             Saved alongside Mother status in reg_member and reused
+             by the dependant registration step.
+             ================================================== -->
+
+        <div class="col-12 col-md-6">
+
+            <label
+                for="father_status"
+                class="form-label"
+            >
+                Father Status
+            </label>
+
+            <select
+                id="father_status"
+                name="father_status"
+                class="form-select"
+                required
+            >
+
+                <option value="">
+                    Select Father's status
+                </option>
+
+                {% for value, label in parent_status_choices %}
+
+                    <option
+                        value="{{ value }}"
+                        {% if member.father_status == value %}
                             selected
                         {% endif %}
                     >
@@ -564,6 +667,94 @@ with the postcode-search UI.
 <script>
 
 document.addEventListener("DOMContentLoaded", function () {
+
+    /*
+     * UK mobile input guard.
+     * - 07 format: exactly 11 digits, so never allow 12 or 13 characters.
+     * - +44 format: +447 followed by 9 digits (13 characters including +).
+     * - Remove letters, spaces, punctuation, and any plus sign not at the start.
+     * Server-side validation remains authoritative.
+     */
+    const phoneInput = document.querySelector('input[name="phone"]');
+
+    if (phoneInput) {
+        const phoneFeedback = document.getElementById("phone-feedback");
+        const initialPhoneError = "{{ phone_error|escapejs }}";
+        const serverPhoneError = Boolean(initialPhoneError);
+
+        function showPhoneFeedback(message, isError = false) {
+            if (!phoneFeedback) return;
+            phoneFeedback.textContent = message;
+            phoneFeedback.hidden = !message;
+            phoneFeedback.classList.toggle("text-danger", Boolean(message) && isError);
+            phoneFeedback.classList.toggle("text-warning-emphasis", Boolean(message) && !isError);
+            phoneInput.setAttribute("aria-invalid", isError ? "true" : "false");
+        }
+
+        function sanitisePhoneInput(showCorrection = false) {
+            const original = phoneInput.value;
+            let value = original.replace(/[^0-9+]/g, "");
+
+            if (value.startsWith("+")) {
+                value = "+" + value.slice(1).replace(/\+/g, "");
+            } else {
+                value = value.replace(/\+/g, "");
+            }
+
+            // A local 07 number is always limited to 11 digits.
+            // The international +44 format is limited to 13 characters.
+            const maxLength = value.startsWith("07") ? 11 : 13;
+            const wasTooLong = value.length > maxLength;
+            phoneInput.maxLength = maxLength;
+            value = value.slice(0, maxLength);
+            phoneInput.value = value;
+
+            if (showCorrection && (value !== original || wasTooLong)) {
+                showPhoneFeedback(
+                    wasTooLong
+                        ? (value.startsWith("07")
+                            ? "A number beginning with 07 must contain exactly 11 digits. Extra characters were removed."
+                            : "The international format can contain at most 13 characters: +447 followed by 9 digits.")
+                        : "Only digits are allowed, except for a single + at the beginning of the international format. Invalid characters were removed.",
+                    false
+                );
+            } else if (/^(07[0-9]{9}|\+447[0-9]{9})$/.test(value)) {
+                // Clear a previous server error as soon as the user corrects the number.
+                showPhoneFeedback("");
+            } else if (serverPhoneError) {
+                showPhoneFeedback(initialPhoneError, true);
+            } else {
+                showPhoneFeedback("");
+            }
+        }
+
+        phoneInput.addEventListener("beforeinput", function (event) {
+            if (event.data && !/^[0-9+]+$/.test(event.data)) {
+                event.preventDefault();
+                showPhoneFeedback(
+                    "Please use digits only. For the international format, a single + is allowed at the beginning.",
+                    false
+                );
+                return;
+            }
+
+            if (event.data && event.data.includes("+") && phoneInput.selectionStart !== 0) {
+                event.preventDefault();
+                showPhoneFeedback("The + sign is only allowed at the beginning of the international number.", false);
+            }
+        });
+
+        phoneInput.addEventListener("input", function () {
+            sanitisePhoneInput(true);
+        });
+        phoneInput.addEventListener("paste", function () {
+            // Report corrections when pasted text contains invalid characters or is too long.
+            window.setTimeout(function () { sanitisePhoneInput(true); }, 0);
+        });
+
+        // Apply the correct length limit to any value restored from session cache.
+        sanitisePhoneInput(false);
+    }
 
     const postcodeInput =
         document.getElementById("postcode");

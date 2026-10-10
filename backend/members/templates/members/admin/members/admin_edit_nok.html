@@ -3,48 +3,232 @@
 {% block content %}
 <div class="container mt-4">
 
-<h4>Edit Next of Kin</h4>
+    <h4>Edit Next of Kin</h4>
 
-<form method="POST">
-  {% csrf_token %}
+    {% if errors %}
+        <div class="alert alert-danger" role="alert" aria-live="polite">
+            <strong>Please correct the following errors:</strong>
+            <ul class="mb-0">
+                {% for error in errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
 
-  <div class="mb-3">
-    <label>First Name</label>
-    <input type="text" name="first_name"
-           value="{{ nok.first_name }}"
-           class="form-control">
-  </div>
+    <form
+        method="POST"
+        id="edit-nok-form"
+        novalidate
+        data-member-email="{{ member.email|default:'' }}"
+    >
+        {% csrf_token %}
 
-  <div class="mb-3">
-    <label>Surname</label>
-    <input type="text" name="surname"
-           value="{{ nok.surname }}"
-           class="form-control">
-  </div>
+        <div class="mb-3">
+            <label for="nok-first-name" class="form-label">
+                First Name
+            </label>
+            <input
+                type="text"
+                id="nok-first-name"
+                name="first_name"
+                value="{% if form_data %}{{ form_data.first_name }}{% elif nok %}{{ nok.first_name }}{% endif %}"
+                class="form-control"
+            >
+        </div>
 
-  <div class="mb-3">
-    <label>Relationship</label>
-    <input type="text" name="relationship"
-           value="{{ nok.relationship }}"
-           class="form-control">
-  </div>
+        <div class="mb-3">
+            <label for="nok-surname" class="form-label">
+                Surname
+            </label>
+            <input
+                type="text"
+                id="nok-surname"
+                name="surname"
+                value="{% if form_data %}{{ form_data.surname }}{% elif nok %}{{ nok.surname }}{% endif %}"
+                class="form-control"
+            >
+        </div>
 
-  <div class="mb-3">
-    <label>Phone</label>
-    <input type="text" name="phone"
-           value="{{ nok.phone }}"
-           class="form-control">
-  </div>
+        <div class="mb-3">
+            <label for="nok-relationship" class="form-label">
+                Relationship
+            </label>
+            <input
+                type="text"
+                id="nok-relationship"
+                name="relationship"
+                value="{% if form_data %}{{ form_data.relationship }}{% elif nok %}{{ nok.relationship }}{% endif %}"
+                class="form-control"
+            >
+        </div>
 
-  <div class="mb-3">
-    <label>Email</label>
-    <input type="email" name="email"
-           value="{{ nok.email }}"
-           class="form-control">
-  </div>
+        <div class="mb-3">
+            <label for="nok-phone" class="form-label">
+                Phone
+            </label>
+            <input
+                type="tel"
+                id="nok-phone"
+                name="phone"
+                value="{% if form_data %}{{ form_data.phone }}{% elif nok %}{{ nok.phone }}{% endif %}"
+                class="form-control"
+                inputmode="tel"
+                autocomplete="tel"
+                maxlength="30"
+                aria-describedby="nok-phone-help nok-phone-error"
+                required
+            >
+            <div id="nok-phone-help" class="form-text">
+                Enter between 4 and 15 digits. International numbers are accepted.
+                Common formatting characters are allowed.
+            </div>
+            <div
+                id="nok-phone-error"
+                class="invalid-feedback"
+                role="alert"
+                aria-live="polite"
+            ></div>
+        </div>
 
-  <button class="btn btn-success">Save</button>
+        <div class="mb-3">
+            <label for="nok-email" class="form-label">
+                Email
+            </label>
+            <input
+                type="email"
+                id="nok-email"
+                name="email"
+                value="{% if form_data %}{{ form_data.email }}{% elif nok %}{{ nok.email }}{% endif %}"
+                class="form-control"
+                autocomplete="email"
+                maxlength="254"
+                aria-describedby="nok-email-error"
+                required
+            >
+            <div
+                id="nok-email-error"
+                class="invalid-feedback"
+                role="alert"
+                aria-live="polite"
+            ></div>
+        </div>
 
-</form>
+        <button type="submit" class="btn btn-success">
+            Save
+        </button>
+
+    </form>
 </div>
+
+<script>
+(function () {
+    "use strict";
+
+    const form = document.getElementById("edit-nok-form");
+    const phoneInput = document.getElementById("nok-phone");
+    const phoneError = document.getElementById("nok-phone-error");
+    const emailInput = document.getElementById("nok-email");
+    const emailError = document.getElementById("nok-email-error");
+
+    if (!form || !phoneInput || !phoneError ||
+        !emailInput || !emailError) {
+        return;
+    }
+
+    const memberEmail = (
+        form.dataset.memberEmail || ""
+    ).trim().toLowerCase();
+
+    function validatePhone(showFeedback) {
+        const value = phoneInput.value.trim();
+        const allowed = /^\+?[0-9\s().-]+$/.test(value);
+        const digitCount = value.replace(/\D/g, "").length;
+
+        let error = "";
+
+        if (!value) {
+            error = "Enter the Next of Kin phone number.";
+        } else if (!allowed) {
+            error = "Use digits and common phone formatting characters only.";
+        } else if (digitCount < 4 || digitCount > 15) {
+            error = "The phone number must contain between 4 and 15 digits.";
+        }
+
+        phoneInput.setCustomValidity(error);
+
+        if (showFeedback) {
+            phoneInput.classList.toggle("is-invalid", Boolean(error));
+            phoneInput.classList.toggle("is-valid", !error);
+            phoneError.textContent = error;
+        }
+
+        return error === "";
+    }
+
+    // Validate the entered value without silently removing characters.
+    // This lets the user see exactly what needs correcting.
+    phoneInput.addEventListener("input", function () {
+        validatePhone(true);
+    });
+
+    phoneInput.addEventListener("blur", function () {
+        validatePhone(true);
+    });
+
+    function validateEmail(showFeedback) {
+        const value = emailInput.value.trim().toLowerCase();
+        let error = "";
+
+        if (!value) {
+            error = "Enter the Next of Kin email address.";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            error = "Enter a valid email address.";
+        } else if (memberEmail && value === memberEmail) {
+            error = "The Next of Kin email must differ from the member's email.";
+        }
+
+        emailInput.setCustomValidity(error);
+
+        if (showFeedback) {
+            emailInput.classList.toggle("is-invalid", Boolean(error));
+            emailInput.classList.toggle("is-valid", !error);
+            emailError.textContent = error;
+        }
+
+        return error === "";
+    }
+
+    emailInput.addEventListener("input", function () {
+        validateEmail(true);
+    });
+
+    emailInput.addEventListener("blur", function () {
+        emailInput.value = emailInput.value.trim();
+        validateEmail(true);
+    });
+
+    form.addEventListener("submit", function (event) {
+        const phoneValid = validatePhone(true);
+        const emailValid = validateEmail(true);
+
+        if (!phoneValid || !emailValid) {
+            event.preventDefault();
+
+            if (!phoneValid) {
+                phoneInput.focus();
+                phoneInput.reportValidity();
+            } else {
+                emailInput.focus();
+                emailInput.reportValidity();
+            }
+        }
+    });
+
+    validatePhone(false);
+    validateEmail(false);
+
+})();
+</script>
+
 {% endblock %}

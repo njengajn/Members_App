@@ -124,12 +124,18 @@ class DependantForm(forms.ModelForm):
 
     Registration / dependant business rules
     ----------------------------------------
+
     • Spouse requires country, county and sub-county/town.
     • Sibling requires country, county and sub-county/town.
     • Parent requires parent type and parent status.
-    • Parent location is required when the parent is alive.
-    • Parent location is not required when the parent is deceased
-      or status is unknown.
+    • Alive parent requires parent details and location.
+    • Deceased parent cannot become Active.
+    • Unknown parent captures ONLY:
+          - Parent
+          - Mother/Father
+          - Unknown
+      No identifying details or location are accepted.
+    • Unknown parent can never become Active.
     • Child does not use parent-specific fields.
     """
 
@@ -162,7 +168,9 @@ class DependantForm(forms.ModelForm):
 
         widgets = {
             "dob": forms.DateInput(
-                attrs={"type": "date"}
+                attrs={
+                    "type": "date"
+                }
             ),
 
             "country": forms.TextInput(
@@ -187,28 +195,30 @@ class DependantForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Keep the new fields available to the form while allowing
-        # the template/JavaScript to decide when they are displayed.
-        #
-        # The existing dependant-management templates may not use
-        # these fields yet, so this does not force a UI redesign.
-
+        # Relationship is always required.
         if "relationship" in self.fields:
             self.fields["relationship"].required = True
 
+        # These fields are conditionally required.
+        #
+        # They MUST NOT be unconditionally required here because
+        # UNKNOWN parents deliberately have no identifying details.
+        #
+        # The clean() method below applies the authoritative
+        # business rules.
         if "first_name" in self.fields:
-            self.fields["first_name"].required = True
+            self.fields["first_name"].required = False
 
         if "surname" in self.fields:
-            self.fields["surname"].required = True
+            self.fields["surname"].required = False
 
         if "dob" in self.fields:
-            self.fields["dob"].required = True
+            self.fields["dob"].required = False
 
     def clean(self):
         """
-        Validate dependant-specific business rules while preserving
-        the existing document-upload validation.
+        Validate dependant-specific business rules while
+        preserving the existing document-upload validation.
         """
 
         cleaned_data = super().clean()
@@ -237,11 +247,12 @@ class DependantForm(forms.ModelForm):
             cleaned_data.get("sub_county_town") or ""
         ).strip()
 
-        # ==========================================================
+        # ======================================================
         # DOCUMENT VALIDATION
-        # ==========================================================
+        # ======================================================
 
         file = cleaned_data.get("document_file")
+
         title = (
             cleaned_data.get("document_title") or ""
         ).strip()
@@ -252,9 +263,9 @@ class DependantForm(forms.ModelForm):
                 "Document title is required when uploading a file.",
             )
 
-        # ==========================================================
+        # ======================================================
         # RELATIONSHIP VALIDATION
-        # ==========================================================
+        # ======================================================
 
         valid_relationships = {
             Dependant.TYPE_CHILD,
@@ -264,6 +275,7 @@ class DependantForm(forms.ModelForm):
         }
 
         if relationship not in valid_relationships:
+
             self.add_error(
                 "relationship",
                 "Please select a valid dependant relationship.",
@@ -271,9 +283,77 @@ class DependantForm(forms.ModelForm):
 
             return cleaned_data
 
-        # ==========================================================
+        # ======================================================
+        # UNKNOWN PARENT
+        # ======================================================
+        #
+        # UNKNOWN is a deliberate business state.
+        #
+        # Only the following information is permitted:
+        #
+        #     Parent
+        #     Mother/Father
+        #     Unknown
+        #
+        # No identifying or location information is retained.
+        # ======================================================
+
+        if (
+            relationship == Dependant.TYPE_PARENT
+            and parent_status == Dependant.PARENT_UNKNOWN
+        ):
+
+            if parent_type not in {
+                Dependant.PARENT_MOTHER,
+                Dependant.PARENT_FATHER,
+            }:
+
+                self.add_error(
+                    "parent_type",
+                    "Please select Mother or Father.",
+                )
+
+            # Explicitly discard all identifying information.
+            cleaned_data["first_name"] = ""
+            cleaned_data["middle_name"] = ""
+            cleaned_data["surname"] = ""
+            cleaned_data["dob"] = None
+
+            # Explicitly discard all location information.
+            cleaned_data["country"] = ""
+            cleaned_data["county"] = ""
+            cleaned_data["sub_county_town"] = ""
+
+            return cleaned_data
+
+        # ======================================================
+        # NORMAL NAME / DOB REQUIREMENTS
+        # ======================================================
+
+        if not cleaned_data.get("first_name"):
+
+            self.add_error(
+                "first_name",
+                "First name is required.",
+            )
+
+        if not cleaned_data.get("surname"):
+
+            self.add_error(
+                "surname",
+                "Surname is required.",
+            )
+
+        if not cleaned_data.get("dob"):
+
+            self.add_error(
+                "dob",
+                "Date of birth is required.",
+            )
+
+        # ======================================================
         # SPOUSE
-        # ==========================================================
+        # ======================================================
 
         if relationship == Dependant.TYPE_SPOUSE:
 
@@ -295,13 +375,12 @@ class DependantForm(forms.ModelForm):
                     "Sub-county / Town is required for a spouse.",
                 )
 
-            # Spouse does not use parent-specific information.
             cleaned_data["parent_type"] = ""
             cleaned_data["parent_status"] = ""
 
-        # ==========================================================
+        # ======================================================
         # SIBLING
-        # ==========================================================
+        # ======================================================
 
         elif relationship == Dependant.TYPE_SIBLING:
 
@@ -323,41 +402,45 @@ class DependantForm(forms.ModelForm):
                     "Sub-county / Town is required for a sibling.",
                 )
 
-            # Sibling does not use parent-specific information.
             cleaned_data["parent_type"] = ""
             cleaned_data["parent_status"] = ""
 
-        # ==========================================================
+        # ======================================================
         # PARENT
-        # ==========================================================
+        # ======================================================
 
         elif relationship == Dependant.TYPE_PARENT:
 
             valid_parent_types = {
-                "MOTHER",
-                "FATHER",
+                Dependant.PARENT_MOTHER,
+                Dependant.PARENT_FATHER,
             }
 
             valid_parent_statuses = {
-                "ALIVE",
-                "DECEASED",
-                "UNKNOWN",
+                Dependant.PARENT_ALIVE,
+                Dependant.PARENT_DECEASED,
+                Dependant.PARENT_UNKNOWN,
             }
 
             if parent_type not in valid_parent_types:
+
                 self.add_error(
                     "parent_type",
                     "Please select Mother or Father.",
                 )
 
             if parent_status not in valid_parent_statuses:
+
                 self.add_error(
                     "parent_status",
                     "Please select the parent's status.",
                 )
 
-            # Location is required only when parent is alive.
-            if parent_status == "ALIVE":
+            # --------------------------------------------------
+            # ALIVE PARENT
+            # --------------------------------------------------
+
+            if parent_status == Dependant.PARENT_ALIVE:
 
                 if not country:
                     self.add_error(
@@ -377,25 +460,29 @@ class DependantForm(forms.ModelForm):
                         "Sub-county / Town is required for a living parent.",
                     )
 
-            else:
-                # Do not retain irrelevant location information
-                # for deceased/unknown parents.
+            # --------------------------------------------------
+            # DECEASED PARENT
+            # --------------------------------------------------
+            #
+            # Existing identifying details are retained.
+            # Location is not applicable.
+            # --------------------------------------------------
+
+            elif parent_status == Dependant.PARENT_DECEASED:
+
                 cleaned_data["country"] = ""
                 cleaned_data["county"] = ""
                 cleaned_data["sub_county_town"] = ""
 
-        # ==========================================================
+        # ======================================================
         # CHILD
-        # ==========================================================
+        # ======================================================
 
         elif relationship == Dependant.TYPE_CHILD:
 
-            # Child does not use parent-specific information.
             cleaned_data["parent_type"] = ""
             cleaned_data["parent_status"] = ""
 
-            # Child does not require the parent/sibling/spouse
-            # location fields.
             cleaned_data["country"] = ""
             cleaned_data["county"] = ""
             cleaned_data["sub_county_town"] = ""

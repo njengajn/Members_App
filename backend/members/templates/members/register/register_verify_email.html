@@ -1,22 +1,52 @@
 {% extends "members/register/register_base.html" %}
-{% load static %} 
+{% load static %}
+
 {% block register_content %}
 
 <h4>Email Verification</h4>
-<p>Enter the code sent to your email.</p>
+<p>Enter the verification code sent to your email address.</p>
 
 <form method="post">
   {% csrf_token %}
 
   <div class="mb-3">
-    <label>Verification Code</label>
-    <input name="otp" class="form-control" required>
+    <label for="id_otp" class="form-label">
+      Verification Code
+    </label>
+
+    <input
+      type="text"
+      id="id_otp"
+      name="otp"
+      class="form-control"
+      autocomplete="one-time-code"
+      inputmode="numeric"
+      required
+      aria-describedby="otp-help"
+    >
+
+    <div id="otp-help" class="form-text">
+      Enter the latest verification code sent to your email.
+      If you need a new code, select Resend Code.
+    </div>
   </div>
 
-  <button class="btn btn-success">Verify</button>
+  <button
+    type="submit"
+    name="verify"
+    value="1"
+    class="btn btn-success"
+  >
+    Verify
+  </button>
 
-  <!-- RESEND -->
-  <button name="resend" value="1" class="btn btn-link">
+  <button
+    type="submit"
+    name="resend"
+    value="1"
+    class="btn btn-link"
+    formnovalidate
+  >
     Resend Code
   </button>
 

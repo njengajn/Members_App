@@ -94,6 +94,26 @@ def members_add_dependant(request):
 
     JavaScript provides browser-side feedback, but these
     server-side checks are authoritative.
+
+    Parent status rules:
+
+        Alive:
+            Normal parent details and location are required.
+
+        Deceased:
+            Location is not collected.
+
+        Unknown:
+            Parent type and Unknown status are recorded, but
+            no identifying or location information is retained.
+
+            UNKNOWN is a deliberate business state.
+
+            The dependant is initially created as pending,
+            preserving the existing approval workflow.
+
+            Activation protection is enforced separately so
+            an UNKNOWN parent can never become Active.
     """
 
     # ======================================================
@@ -620,6 +640,19 @@ def members_add_dependant(request):
                 sub_county_town
             )
 
+            # --------------------------------------------------
+            # Preserve the existing dependant approval workflow.
+            #
+            # Every newly added dependant starts as PENDING.
+            #
+            # This is deliberately NOT changed to RETIRED for
+            # DECEASED/UNKNOWN parents here.
+            #
+            # The separate activation lifecycle is responsible
+            # for preventing DECEASED/UNKNOWN parents from ever
+            # becoming ACTIVE.
+            # --------------------------------------------------
+
             dependant.status = (
                 "pending"
             )
@@ -706,10 +739,31 @@ def members_add_dependant(request):
 @login_required
 @member_required
 def members_edit_dependant(request, pk):
+    """
+    Edit an existing dependant.
+
+    Existing behaviour:
+    - Only the logged-in member can edit their own dependant.
+    - Editing must be enabled for the member.
+    - A normal dependant edit resets the dependant to pending
+      so that the updated information can be reviewed again.
+
+    Parent business rules:
+    - Parent type must be Mother or Father.
+    - Parent status must be Alive, Deceased or Unknown.
+    - An Alive parent may retain their details.
+    - A Deceased parent is always retired.
+    - An Unknown parent has no identifying or location information.
+    - An Unknown parent is always retired.
+    - Deceased and Unknown parents can never become Active.
+    """
+
     member = request.user.member
 
+    # Preserve the existing edit-expiry check.
     member.check_can_edit_expiry()
 
+    # Editing must be enabled.
     if not member.can_edit:
         messages.error(
             request,
@@ -717,13 +771,7 @@ def members_edit_dependant(request, pk):
         )
         return redirect("members:dependants")
 
-    if not member.can_edit:
-        messages.error(
-            request,
-            "You are not allowed to modify dependants."
-        )
-        return redirect("members:dependants")
-
+    # Only allow the logged-in member to edit their own dependant.
     dependant = get_object_or_404(
         Dependant,
         pk=pk,
@@ -737,23 +785,136 @@ def members_edit_dependant(request, pk):
 
     if form.is_valid():
         dep = form.save(commit=False)
-        dep.status = "pending"  # 🔁 reset approval
+
+        relationship = (
+            dep.relationship or ""
+        ).strip().upper()
+
+        parent_type = (
+            dep.parent_type or ""
+        ).strip().upper()
+
+        parent_status = (
+            dep.parent_status or ""
+        ).strip().upper()
+
+        # ==========================================================
+        # PARENT
+        # ==========================================================
+
+        if relationship == Dependant.TYPE_PARENT:
+
+            # Parent type must be Mother or Father.
+            if parent_type not in {
+                Dependant.PARENT_MOTHER,
+                Dependant.PARENT_FATHER,
+            }:
+                form.add_error(
+                    "parent_type",
+                    "Please select Mother or Father."
+                )
+
+            # Parent status must be explicitly selected.
+            if parent_status not in {
+                Dependant.PARENT_ALIVE,
+                Dependant.PARENT_DECEASED,
+                Dependant.PARENT_UNKNOWN,
+            }:
+                form.add_error(
+                    "parent_status",
+                    "Please select the parent's status."
+                )
+
+            # ------------------------------------------------------
+            # UNKNOWN PARENT
+            # ------------------------------------------------------
+            #
+            # UNKNOWN is a deliberate business state.
+            #
+            # It means we know this is a parent and whether the
+            # parent is Mother/Father, but we do not have any
+            # identifying or location information.
+            #
+            # The dependant can NEVER be Active in this state.
+            # ------------------------------------------------------
+
+            if parent_status == Dependant.PARENT_UNKNOWN:
+
+                # Explicitly remove all identifying information.
+                dep.first_name = ""
+                dep.middle_name = ""
+                dep.surname = ""
+                dep.dob = None
+
+                # Explicitly remove all location information.
+                dep.country = ""
+                dep.county = ""
+                dep.sub_county_town = ""
+
+                # UNKNOWN parents are permanently protected
+                # from activation.
+                dep.status = Dependant.STATUS_RETIRED
+
+            # ------------------------------------------------------
+            # DECEASED PARENT
+            # ------------------------------------------------------
+
+            elif parent_status == Dependant.PARENT_DECEASED:
+
+                # A deceased parent can never become Active.
+                dep.status = Dependant.STATUS_RETIRED
+
+            # ------------------------------------------------------
+            # ALIVE PARENT
+            # ------------------------------------------------------
+
+            elif parent_status == Dependant.PARENT_ALIVE:
+
+                # Preserve the existing approval workflow.
+                # Editing an eligible parent requires review again.
+                dep.status = Dependant.STATUS_PENDING
+
+        # ==========================================================
+        # NON-PARENT DEPENDANT
+        # ==========================================================
+
+        else:
+            # Preserve existing behaviour:
+            # editing an ordinary dependant resets approval.
+            dep.status = Dependant.STATUS_PENDING
+
+        # If the server-side lifecycle checks above added an error,
+        # do not save the dependant.
+        if form.errors:
+            return render(
+                request,
+                "members/dependants/members_dependants_form.html",
+                {
+                    "form": form,
+                    "member": member,
+                }
+            )
+
+        # Save only after all server-side rules have passed.
         dep.save()
 
         messages.success(
             request,
             "Updated."
         )
-        return redirect("members:dependants")
+
+        return redirect(
+            "members:dependants"
+        )
 
     return render(
         request,
         "members/dependants/members_dependants_form.html",
         {
-            "form": form
+            "form": form,
+            "member": member,
         }
     )
-
 
 @login_required
 @member_required

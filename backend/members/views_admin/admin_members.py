@@ -728,25 +728,144 @@ def update_dependant_inline(request, dependant_id):
         member_id=dependant.member.id,
     )
 
+
 # ======================================================
 # NEXT OF KIN
 # ======================================================
 
 @admin_required
 def edit_next_of_kin(request, member_id):
+    from django.core.exceptions import ValidationError
+    from django.core.validators import EmailValidator
+
     member = get_object_or_404(Member, id=member_id)
     nok = getattr(member, "next_of_kin", None)
 
     if request.method == "POST":
+        # Keep submitted values separate from the model until
+        # all validation has passed.
+        form_data = {
+            "first_name": request.POST.get(
+                "first_name", ""
+            ).strip(),
+            "surname": request.POST.get(
+                "surname", ""
+            ).strip(),
+            "relationship": request.POST.get(
+                "relationship", ""
+            ).strip(),
+            "phone": request.POST.get(
+                "phone", ""
+            ).strip(),
+            "email": request.POST.get(
+                "email", ""
+            ).strip().lower(),
+        }
+
+        errors = []
+
+        import re
+
+        # ==============================================
+        # NEXT OF KIN PHONE VALIDATION
+        # Accept international numbers; count digits only.
+        # ==============================================
+
+        phone = form_data["phone"].strip()
+
+        # Permit digits and common international phone formatting:
+        # +, spaces, parentheses, dots and hyphens.
+        allowed_format = re.fullmatch(r"\+?[0-9\s().-]+", phone)
+        digit_count = len(re.sub(r"\D", "", phone))
+
+        if not phone:
+            errors.append(
+                "Enter a Next of Kin phone number."
+            )
+        elif not allowed_format:
+            errors.append(
+                "The phone number may contain digits and common "
+                "formatting characters only. Letters are not allowed."
+            )
+        elif not 4 <= digit_count <= 15:
+            errors.append(
+                "The Next of Kin phone number must contain "
+                "between 4 and 15 digits."
+            )
+        else:
+            # Preserve the entered international format.
+            # Do not convert it to +44.
+            form_data["phone"] = phone
+
+        # ==============================================
+        # EMAIL VALIDATION
+        # ==============================================
+
+        email = form_data["email"]
+
+        if not email:
+            errors.append(
+                "Next of Kin email address is required."
+            )
+        else:
+            try:
+                EmailValidator()(email)
+            except ValidationError:
+                errors.append(
+                    "Enter a valid Next of Kin email address."
+                )
+
+        # ==============================================
+        # EMAIL MUST DIFFER FROM THE MEMBER'S EMAIL
+        # ==============================================
+
+        member_email = (
+            getattr(member, "email", "") or ""
+        ).strip().lower()
+
+        if email and member_email and email == member_email:
+            errors.append(
+                "The Next of Kin email address must be "
+                "different from the member's email address."
+            )
+
+        # ==============================================
+        # VALIDATION FAILURE
+        # ==============================================
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+
+            return render(
+                request,
+                "members/admin/members/admin_edit_nok.html",
+                {
+                    "member": member,
+                    "nok": nok,
+                    "errors": errors,
+                    "form_data": form_data,
+                },
+            )
+
+        # ==============================================
+        # SAVE ONLY AFTER VALIDATION PASSES
+        # ==============================================
+
         if not nok:
             nok = NextOfKin(member=member)
 
-        nok.first_name = request.POST.get("first_name")
-        nok.surname = request.POST.get("surname")
-        nok.relationship = request.POST.get("relationship")
-        nok.phone = request.POST.get("phone")
-        nok.email = request.POST.get("email")
+        nok.first_name = form_data["first_name"]
+        nok.surname = form_data["surname"]
+        nok.relationship = form_data["relationship"]
+        nok.phone = form_data["phone"]
+        nok.email = form_data["email"]
+
         nok.save()
+
+        # ==============================================
+        # AUDIT LOG
+        # ==============================================
 
         AuditLog.log_action(
             admin=request.user,
@@ -755,8 +874,10 @@ def edit_next_of_kin(request, member_id):
             message="Next of Kin details updated",
         )
 
-
-        messages.success(request, "Next of Kin updated.")
+        messages.success(
+            request,
+            "Next of Kin updated successfully."
+        )
 
         return redirect(
             "members_admin:admin_member_detail",
@@ -769,9 +890,16 @@ def edit_next_of_kin(request, member_id):
         {
             "member": member,
             "nok": nok,
+            "form_data": {
+                "first_name": nok.first_name if nok else "",
+                "surname": nok.surname if nok else "",
+                "relationship": nok.relationship if nok else "",
+                "phone": nok.phone if nok else "",
+                "email": nok.email if nok else "",
+            },
+            "errors": [],
         },
     )
-
 
 # ======================================================
 # ACTIVITY LOG

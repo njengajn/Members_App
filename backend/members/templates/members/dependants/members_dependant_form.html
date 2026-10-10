@@ -1,0 +1,171 @@
+{% extends "members/members_base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container-fluid py-3">
+
+    <div class="mb-4">
+        <h4 class="fw-bold mb-1">
+            {% if form.instance.pk %}Edit Dependant{% else %}Add Dependant{% endif %}
+        </h4>
+        <p class="text-muted mb-0">
+            {% if form.instance.pk %}
+                Update the dependant's details carefully.
+            {% else %}
+                Add the details of your dependant carefully.
+            {% endif %}
+        </p>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="dependantForm">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="dependant-card">
+            <div class="dependant-header">
+                <span class="dependant-number">Dependant Details</span>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
+                    {{ form.first_name }}
+                    {% for error in form.first_name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label for="{{ form.middle_name.id_for_label }}" class="form-label">Middle Name</label>
+                    {{ form.middle_name }}
+                    {% for error in form.middle_name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label for="{{ form.surname.id_for_label }}" class="form-label">Surname</label>
+                    {{ form.surname }}
+                    {% for error in form.surname.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+            </div>
+
+            <div class="row g-3 mt-1">
+                <div class="col-12 col-md-6">
+                    <label for="{{ form.dob.id_for_label }}" class="form-label">Date of Birth</label>
+                    {{ form.dob }}
+                    {% for error in form.dob.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label for="{{ form.relationship.id_for_label }}" class="form-label">Relationship</label>
+                    {{ form.relationship }}
+                    {% for error in form.relationship.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+            </div>
+
+            <div id="parentFields" class="row g-3 mt-1 d-none">
+                <div class="col-12 col-md-6">
+                    <label for="{{ form.parent_type.id_for_label }}" class="form-label">Parent Type</label>
+                    {{ form.parent_type }}
+                    {% for error in form.parent_type.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label for="{{ form.parent_status.id_for_label }}" class="form-label">Parent Status</label>
+                    <select name="parent_status" id="{{ form.parent_status.id_for_label }}" class="form-select">
+                        <option value="">Select parent status</option>
+                        <option value="ALIVE" {% if form.parent_status.value == "ALIVE" %}selected{% endif %}>Alive</option>
+                        <option value="DECEASED" {% if form.parent_status.value == "DECEASED" %}selected{% endif %}>Deceased</option>
+                        <option value="UNKNOWN" {% if form.parent_status.value == "UNKNOWN" %}selected{% endif %}>Unknown</option>
+                    </select>
+                    {% for error in form.parent_status.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+            </div>
+
+            <div id="locationFields" class="row g-3 mt-1 d-none">
+                <div class="col-12 col-md-4">
+                    <label for="{{ form.country.id_for_label }}" class="form-label">Country</label>
+                    {{ form.country }}
+                    {% for error in form.country.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-4">
+                    <label for="{{ form.county.id_for_label }}" class="form-label">County</label>
+                    {{ form.county }}
+                    {% for error in form.county.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-4">
+                    <label for="{{ form.sub_county_town.id_for_label }}" class="form-label">Sub-county / Town</label>
+                    {{ form.sub_county_town }}
+                    {% for error in form.sub_county_town.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="dependant-card">
+            <div class="dependant-header">
+                <span class="dependant-number">Supporting Document</span>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label for="{{ form.document_title.id_for_label }}" class="form-label">{{ form.document_title.label }}</label>
+                    {{ form.document_title }}
+                    {% for error in form.document_title.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label for="{{ form.document_file.id_for_label }}" class="form-label">{{ form.document_file.label }}</label>
+                    {{ form.document_file }}
+                    {% for error in form.document_file.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-2 mt-3">
+            <div class="col-12 col-md-6">
+                <a href="{% url 'members:dependants' %}" class="btn btn-light w-100">Cancel</a>
+            </div>
+            <div class="col-12 col-md-6">
+                <button type="submit" class="btn btn-primary w-100">
+                    {% if form.instance.pk %}Save Changes{% else %}Add Dependant{% endif %}
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script src="{% static 'js/add_dependant.js' %}"></script>
+
+<style>
+.dependant-card {
+    background:#ffffff;
+    border:1px solid #e9eef5;
+    border-radius:20px;
+    padding:1.2rem;
+    margin-bottom:1rem;
+    box-shadow:0 3px 10px rgba(0,0,0,0.03);
+}
+.dependant-header { margin-bottom:1rem; }
+.dependant-number {
+    background:linear-gradient(135deg,#0d6efd,#0a58ca);
+    color:white;
+    padding:0.45rem 0.9rem;
+    border-radius:999px;
+    font-size:0.82rem;
+    font-weight:600;
+}
+@media (max-width:768px) {
+    .dependant-card { padding:1rem; border-radius:18px; }
+}
+@media (max-width:480px) {
+    .dependant-card { padding:0.85rem; }
+    .dependant-number { font-size:0.74rem; }
+}
+</style>
+
+{% endblock %}
