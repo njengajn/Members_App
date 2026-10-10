@@ -1,3 +1,4 @@
+# members/admin/members/admin_members_detail.html
 {% extends "members/admin/admin_base.html" %}
 {% load static %}
 
@@ -914,6 +915,97 @@
 
     </div>
     <!-- END MEMBER DETAILS CARD -->
+
+    <!-- ===================================================== -->
+    <!-- REGISTRATION PROFILE: MARITAL STATUS AND PARENTS -->
+    <!-- ===================================================== -->
+
+    <section class="admin-member-section admin-registration-profile-section">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h4 class="mb-0">Registration Profile</h4>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h5 class="mb-2">Marital Status</h5>
+                    <p class="mb-0">
+                        <strong>Status:</strong>
+                        {{ member.get_marital_status_display|default:member.marital_status|default:"Not recorded" }}
+                    </p>
+                </div>
+
+                <hr>
+
+                <div>
+                    <h5 class="mb-3">Parent Information</h5>
+                    {% if parent_entries %}
+                        <div class="row g-3">
+                            {% for parent in parent_entries %}
+                                <div class="col-12 col-md-6">
+                                    <div class="card h-100 border">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                                                <h6 class="mb-0">
+                                                    {% if parent.parent_type == "MOTHER" %}
+                                                        Mother
+                                                    {% elif parent.parent_type == "FATHER" %}
+                                                        Father
+                                                    {% else %}
+                                                        Parent
+                                                    {% endif %}{% if parent.parent_status|upper == "UNKNOWN" %}: Unknown{% endif %}
+                                                </h6>
+                                                {% if parent.parent_status|upper != "UNKNOWN" %}
+                                                    <span class="badge
+                                                        {% if parent.parent_status == 'ALIVE' %}bg-success
+                                                        {% elif parent.parent_status == 'DECEASED' %}bg-secondary
+                                                        {% else %}bg-light text-dark{% endif %}">
+                                                        {{ parent.get_parent_status_display|default:parent.parent_status|default:"Status not recorded" }}
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+
+                                            {% if parent.parent_status|upper == "UNKNOWN" %}
+                                                <p class="mb-0 text-muted">
+                                                    Parent details not known, as recorded during registration.
+                                                </p>
+                                            {% else %}
+                                                <dl class="row mb-0">
+                                                    <dt class="col-5 col-sm-4">Name</dt>
+                                                    <dd class="col-7 col-sm-8">
+                                                        {% if parent.first_name or parent.middle_name or parent.surname %}
+                                                            {{ parent.first_name }}{% if parent.middle_name %} {{ parent.middle_name }}{% endif %}{% if parent.surname %} {{ parent.surname }}{% endif %}
+                                                        {% else %}
+                                                            <span class="text-muted">Not provided</span>
+                                                        {% endif %}
+                                                    </dd>
+
+                                                    <dt class="col-5 col-sm-4">Date of birth</dt>
+                                                    <dd class="col-7 col-sm-8">
+                                                        {% if parent.dob %}{{ parent.dob|date:"d M Y" }}{% else %}<span class="text-muted">Not provided</span>{% endif %}
+                                                    </dd>
+
+                                                    <dt class="col-5 col-sm-4">Country</dt>
+                                                    <dd class="col-7 col-sm-8">{{ parent.country|default:"—" }}</dd>
+
+                                                    <dt class="col-5 col-sm-4">County</dt>
+                                                    <dd class="col-7 col-sm-8">{{ parent.county|default:"—" }}</dd>
+
+                                                    <dt class="col-5 col-sm-4">Sub-county / Town</dt>
+                                                    <dd class="col-7 col-sm-8">{{ parent.sub_county_town|default:"—" }}</dd>
+                                                </dl>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No parent entries are recorded for this member.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
 
     <!-- ===================================================== -->
     <!-- DEPENDANTS -->

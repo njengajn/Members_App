@@ -504,9 +504,11 @@ def update_member_status(request, member_id):
 
 @admin_required
 def admin_member_detail(request, member_id):
+    """Display the member details and persisted registration information."""
     member = get_object_or_404(Member, id=member_id)
 
     dependants = member.dependants.all().order_by("status", "first_name")
+    parent_entries = dependants.filter(relationship="PARENT").order_by("parent_type")
     next_of_kin = NextOfKin.objects.filter(member=member).first()
 
     claims = Claim.objects.filter(member=member).order_by("-created_at")
@@ -515,6 +517,7 @@ def admin_member_detail(request, member_id):
     context = {
         "member": member,
         "dependants": dependants,
+        "parent_entries": parent_entries,
         "next_of_kin": next_of_kin,
         "claims": claims,
         "payments": payments,
@@ -525,7 +528,6 @@ def admin_member_detail(request, member_id):
         "members/admin/members/admin_members_detail.html",
         context,
     )
-
 
 # ======================================================
 # APPROVE MEMBER
