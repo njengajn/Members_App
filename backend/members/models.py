@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.db.models.functions import Lower
 from django.forms import ValidationError
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -12,6 +13,7 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth import get_user_model
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.db.models import Q
 
 
 class Organization(models.Model):
@@ -547,6 +549,22 @@ class Member(models.Model):
 
         return max(remaining, 0)
 
+ #phone uniqueness constraint
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["phone"],
+                condition=~Q(phone=""),
+                name="uniq_member_phone_nonblank",
+            ),
+
+            # Prevent duplicate member emails differing only by case.
+            models.UniqueConstraint(
+                Lower("email"),
+                condition=Q(email__isnull=False) & ~Q(email=""),
+                name="uniq_member_email_ci_nonblank",
+            ),
+        ]
 
 class NextOfKin(models.Model):
     member = models.OneToOneField(Member, on_delete=models.CASCADE, related_name="next_of_kin")

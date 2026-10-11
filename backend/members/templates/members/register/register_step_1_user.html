@@ -26,7 +26,11 @@ The JavaScript file is supplementary only.
     </p>
 </div>
 
-<form method="post" id="registerStep1Form">
+<form
+    method="post"
+    action="{% url 'members:register_step_1' %}"
+    id="registerStep1Form"
+>
 
     {% csrf_token %}
 
