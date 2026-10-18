@@ -890,7 +890,7 @@ class ClaimForm(forms.ModelForm):
                 self.add_error(
                     "causer_dependant",
                     (
-                        "You can only create a claim "
+                        "You can only request support "
                         "for one of your own dependants."
                     )
                 )

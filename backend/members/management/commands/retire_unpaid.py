@@ -1,21 +1,54 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from backend.members.models import PaymentRequest, MemberPaymentStatus, Member
-from backend.members.models import Notification
+
+from backend.members.models import PaymentRequest
+from backend.members.services.payment_lifecycle import (
+    process_reconciled_payment_request,
+)
+
 
 class Command(BaseCommand):
-    help = "Retire members who haven't paid for paymentrequests past due date"
+    help = (
+        "Process eligible overdue subscription requests "
+        "through the shared payment lifecycle service."
+    )
+
+    @staticmethod
+    def get_eligible_requests(now):
+        """
+        Select only requests eligible for automatic subscription
+        retirement processing. The shared service performs the
+        final eligibility checks for each member.
+        """
+        return PaymentRequest.objects.filter(
+            request_type="subscription",
+            status=PaymentRequest.STATUS_CLOSED,
+            is_reconciled=True,
+            due_date__lt=now,
+        ).order_by("id")
 
     def handle(self, *args, **options):
         now = timezone.now()
-        expired_requests = PaymentRequest.objects.filter(due_date__lt=now)
-        for pr in expired_requests:
-            # find unpaid member statuses for this payment request
-            unpaid_statuses = MemberPaymentStatus.objects.filter(payment_request=pr, status=MemberPaymentStatus.STATUS_UNPAID)
-            for mps in unpaid_statuses.select_related('member'):
-                member = mps.member
-                if member.status != Member.STATUS_RETIRED:
-                    # retire member and optionally any dependants (implement your dependant retire logic)
-                    member.status = Member.STATUS_RETIRED
-                    member.save()
-                    self.stdout.write(f"Retired member {member} for missed payment on {pr}")
+        requests = self.get_eligible_requests(now)
+
+        processed_count = 0
+        skipped_count = 0
+
+        for payment_request in requests.iterator():
+            processed = process_reconciled_payment_request(
+                request_id=payment_request.id,
+                performed_by=None,
+            )
+
+            if processed:
+                processed_count += 1
+            else:
+                skipped_count += 1
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Subscription retirement processing completed. "
+                f"Requests processed: {processed_count}; "
+                f"requests skipped: {skipped_count}."
+            )
+        )

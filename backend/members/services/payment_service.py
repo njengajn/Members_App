@@ -218,22 +218,6 @@ def approve_payment(payment_id, approved_by=None):
     payment.save()
 
     # ---------------------------------------------------
-    # UPDATE RELATED PAYMENT REQUEST (SAFE)
-    # ---------------------------------------------------
-    payment_request = payment.payment_request
-
-    if payment_request:
-
-        try:
-            total_paid = Decimal(payment_request.total_paid)
-        except (InvalidOperation, TypeError):
-            total_paid = Decimal("0.00")
-
-        if total_paid >= payment_request.amount:
-            payment_request.status = PaymentRequest.STATUS_CLOSED
-            payment_request.save()
-
-    # ---------------------------------------------------
     # AUDIT LOG (IMPORTANT FOR ADMIN TRACEABILITY)
     # ---------------------------------------------------
     

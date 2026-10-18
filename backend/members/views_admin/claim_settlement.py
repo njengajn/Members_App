@@ -1,4 +1,5 @@
-# backend/members/views_admin/claim_settlement.py
+from django.contrib.staticfiles import finders
+from django.db import transaction
 from django.shortcuts import redirect, render, get_object_or_404
 from django.http import HttpResponse
 import csv
@@ -20,15 +21,16 @@ from backend.members.models import (
     PaymentRequest,
 )
 from backend.members.forms import ClaimSettlementDeductionForm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import Image, SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 )
 from reportlab.lib import colors
 from django.forms import inlineformset_factory
-from backend.members.services.payment_lifecycle import (process_payment_lifecycle)
+from backend.members.services.payment_lifecycle import (get_pending_payment_approvals, process_reconciled_payment_request, process_payment_lifecycle)
 from django.contrib.auth import get_user_model
+
 User = get_user_model()
 
 
@@ -123,186 +125,164 @@ def start_claim_settlement(request, request_id):
 
     return redirect("members_admin:claim_settlement_detail", settlement.id)
 
+
 # =========================================================
 # RECONCILIATION
 # =========================================================
 
 @admin_required
+@transaction.atomic
 def reconcile_claim(request, request_id):
     """
-    UNIVERSAL RECONCILIATION
-
-    CLAIM FLOW
-    ------------------------------------------------
-    deductions
-    -> reconciliation prepared
-    -> separate approval
-    -> finalised
-
-    NON-CLAIM FLOW
-    ------------------------------------------------
-    reconciliation report
-    -> confirm
-    -> finalised
+    Reconcile one closed payment request.
 
     BUSINESS RULES
     ------------------------------------------------
-    1. Payment request must already be CLOSED.
-
-    2. The administrator who closed the request cannot
-       reconcile that same request.
-
-    3. Reconciliation must NOT invoke the global payment
-       lifecycle.
-
-    4. Reconciliation affects ONLY this request.
+    1. The request must already be closed.
+    2. Pending payment approvals block reconciliation.
+    3. The administrator who closed the request may reconcile it.
+    4. The administrator who prepares claim reconciliation
+       cannot approve that settlement.
+    5. Never invoke the global payment lifecycle here.
+    6. Claim retirement occurs only after settlement approval.
+    7. Non-claim reconciliation uses the original target snapshot.
+    8. Unpaid outcomes are saved for historical reporting.
     """
 
+    # Lock and load only the requested payment request.
     payment_request = get_object_or_404(
-        PaymentRequest,
-        id=request_id
+        PaymentRequest.objects.select_for_update().select_related(
+            "member",
+            "claim",
+        ).prefetch_related(
+            "selected_members",
+            "paid_members",
+            "targeted_members",
+        ),
+        id=request_id,
     )
 
-    # =====================================================
-    # MUST BE CLOSED FIRST
-    # =====================================================
-
+    # Reconciliation is allowed only after closure.
     if payment_request.status != PaymentRequest.STATUS_CLOSED:
-
         messages.warning(
             request,
-            "Close request before reconciliation."
+            "Close request before reconciliation.",
         )
-
         return redirect(
             "members_admin:admin_payment_detail",
-            payment_request.id
+            payment_request.id,
         )
 
-    # =====================================================
-    # SEGREGATION OF DUTIES
-    # =====================================================
-    #
-    # The administrator who closed the request cannot
-    # reconcile the same request.
-    #
-    # This applies to BOTH claim and non-claim requests.
-    # =====================================================
+    # The closer is allowed to reconcile.
+    # Separation of duties is enforced at settlement approval:
+    # the preparer must not approve their own reconciliation.
 
-    if (
-        payment_request.closed_by
-        and payment_request.closed_by == request.user
-    ):
-
-        messages.error(
+    # Do not reconcile while non-rejected payment approvals remain.
+    if get_pending_payment_approvals(payment_request).exists():
+        messages.warning(
             request,
-            "You cannot reconcile a payment request that you closed."
+            (
+                "Reconciliation cannot proceed because one or more "
+                "payments are awaiting approval. Approve or reject "
+                "all pending payments first."
+            ),
         )
-
         return redirect(
             "members_admin:admin_payment_detail",
-            payment_request.id
+            payment_request.id,
         )
 
-    claim = getattr(
-        payment_request,
-        "claim",
-        None
-    )
+    claim = getattr(payment_request, "claim", None)
 
-    # =====================================================
-    # CLAIM FLOW
-    # =====================================================
-
-    if claim:
-
+    # =========================================================
+    # CLAIM RECONCILIATION
+    # =========================================================
+    if claim is not None:
         settlement, _ = ClaimSettlement.objects.get_or_create(
             claim=claim,
             defaults={
-                "settlement_date": timezone.now()
-            }
+                "settlement_date": timezone.now(),
+            },
         )
 
-        # -------------------------------------------------
-        # ALREADY APPROVED
-        # -------------------------------------------------
-
+        # An approved settlement must not be edited or prepared again.
         if settlement.is_approved:
-
             messages.info(
                 request,
-                "This settlement has already been finalised."
+                "This settlement has already been finalised.",
             )
-
             return redirect(
                 "members_admin:claim_settlement_detail",
-                settlement.id
+                settlement.id,
             )
 
         DeductionFormSet = modelformset_factory(
             ClaimSettlementDeduction,
             form=ClaimSettlementDeductionForm,
             extra=1,
-            can_delete=True
+            can_delete=True,
         )
 
-        # =================================================
-        # POST
-        # =================================================
-
         if request.method == "POST":
-
             formset = DeductionFormSet(
                 request.POST,
-                queryset=settlement.deduction_items.all()
+                queryset=settlement.deduction_items.all(),
             )
-
-            notes = request.POST.get(
-                "notes",
-                ""
-            )
+            notes = request.POST.get("notes", "")
 
             if formset.is_valid():
+                # Recheck before changing deductions or settlement data.
+                if get_pending_payment_approvals(
+                    payment_request
+                ).exists():
+                    messages.warning(
+                        request,
+                        (
+                            "Reconciliation was not saved because "
+                            "a payment is awaiting approval. Approve "
+                            "or reject it before continuing."
+                        ),
+                    )
+                    return redirect(
+                        "members_admin:admin_payment_detail",
+                        payment_request.id,
+                    )
 
-                instances = formset.save(
-                    commit=False
-                )
+                instances = formset.save(commit=False)
 
                 for obj in instances:
-
                     obj.settlement = settlement
                     obj.save()
 
+                # Apply requested deletions from the formset.
                 for obj in formset.deleted_objects:
                     obj.delete()
 
+                # Record preparation, not approval.
+                # Do not retire the claim's causer in this function.
                 settlement.notes = notes
-
                 settlement.prepared_by = request.user
-
                 settlement.is_approved = False
-
+                settlement.approved_by = None
                 settlement.save()
 
                 messages.success(
                     request,
-                    "Reconciliation submitted for approval."
+                    "Reconciliation submitted for approval.",
                 )
-
                 return redirect(
                     "members_admin:claim_settlement_detail",
-                    settlement.id
+                    settlement.id,
                 )
 
             messages.error(
                 request,
-                "Please correct errors before submitting."
+                "Please correct errors before submitting.",
             )
 
         else:
-
             formset = DeductionFormSet(
-                queryset=settlement.deduction_items.all()
+                queryset=settlement.deduction_items.all(),
             )
 
         return render(
@@ -313,120 +293,179 @@ def reconcile_claim(request, request_id):
                 "payment_request": payment_request,
                 "formset": formset,
                 "empty_form": formset.empty_form,
-            }
+            },
         )
 
-    # =====================================================
-    # NON-CLAIM FLOW
-    # =====================================================
+    # =========================================================
+    # NON-CLAIM RECONCILIATION
+    # =========================================================
+    # Use the saved target population from request creation.
+    # Do not filter by current member status: a targeted member
+    # must remain in the historical report after retirement.
 
-    else:
+    target_member_ids = set(
+        payment_request.targeted_members.values_list(
+            "id",
+            flat=True,
+        )
+    )
 
-        # -------------------------------------------------
-        # TARGET MEMBERS
-        # -------------------------------------------------
-
-        if (
-            payment_request.viewable_by_all
-            and payment_request.member
-            and payment_request.member.organization
-        ):
-
-            all_members = Member.objects.filter(
-                organization=payment_request.member.organization,
-                status=Member.STATUS_ACTIVE
-            )
-
-        elif payment_request.selected_members.exists():
-
-            all_members = payment_request.selected_members.all()
-
-        elif payment_request.member:
-
-            all_members = Member.objects.filter(
-                id=payment_request.member.id
-            )
-
-        else:
-
-            all_members = Member.objects.none()
-
-        # -------------------------------------------------
-        # STATS
-        # -------------------------------------------------
-
-        total_required = payment_request.amount
-
-        total_collected = payment_request.total_paid or 0
-
-        paid_count = payment_request.paid_members.count()
-
-        unpaid_count = max(
-            0,
-            all_members.count() - paid_count
+    # Older requests may not have a target snapshot. Do not silently
+    # replace their historical population with today's active members.
+    if not target_member_ids:
+        messages.error(
+            request,
+            (
+                "Reconciliation cannot proceed because this payment "
+                "request has no saved target population. Establish "
+                "the original target members before reconciling."
+            ),
+        )
+        return redirect(
+            "members_admin:admin_payment_detail",
+            payment_request.id,
         )
 
-        compliance = 0
+    total_required = payment_request.amount
+    total_collected = payment_request.total_paid or 0
 
-        if all_members.exists():
+    # Preserve the existing paid-members source, restricted to the
+    # original target population for this request.
+    paid_member_ids = set(
+        payment_request.paid_members.filter(
+            id__in=target_member_ids,
+        ).values_list(
+            "id",
+            flat=True,
+        )
+    )
 
-            compliance = int(
-                (paid_count / all_members.count()) * 100
-            )
+    unpaid_member_ids = target_member_ids - paid_member_ids
 
-        # =================================================
-        # CONFIRM SIMPLE RECONCILIATION
-        # =================================================
+    total_members = len(target_member_ids)
+    paid_count = len(paid_member_ids)
+    unpaid_count = len(unpaid_member_ids)
 
-        if request.method == "POST":
+    compliance = (
+        int((paid_count / total_members) * 100)
+        if total_members
+        else 0
+    )
 
-            payment_request.is_reconciled = True
-
-            payment_request.reconciled_by = request.user
-
-            payment_request.reconciled_at = timezone.now()
-
-            payment_request.save(
-                update_fields=[
-                    "is_reconciled",
-                    "reconciled_by",
-                    "reconciled_at",
-                    "updated_at",
-                ]
-            )
-
-            # -------------------------------------------------
-            # IMPORTANT:
-            #
-            # DO NOT RUN process_payment_lifecycle() HERE.
-            #
-            # The request has already been closed.
-            # Reconciliation must not process unrelated
-            # payment requests.
-            # -------------------------------------------------
-
-            messages.success(
+    # =========================================================
+    # CONFIRM NON-CLAIM RECONCILIATION
+    # =========================================================
+    if request.method == "POST":
+        # Check again immediately before recording reconciliation.
+        if get_pending_payment_approvals(
+            payment_request
+        ).exists():
+            messages.warning(
                 request,
-                "Payment request reconciled successfully."
+                (
+                    "Reconciliation was not saved because a payment "
+                    "is awaiting approval. Approve or reject it first."
+                ),
             )
-
             return redirect(
                 "members_admin:admin_payment_detail",
-                payment_request.id
+                payment_request.id,
             )
 
-        return render(
-            request,
-            "members/admin/claims/reconcile_simple.html",
-            {
-                "payment_request": payment_request,
-                "total_required": total_required,
-                "total_collected": total_collected,
-                "paid_count": paid_count,
-                "unpaid_count": unpaid_count,
-                "compliance": compliance,
-            }
+        # Recalculate the outcome immediately before saving, using
+        # the locked request and the saved target population.
+        target_member_ids = set(
+            payment_request.targeted_members.values_list(
+                "id",
+                flat=True,
+            )
         )
+
+        if not target_member_ids:
+            messages.error(
+                request,
+                (
+                    "Reconciliation cannot proceed because this payment "
+                    "request has no saved target population."
+                ),
+            )
+            return redirect(
+                "members_admin:admin_payment_detail",
+                payment_request.id,
+            )
+
+        paid_member_ids = set(
+            payment_request.paid_members.filter(
+                id__in=target_member_ids,
+            ).values_list(
+                "id",
+                flat=True,
+            )
+        )
+
+        unpaid_member_ids = target_member_ids - paid_member_ids
+
+        # Persist the unpaid snapshot in the same transaction as
+        # reconciliation and request-specific lifecycle processing.
+        payment_request.unpaid_members.set(unpaid_member_ids)
+
+        payment_request.is_reconciled = True
+        payment_request.reconciled_by = request.user
+        payment_request.reconciled_at = timezone.now()
+        payment_request.save(
+            update_fields=[
+                "is_reconciled",
+                "reconciled_by",
+                "reconciled_at",
+                "updated_at",
+            ],
+        )
+
+        # Process this request only. Never invoke the global lifecycle.
+        processed = process_reconciled_payment_request(
+            request_id=payment_request.id,
+            performed_by=request.user,
+        )
+
+        if not processed:
+            # Roll back reconciliation and any changes made in this
+            # atomic transaction.
+            transaction.set_rollback(True)
+            messages.error(
+                request,
+                (
+                    "Reconciliation could not be completed. "
+                    "No changes have been saved."
+                ),
+            )
+            return redirect(
+                "members_admin:admin_payment_detail",
+                payment_request.id,
+            )
+
+        messages.success(
+            request,
+            "Payment request reconciled successfully.",
+        )
+        return redirect(
+            "members_admin:admin_payment_detail",
+            payment_request.id,
+        )
+
+    # GET: display the existing reconciliation summary.
+    return render(
+        request,
+        "members/admin/claims/reconcile_simple.html",
+        {
+            "payment_request": payment_request,
+            "total_required": total_required,
+            "total_collected": total_collected,
+            "paid_count": paid_count,
+            "unpaid_count": unpaid_count,
+            "compliance": compliance,
+        },
+    )
+
 
 @admin_required
 def confirm_claim_settlement(request, settlement_id):
@@ -441,109 +480,275 @@ def confirm_claim_settlement(request, settlement_id):
 
     return redirect("members_admin:claim_settlement_detail", settlement.id)
 
+
 @admin_required
+@transaction.atomic
 def approve_claim_settlement(request, settlement_id):
+    """
+    Approve a prepared claim settlement.
 
-    settlement = get_object_or_404(
-        ClaimSettlement,
-        id=settlement_id
-    )
+    BUSINESS RULES
+    ------------------------------------------------
+    1. Approval requires POST.
+    2. The settlement must have been prepared.
+    3. The preparer cannot approve their own reconciliation.
+    4. The payment request must be closed.
+    5. Pending payment approvals block settlement approval.
+    6. Claim retirement occurs only after successful approval.
+    7. Never run the global payment lifecycle here.
+    """
 
-    # -----------------------------------
-    # PREVENT SELF APPROVAL
-    # -----------------------------------
-    #
-    # The administrator who prepared the reconciliation
-    # cannot approve that same reconciliation.
-    # -----------------------------------
-
-    if settlement.prepared_by == request.user:
-
-        messages.error(
+    # Approval must be an explicit form submission.
+    if request.method != "POST":
+        messages.warning(
             request,
-            "You cannot approve your own reconciliation."
+            "Submit the approval form to approve this settlement.",
         )
-
         return redirect(
             "members_admin:claim_settlement_detail",
-            settlement.id
+            settlement_id,
         )
 
-    # -----------------------------------
-    # APPROVE
-    # -----------------------------------
-
-    settlement.is_approved = True
-
-    settlement.approved_by = request.user
-
-    settlement.settlement_date = timezone.now()
-
-    settlement.save()
-
-    # =====================================================
-    # DO NOT RUN PAYMENT LIFECYCLE HERE
-    # =====================================================
-    #
-    # The payment request was already closed before
-    # reconciliation.
-    #
-    # Running process_payment_lifecycle() here would
-    # incorrectly process unrelated overdue requests.
-    #
-    # Claim-causer retirement is handled by the payment
-    # lifecycle at the appropriate close/settlement point,
-    # not by this global approval operation.
-    # =====================================================
-
-    # -----------------------------------
-    # CLOSE CLAIM
-    # -----------------------------------
-
+    # Lock the settlement to prevent concurrent approvals.
+    settlement = get_object_or_404(
+        ClaimSettlement.objects.select_for_update(),
+        id=settlement_id,
+    )
     claim = settlement.claim
 
+    # Do not approve or process retirement twice.
+    if settlement.is_approved:
+        messages.info(
+            request,
+            "This settlement has already been approved.",
+        )
+        return redirect(
+            "members_admin:claim_settlement_detail",
+            settlement.id,
+        )
+
+    # Reconciliation must be prepared before it can be approved.
+    if settlement.prepared_by is None:
+        messages.error(
+            request,
+            "This settlement has not been prepared for approval.",
+        )
+        return redirect(
+            "members_admin:claim_settlement_detail",
+            settlement.id,
+        )
+
+    # Enforce separation of duties: the preparer cannot approve.
+    if settlement.prepared_by_id == request.user.id:
+        messages.error(
+            request,
+            "You cannot approve your own reconciliation.",
+        )
+        return redirect(
+            "members_admin:claim_settlement_detail",
+            settlement.id,
+        )
+
+    # Lock the payment request linked to this claim.
+    payment_request = (
+        PaymentRequest.objects
+        .select_for_update()
+        .filter(claim=claim)
+        .first()
+    )
+
+    if payment_request is None:
+        messages.error(
+            request,
+            "No payment request is linked to this claim settlement.",
+        )
+        return redirect(
+            "members_admin:claim_settlement_detail",
+            settlement.id,
+        )
+
+    # The request must already be closed.
+    if payment_request.status != PaymentRequest.STATUS_CLOSED:
+        messages.warning(
+            request,
+            "The payment request must be closed before settlement approval.",
+        )
+        return redirect(
+            "members_admin:claim_settlement_detail",
+            settlement.id,
+        )
+
+    # Do not approve while non-rejected payments remain unresolved.
+    if get_pending_payment_approvals(payment_request).exists():
+        messages.warning(
+            request,
+            (
+                "Settlement approval cannot proceed because one or "
+                "more payments are awaiting approval. Approve or "
+                "reject all pending payments first."
+            ),
+        )
+        return redirect(
+            "members_admin:claim_settlement_detail",
+            settlement.id,
+        )
+
+    # Record approval and claim settlement within the atomic transaction.
+    approved_at = timezone.now()
+
+    settlement.is_approved = True
+    settlement.approved_by = request.user
+    settlement.settlement_date = approved_at
+    settlement.save(
+        update_fields=[
+            "is_approved",
+            "approved_by",
+            "settlement_date",
+        ],
+    )
+
     claim.status = Claim.STATUS_SETTLED
+    claim.settlement_date = approved_at
+    claim.save(
+        update_fields=[
+            "status",
+            "settlement_date",
+        ],
+    )
 
-    claim.settlement_date = timezone.now()
+    # Apply claim-specific retirement to this request only.
+    # If processing fails, roll back the approval and claim updates.
+    processed = process_reconciled_payment_request(
+        request_id=payment_request.id,
+        performed_by=request.user,
+    )
 
-    claim.save()
+    if not processed:
+        transaction.set_rollback(True)
+        messages.error(
+            request,
+            (
+                "Claim settlement approval could not be completed. "
+                "No changes have been saved."
+            ),
+        )
+        return redirect(
+            "members_admin:claim_settlement_detail",
+            settlement.id,
+        )
 
     messages.success(
         request,
-        "Claim settlement approved successfully."
+        "Claim settlement approved successfully.",
     )
-
     return redirect(
         "members_admin:claim_settlement_detail",
-        settlement.id
+        settlement.id,
     )
 
+
 def export_claim_pdf(request, settlement_id):
+    """
+    Export a claim settlement report.
 
-    settlement = get_object_or_404(ClaimSettlement, id=settlement_id)
+    Authorisation displays full admin names when available.
+    The report distinguishes pending reconciliation,
+    pending approval and finalised settlements.
+    """
 
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="claim_{settlement.id}.pdf"'
+    settlement = get_object_or_404(
+        ClaimSettlement,
+        id=settlement_id,
+    )
+
+    response = HttpResponse(
+        content_type="application/pdf"
+    )
+
+    response["Content-Disposition"] = (
+        f'attachment; filename="claim_{settlement.id}.pdf"'
+    )
 
     doc = SimpleDocTemplate(response)
     styles = getSampleStyleSheet()
-
     elements = []
 
-    # ---------------------------
+    # REPORT LOGO
+    # =====================================================
+
+    logo_path = finders.find(
+        "images/logo.png"
+    )
+
+    if logo_path:
+
+        logo = Image(
+            logo_path,
+            width=100,
+            height=50,
+            hAlign="CENTER",
+        )
+
+        elements.append(
+            logo
+        )
+
+        elements.append(
+            Spacer(1, 8)
+        )
+
+    # =====================================================
     # HEADER
-    # ---------------------------
-    elements.append(Paragraph("CLAIM SETTLEMENT REPORT", styles["Title"]))
-    elements.append(Spacer(1, 12))
+    # =====================================================
 
-    elements.append(Paragraph(f"Claim: {settlement.claim}", styles["Normal"]))
-    elements.append(Paragraph(f"Payment Request ID: {settlement.claim.payment_request.id}", styles["Normal"]))
-    elements.append(Paragraph(f"Settlement Date: {settlement.settlement_date}", styles["Normal"]))
-    elements.append(Spacer(1, 12))
+    elements.append(
+        Paragraph(
+            "CLAIM SETTLEMENT REPORT",
+            styles["Title"],
+        )
+    )
 
-    # ---------------------------
+    elements.append(
+        Spacer(1, 12)
+    )
+
+    elements.append(
+        Paragraph(
+            f"Claim: {settlement.claim.member}",
+            styles["Normal"],
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            f"Payment Request ID: {settlement.claim.payment_request.id}",
+            styles["Normal"],
+        )
+    )
+
+    # Display a readable date and time.
+    if settlement.settlement_date:
+        settlement_date = settlement.settlement_date.strftime(
+            "%Y-%m-%d %H:%M"
+        )
+    else:
+        settlement_date = "Pending"
+
+    elements.append(
+        Paragraph(
+            f"Settlement Date: {settlement_date}",
+            styles["Normal"],
+        )
+    )
+
+    elements.append(
+        Spacer(1, 12)
+    )
+
+    # =====================================================
     # FINANCIAL SUMMARY TABLE
-    # ---------------------------
+    # =====================================================
+
     summary_data = [
         ["Description", "Amount (£)"],
         ["Total Collected", f"{settlement.total_collected:.2f}"],
@@ -552,65 +757,196 @@ def export_claim_pdf(request, settlement_id):
     ]
 
     summary_table = Table(summary_data)
-    summary_table.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,0), colors.grey),
-        ("TEXTCOLOR",(0,0),(-1,0),colors.white),
-        ("GRID", (0,0), (-1,-1), 1, colors.black),
-        ("ALIGN",(1,1),(-1,-1),"RIGHT"),
-    ]))
 
-    elements.append(Paragraph("Financial Summary", styles["Heading2"]))
+    summary_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+        ])
+    )
+
+    elements.append(
+        Paragraph(
+            "Financial Summary",
+            styles["Heading2"],
+        )
+    )
+
     elements.append(summary_table)
     elements.append(Spacer(1, 12))
 
-    # ---------------------------
+    # =====================================================
     # DEDUCTIONS TABLE
-    # ---------------------------
-    elements.append(Paragraph("Deductions Breakdown", styles["Heading2"]))
+    # =====================================================
+
+    elements.append(
+        Paragraph(
+            "Deductions Breakdown",
+            styles["Heading2"],
+        )
+    )
 
     deductions = settlement.deduction_items.all()
 
     if deductions.exists():
+        data = [
+            ["Item", "Amount (£)"],
+        ]
 
-        data = [["Item", "Amount (£)"]]
-
-        for d in deductions:
-            data.append([d.title, f"{d.amount:.2f}"])
+        for deduction in deductions:
+            data.append([
+                deduction.title,
+                f"{deduction.amount:.2f}",
+            ])
 
         table = Table(data)
-        table.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
-            ("GRID", (0,0), (-1,-1), 1, colors.black),
-            ("ALIGN",(1,1),(-1,-1),"RIGHT"),
-        ]))
+
+        table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+            ])
+        )
 
         elements.append(table)
 
     else:
-        elements.append(Paragraph("No deductions recorded.", styles["Normal"]))
+        elements.append(
+            Paragraph(
+                "No deductions recorded.",
+                styles["Normal"],
+            )
+        )
 
-    elements.append(Spacer(1, 12))
+    elements.append(
+        Spacer(1, 12)
+    )
 
-    # ---------------------------
+    # =====================================================
     # NOTES
-    # ---------------------------
-    elements.append(Paragraph("Notes", styles["Heading2"]))
-    elements.append(Paragraph(settlement.notes or "-", styles["Normal"]))
-    elements.append(Spacer(1, 12))
+    # =====================================================
 
-    # ---------------------------
-    # SIGNATURE BLOCK
-    # ---------------------------
-    elements.append(Paragraph("Authorisation", styles["Heading2"]))
+    elements.append(
+        Paragraph(
+            "Notes",
+            styles["Heading2"],
+        )
+    )
 
-    elements.append(Paragraph(
-        f"Prepared By: {settlement.prepared_by}", styles["Normal"]
-    ))
+    elements.append(
+        Paragraph(
+            settlement.notes or "-",
+            styles["Normal"],
+        )
+    )
 
-    elements.append(Paragraph(
-        f"Approved By: {settlement.approved_by or 'Pending'}",
-        styles["Normal"]
-    ))
+    elements.append(
+        Spacer(1, 12)
+    )
+
+    # =====================================================
+    # AUTHORISATION
+    # =====================================================
+
+    elements.append(
+        Paragraph(
+            "Authorisation",
+            styles["Heading2"],
+        )
+    )
+
+    # -----------------------------------------------------
+    # ADMINISTRATOR FULL NAMES
+    # -----------------------------------------------------
+
+    prepared_by_user = settlement.prepared_by
+    approved_by_user = settlement.approved_by
+
+    if prepared_by_user:
+        prepared_by = (
+            prepared_by_user.get_full_name().strip()
+            or prepared_by_user.get_username()
+        )
+    else:
+        prepared_by = "Pending"
+
+    if approved_by_user:
+        approved_by = (
+            approved_by_user.get_full_name().strip()
+            or approved_by_user.get_username()
+        )
+    else:
+        approved_by = "Pending"
+
+    # -----------------------------------------------------
+    # RECONCILIATION / APPROVAL STATUS
+    # -----------------------------------------------------
+
+    if settlement.is_approved:
+        authorisation_status = "Finalised"
+
+    elif settlement.prepared_by:
+        authorisation_status = "Pending Approval"
+
+    else:
+        authorisation_status = "Pending Reconciliation"
+
+    authorisation_data = [
+        ["Prepared By", prepared_by],
+        ["Approved By", approved_by],
+        ["Settlement Date", settlement_date],
+        ["Status", authorisation_status],
+    ]
+
+    authorisation_table = Table(
+        authorisation_data,
+        colWidths=[180, 310],
+    )
+
+    authorisation_table.setStyle(
+        TableStyle([
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey,
+            ),
+            (
+                "FONTNAME",
+                (0, 0),
+                (0, -1),
+                "Helvetica-Bold",
+            ),
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "TOP",
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                6,
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                6,
+            ),
+        ])
+    )
+
+    elements.append(authorisation_table)
+
+    # =====================================================
+    # BUILD PDF
+    # =====================================================
 
     doc.build(elements)
 

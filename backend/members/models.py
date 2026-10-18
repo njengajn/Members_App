@@ -1178,6 +1178,13 @@ class PaymentRequest(models.Model):
         related_name="paid_payment_requests",
         blank=True,
     )
+
+    unpaid_members = models.ManyToManyField(
+        "Member",
+        related_name="unpaid_payment_requests",
+        blank=True,
+    )
+
     payment_method = models.CharField(
         max_length=10,
         choices=PAYMENT_METHOD_CHOICES,
@@ -1264,6 +1271,12 @@ class PaymentRequest(models.Model):
     reconciled_at = models.DateTimeField(
         null=True,
         blank=True
+    )
+
+    targeted_members = models.ManyToManyField(
+        "Member",
+        related_name="targeted_payment_requests",
+        blank=True,
     )
 
     # -----------------------------

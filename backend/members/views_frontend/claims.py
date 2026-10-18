@@ -80,7 +80,7 @@ def member_create_claim(request):
             request,
             (
                 "You must have a member profile "
-                "to create a claim."
+                "to request support."
             ),
         )
 
@@ -96,7 +96,7 @@ def member_create_claim(request):
 
         messages.error(
             request,
-            "Only active members can create claims.",
+            "Only active members can request for bereavement support.",
         )
 
         return redirect(

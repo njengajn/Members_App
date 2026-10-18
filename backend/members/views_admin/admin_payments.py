@@ -1,10 +1,12 @@
 # backend/members/views_admin/admin_payments.py
+from django.db import transaction
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
+from django.urls import reverse
 from django.utils import timezone
 
 from backend.members.services.member_status_service import retire_member
-from backend.members.services.payment_lifecycle import process_payment_lifecycle
+from backend.members.services.payment_lifecycle import process_payment_lifecycle, get_pending_payment_approvals
 from .admin_auth import admin_required
 from backend.members.models import AuditLog, Member, PaymentRequest, Payment, Claim, MembershipStatusHistory
 from django.contrib.admin.views.decorators import staff_member_required
@@ -39,21 +41,6 @@ from reportlab.lib.pagesizes import letter, A4
 from backend.members.services.notifications import (send_payment_request_notification)
 from io import BytesIO
 from django.contrib.staticfiles import finders
-
- 
-@admin_required
-def admin_payment_request_detail(request, pk):
-
-    payment_request = get_object_or_404(PaymentRequest, id=pk)
-
-    return render(
-        request,
-        "members/admin/payments/admin_payment_request_details.html",
-        {
-            "payment_request": payment_request
-        },
-    )
-
 
 @admin_required
 def admin_payments_list(request):
@@ -359,10 +346,6 @@ def get_payment_request_members(request_type):
         "first_name",
         "surname",
     )
-
-# ==========================================
-# CREATE PAYMENT REQUEST
-# ==========================================
 
 # ======================================================
 # CREATE PAYMENT REQUEST
@@ -938,7 +921,6 @@ def create_payment_request(request):
                     member
                 ]
 
-
             elif target_mode == "selected":
 
                 target_members = (
@@ -949,8 +931,21 @@ def create_payment_request(request):
 
 
             # =========================================
+            # SNAPSHOT TARGET POPULATION
+            # =========================================
+            # Preserve the members targeted when this
+            # payment request was created.
+            # =========================================
+
+            payment_request.targeted_members.set(
+                target_members
+            )
+
+
+            # =========================================
             # SEND NOTIFICATIONS
             # =========================================
+
 
             if payment_request.send_notifications:
 
@@ -1036,173 +1031,284 @@ def payment_request_paid_members(request, pk):
     )
 
 @admin_required
+@transaction.atomic
 def update_payment_request_status(request, request_id):
     """
     Explicitly update the status of ONE payment request.
 
     BUSINESS RULES
     ---------------------------------------------------------
-    1. The request is identified by request_id.
-
-    2. Closing this request must affect ONLY this request.
-
-    3. Explicit closing uses the request-specific payment
-       lifecycle.
-
-    4. The administrator performing the close is recorded.
-
+    1. Closing affects only this request.
+    2. Pending payment approvals block closure.
+    3. The administrator performing the close is recorded.
+    4. Closing does not trigger retirement.
     5. Reconciliation is a separate operation.
-
-    6. The administrator who closes the request cannot
-       subsequently reconcile that same request.
+    6. The administrator who closes the request may reconcile it.
     """
 
     payment_request = get_object_or_404(
-        PaymentRequest,
-        id=request_id
+        PaymentRequest.objects.select_for_update(),
+        id=request_id,
     )
 
-    if request.method == "POST":
+    if request.method != "POST":
+        return redirect(
+            "members_admin:admin_payments_list",
+        )
 
-        new_status = request.POST.get("status")
+    new_status = request.POST.get("status")
 
-        if new_status not in [
-            PaymentRequest.STATUS_ACTIVE,
-            PaymentRequest.STATUS_CLOSED,
-        ]:
+    if new_status not in [
+        PaymentRequest.STATUS_ACTIVE,
+        PaymentRequest.STATUS_CLOSED,
+    ]:
+        messages.error(
+            request,
+            "Invalid payment request status.",
+        )
+        return redirect(
+            "members_admin:admin_payment_detail",
+            payment_request.id,
+        )
 
+    # =====================================================
+    # CLOSE
+    # =====================================================
+
+    if new_status == PaymentRequest.STATUS_CLOSED:
+
+        if payment_request.status == PaymentRequest.STATUS_CLOSED:
+            messages.info(
+                request,
+                "Payment request is already closed.",
+            )
             return redirect(
-                "members_admin:admin_payments_list"
+                "members_admin:admin_payment_detail",
+                payment_request.id,
             )
 
-        # =================================================
-        # CLOSE
-        # =================================================
-
-        if new_status == PaymentRequest.STATUS_CLOSED:
-
-            if (
-                payment_request.status
-                == PaymentRequest.STATUS_CLOSED
-            ):
-
-                messages.info(
-                    request,
-                    "Payment request is already closed."
-                )
-
-                return redirect(
-                    "members_admin:admin_payments_list"
-                )
-
-            # -------------------------------------------------
-            # IMPORTANT:
-            # Process ONLY this request.
-            #
-            # Do NOT call:
-            #
-            #     process_payment_lifecycle()
-            #
-            # without request_id.
-            # -------------------------------------------------
-
-            process_payment_lifecycle(
-                request_id=payment_request.id,
-                performed_by=request.user,
+        if payment_request.status == PaymentRequest.STATUS_ARCHIVED:
+            messages.error(
+                request,
+                "An archived payment request cannot be closed.",
+            )
+            return redirect(
+                "members_admin:admin_payment_detail",
+                payment_request.id,
             )
 
+        # -------------------------------------------------
+        # BLOCK CLOSURE WHILE PAYMENT APPROVALS ARE PENDING
+        # -------------------------------------------------
+
+        if get_pending_payment_approvals(payment_request).exists():
+            messages.warning(
+                request,
+                (
+                    "This payment request cannot be closed while "
+                    "payments are awaiting approval. Please approve "
+                    "or reject the pending payments for this request "
+                    "before closing it."
+                ),
+            )
+
+            # Redirect to the pending approvals page, identifying
+            # the specific payment request that is blocking closure.
+            return redirect(
+                f"{reverse('members_admin:pending_payments')}"
+                f"?payment_request_id={payment_request.id}"
+            )
+
+        # -------------------------------------------------
+        # CLOSE ONLY THIS REQUEST
+        # -------------------------------------------------
+        #
+        # process_payment_lifecycle() must now perform closure only.
+        # It must not retire members or process unrelated requests.
+        # -------------------------------------------------
+
+        results = process_payment_lifecycle(
+            request_id=payment_request.id,
+            performed_by=request.user,
+        )
+
+        # Check the service result rather than claiming success
+        # if the request was not actually closed.
+        result = next(
+            (
+                item
+                for item in results
+                if item["request_id"] == payment_request.id
+            ),
+            None,
+        )
+
+        payment_request.refresh_from_db()
+
+        if (
+            result
+            and result.get("status") == "pending_approvals"
+        ) or get_pending_payment_approvals(payment_request).exists():
+            messages.warning(
+                request,
+                (
+                    "This request cannot be closed while payment "
+                    "approvals are pending. Please resolve them first."
+                ),
+            )
+            return redirect(
+                "members_admin:admin_payment_detail",
+                payment_request.id,
+            )
+
+        if payment_request.status == PaymentRequest.STATUS_CLOSED:
             messages.success(
                 request,
-                "Payment request closed successfully."
+                "Payment request closed successfully.",
             )
-
-        # =================================================
-        # REOPEN
-        # =================================================
-
-        elif new_status == PaymentRequest.STATUS_ACTIVE:
-
-            payment_request.status = (
-                PaymentRequest.STATUS_ACTIVE
-            )
-
-            # -------------------------------------------------
-            # A reopened request is no longer currently closed.
-            # Clear the current closing actor/timestamp.
-            # -------------------------------------------------
-
-            payment_request.closed_by = None
-            payment_request.closed_at = None
-
-            payment_request.save(
-                update_fields=[
-                    "status",
-                    "closed_by",
-                    "closed_at",
-                    "updated_at",
-                ]
-            )
-
-            messages.success(
+        else:
+            messages.error(
                 request,
-                "Payment request status updated."
+                "The payment request was not closed. Please try again.",
             )
+
+    # =====================================================
+    # REOPEN
+    # =====================================================
+
+    elif new_status == PaymentRequest.STATUS_ACTIVE:
+
+        if payment_request.status == PaymentRequest.STATUS_ACTIVE:
+            messages.info(
+                request,
+                "Payment request is already active.",
+            )
+            return redirect(
+                "members_admin:admin_payment_detail",
+                payment_request.id,
+            )
+
+        payment_request.status = PaymentRequest.STATUS_ACTIVE
+
+        # A reopened request is no longer currently closed.
+        # Clear the current closing actor and timestamp.
+        payment_request.closed_by = None
+        payment_request.closed_at = None
+
+        payment_request.save(
+            update_fields=[
+                "status",
+                "closed_by",
+                "closed_at",
+                "updated_at",
+            ],
+        )
+
+        messages.success(
+            request,
+            "Payment request reopened successfully.",
+        )
 
     return redirect(
-        "members_admin:admin_payments_list"
+        "members_admin:admin_payment_detail",
+        payment_request.id,
     )
-
 
 @admin_required
 def payment_compliance_tracker(request, pk):
+    """
+    Display payment compliance against the historical target-member snapshot.
 
+    Never reconstruct the original target population from current member
+    statuses. If the saved snapshot is missing, compliance is unverified.
+    """
     payment_request = get_object_or_404(PaymentRequest, pk=pk)
 
-    # Convert NOW to DATE
-    today = timezone.now().date()
-
-    # Normalize due_date to DATE
+    today = timezone.localdate()
     due_date = payment_request.due_date
-    if hasattr(due_date, "date"):
+
+    if due_date and hasattr(due_date, "date"):
         due_date = due_date.date()
 
-    # Check overdue
-    is_overdue = False
-    if due_date:
-        is_overdue = due_date < today
+    is_overdue = bool(due_date and due_date < today)
 
-    # Determine required members
-    if payment_request.member:
-        required_members = Member.objects.filter(id=payment_request.member.id)
-    else:
-        required_members = Member.objects.filter(status="active")
-
-    # Get payments for this request
-    payments = Payment.objects.filter(
-        payment_request=payment_request,
-        status="completed"
+    # The saved target group is the source of truth for historical reporting.
+    target_ids = list(
+        payment_request.targeted_members.values_list("pk", flat=True)
     )
+    target_snapshot_missing = not target_ids
 
-    paid_member_ids = payments.values_list("member_id", flat=True)
+    # Pending approvals remain visible and are not counted as completed payments.
+    pending_payments = get_pending_payment_approvals(
+        payment_request
+    ).select_related("member").order_by("created_at", "pk")
 
-    paid_members = Member.objects.filter(id__in=paid_member_ids)
+    # Only completed payments belonging to this request count as paid.
+    completed_payments = Payment.objects.filter(
+        payment_request=payment_request,
+        status=Payment.STATUS_COMPLETED,
+    ).exclude(member_id__isnull=True)
 
-    unpaid_members = required_members.exclude(id__in=paid_member_ids)
+    if target_snapshot_missing:
+        # Show payment evidence, but do not invent the historical denominator.
+        paid_member_ids = set(
+            completed_payments.values_list("member_id", flat=True)
+        )
 
-    total_required = required_members.count()
-    total_paid = paid_members.count()
+        paid_members = Member.objects.filter(
+            pk__in=paid_member_ids
+        ).order_by("first_name", "surname", "pk")
 
-    compliance = 0
-    if total_required > 0:
-        compliance = round((total_paid / total_required) * 100)
+        unpaid_members = Member.objects.none()
+
+        total_required = None
+        total_paid = paid_members.count()
+        total_unpaid = None
+        compliance = None
+        compliance_verified = False
+
+    else:
+        required_members = Member.objects.filter(
+            pk__in=target_ids
+        ).order_by("first_name", "surname", "pk")
+
+        paid_member_ids = set(
+            completed_payments.filter(
+                member_id__in=target_ids
+            ).values_list("member_id", flat=True)
+        )
+
+        paid_members = required_members.filter(
+            pk__in=paid_member_ids
+        )
+
+        unpaid_members = required_members.exclude(
+            pk__in=paid_member_ids
+        )
+
+        total_required = required_members.count()
+        total_paid = paid_members.count()
+        total_unpaid = total_required - total_paid
+
+        # A non-empty saved snapshot is required to verify compliance.
+        compliance_verified = total_required > 0
+        compliance = (
+            round((total_paid / total_required) * 100)
+            if compliance_verified
+            else None
+        )
 
     context = {
         "payment_request": payment_request,
         "paid_members": paid_members,
         "unpaid_members": unpaid_members,
+        "pending_payments": pending_payments,
         "total_required": total_required,
         "total_paid": total_paid,
+        "total_unpaid": total_unpaid,
         "compliance": compliance,
+        "compliance_verified": compliance_verified,
+        "target_snapshot_missing": target_snapshot_missing,
         "is_overdue": is_overdue,
     }
 
@@ -1211,7 +1317,6 @@ def payment_compliance_tracker(request, pk):
         "members/admin/payments/admin_payment_request_detail.html",
         context,
     )
-
 
 @admin_required
 def verify_payment(request, payment_id):
@@ -1349,240 +1454,219 @@ def confirm_claim_payment(request, pk):
 
     return redirect("members_admin:admin_payments_list")
 
-
-@admin_required
-def export_payment_compliance_csv(request, pk):
-
-    payment_request = PaymentRequest.objects.get(pk=pk)
-
-    response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = (
-        f'attachment; filename="payment_report_{payment_request.id}.csv"'
-    )
-
-    writer = csv.writer(response)
-
-    writer.writerow([
-        "Member UID",
-        "Member Name",
-        "Payment Request",
-        "Amount",
-        "Status",
-        "Payment Date"
-    ])
-
-    members = Member.objects.filter(status="active")
-
-    for member in members:
-
-        payment = Payment.objects.filter(
-            member=member,
-            payment_request=payment_request,
-            status="completed"
-        ).first()
-
-        if payment:
-            status = "Paid"
-            date = payment.approved_at
-        else:
-            status = "Not Paid"
-            date = ""
-
-        writer.writerow([
-            member.member_uid,
-            f"{member.first_name} {member.surname}",
-            payment_request.request_type,
-            payment_request.amount,
-            status,
-            date
-        ])
-
-    return response
-
-from django.http import HttpResponse
-
-@admin_required
-def export_payment_membersLater(request, pk):
-    """
-    Export payment report (CSV)
-
-    ✔ FIXED:
-        - unpaid members now show amount = 0.00
-        - keeps existing structure (no redesign)
-    """
-
-    payment_request = get_object_or_404(PaymentRequest, pk=pk)
-
-    response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = (
-        f'attachment; filename="payment_report_{payment_request.id}.csv"'
-    )
-
-    writer = csv.writer(response)
-
-    # ======================================================
-    # TITLE
-    # ======================================================
-    writer.writerow([
-        f"Payment Report: {payment_request.title or payment_request.request_type}"
-    ])
-    writer.writerow([])
-
-    # ======================================================
-    # HEADERS
-    # ======================================================
-    writer.writerow([
-        "Request ID",
-        "Member UID",
-        "Member Name",
-        "Payment Request",
-        "Amount",
-        "Status",
-        "Payment Date"
-    ])
-
-    # ======================================================
-    # MEMBER SET (UNCHANGED)
-    # ======================================================
-    member_set = set()
-
-    paid_members = payment_request.paid_members.all()
-    member_set.update(paid_members)
-
-    selected_members = payment_request.selected_members.all()
-    member_set.update(selected_members)
-
-    if payment_request.viewable_by_all:
-        active_members = Member.objects.filter(status="active")
-        member_set.update(active_members)
-
-    members = sorted(member_set, key=lambda m: m.member_uid or "")
-
-    # ======================================================
-    # LOOP members
-    # ======================================================
-    for member in members:
-
-        payment = Payment.objects.filter(
-            member=member,
-            payment_request=payment_request,
-            status="completed"
-        ).order_by("-id").first()
-
-        if payment:
-            status = "Paid"
-
-            #get actual payment amount
-            amount = payment.amount
-
-            payment_date = (
-                payment.approved_at
-                or payment.paid_at
-                or payment.created_at
-            )
-
-            if payment_date:
-                date = payment_date.strftime("%Y-%m-%d %H:%M")
-            else:
-                date = "N/A"
-
-        else:
-            status = "pending"
-
-            amount = "0.00"
-
-            date = ""
-
-        writer.writerow([
-            payment_request.id,
-            member.member_uid,
-            f"{member.first_name} {member.surname}",
-            payment_request.title or payment_request.request_type,
-            amount,  
-            status,
-            date
-        ])
-
-    return response
-
 # ======================================================
 # EXPORT PAYMENT MEMBERS (CSV)
 # ======================================================
+
 @admin_required
 def export_payment_members(request, pk):
     """
-    Export payment report (CSV)
+    Export the payment report for one payment request.
 
-    ✔ Removed "Payment Request" column
-    ✔ Keeps existing structure
-    ✔ Fixes unpaid amount → 0.00
-    ✔ Adds totals row
-    ✔ Uses correct alignment
+    PRESERVED
+    ---------------------------------------------------------
+    - Existing CSV structure and filename.
+    - Request ID, member UID, member name, amount, status,
+      and payment date.
+    - Paid and pending totals.
+    - Existing payment-date fallback logic.
+
+    HISTORICAL POPULATION RULES
+    ---------------------------------------------------------
+    - Prefer the saved targeted_members snapshot.
+    - Retain members who have since retired.
+    - If the snapshot is missing, recover only from records
+      associated with this request.
+    - Clearly identify a recovered population as unverified.
+    - Never substitute today's active members for historical
+      targets.
+
+    This export does not modify payments, reconcile the
+    request, or trigger member retirement.
     """
 
-    payment_request = get_object_or_404(PaymentRequest, pk=pk)
+    payment_request = get_object_or_404(
+        PaymentRequest,
+        pk=pk,
+    )
 
-    response = HttpResponse(content_type="text/csv")
+    response = HttpResponse(
+        content_type="text/csv; charset=utf-8",
+    )
     response["Content-Disposition"] = (
         f'attachment; filename="payment_report_{payment_request.id}.csv"'
     )
 
     writer = csv.writer(response)
 
-    # ======================================================
-    # TITLE
-    # ======================================================
+    # ---------------------------------------------------------
+    # TITLE AND REPORT GENERATION TIME
+    # ---------------------------------------------------------
     writer.writerow([
-        f"Payment Report: {payment_request.title or payment_request.request_type}"
+        f"Payment Report: "
+        f"{payment_request.title or payment_request.request_type}"
+    ])
+    writer.writerow([
+        "Report Generated",
+        timezone.localtime(timezone.now()).strftime(
+            "%d/%m/%Y %H:%M:%S"
+        ),
     ])
     writer.writerow([])
 
-    # ======================================================
-    # HEADERS (REMOVED PAYMENT REQUEST COLUMN)
-    # ======================================================
+    # ---------------------------------------------------------
+    # DETERMINE THE HISTORICAL TARGET POPULATION
+    # ---------------------------------------------------------
+    member_ids = set(
+        payment_request.targeted_members.values_list(
+            "id",
+            flat=True,
+        )
+    )
+    target_snapshot_exists = bool(member_ids)
+
+    # Legacy requests may not have a saved target snapshot.
+    # Recover only members supported by request-specific records.
+    # This does not prove the original target population is complete.
+    if not target_snapshot_exists:
+        member_ids.update(
+            payment_request.paid_members.values_list(
+                "id",
+                flat=True,
+            )
+        )
+        member_ids.update(
+            payment_request.unpaid_members.values_list(
+                "id",
+                flat=True,
+            )
+        )
+        member_ids.update(
+            payment_request.selected_members.values_list(
+                "id",
+                flat=True,
+            )
+        )
+        member_ids.update(
+            Payment.objects.filter(
+                payment_request=payment_request,
+                status=Payment.STATUS_COMPLETED,
+                member__isnull=False,
+            ).values_list(
+                "member_id",
+                flat=True,
+            )
+        )
+
+    members = Member.objects.filter(
+        id__in=member_ids,
+    ).order_by(
+        "member_uid",
+        "id",
+    )
+
+    # ---------------------------------------------------------
+    # SUMMARY COUNTS
+    # ---------------------------------------------------------
+    if target_snapshot_exists:
+        target_count = len(
+            set(
+                payment_request.targeted_members.values_list(
+                    "id",
+                    flat=True,
+                )
+            )
+        )
+
+        paid_count = Payment.objects.filter(
+            payment_request=payment_request,
+            status=Payment.STATUS_COMPLETED,
+            member_id__in=member_ids,
+        ).values(
+            "member_id",
+        ).distinct().count()
+
+        unpaid_count = max(
+            0,
+            target_count - paid_count,
+        )
+
+        writer.writerow(["Target Members", target_count])
+        writer.writerow(["Paid Members", paid_count])
+        writer.writerow(["Unpaid Members", unpaid_count])
+    else:
+        paid_count = Payment.objects.filter(
+            payment_request=payment_request,
+            status=Payment.STATUS_COMPLETED,
+            member__isnull=False,
+        ).values(
+            "member_id",
+        ).distinct().count()
+
+        writer.writerow([
+            "Target Members",
+            "UNVERIFIED",
+        ])
+        writer.writerow([
+            "Paid Members (identified payment evidence)",
+            paid_count,
+        ])
+        writer.writerow([
+            "Unpaid Members",
+            "UNVERIFIED",
+        ])
+        writer.writerow([
+            "Population Status",
+            "UNVERIFIED - historical target snapshot missing",
+        ])
+
+    writer.writerow([])
+
+    # ---------------------------------------------------------
+    # HEADERS - KEEP THE EXISTING COLUMN STRUCTURE
+    # ---------------------------------------------------------
     writer.writerow([
         "Request ID",
         "Member UID",
         "Member Name",
         "Amount",
         "Status",
-        "Payment Date"
+        "Payment Date",
     ])
 
-    # ======================================================
-    # MEMBER SET
-    # ======================================================
-    member_set = set()
+    # Warn inside the exported file when the original population
+    # cannot be verified.
+    if not target_snapshot_exists:
+        writer.writerow([
+            payment_request.id,
+            "",
+            "WARNING: historical target snapshot missing",
+            "",
+            "UNVERIFIED POPULATION",
+            "",
+        ])
 
-    member_set.update(payment_request.paid_members.all())
-    member_set.update(payment_request.selected_members.all())
-
-    if payment_request.viewable_by_all:
-        member_set.update(Member.objects.filter(status="active"))
-
-    members = sorted(member_set, key=lambda m: m.member_uid or "")
-
-    # ======================================================
+    # ---------------------------------------------------------
     # TOTALS
-    # ======================================================
+    # ---------------------------------------------------------
     total_paid = 0.0
     total_pending = 0.0
 
-    # ======================================================
-    # LOOP
-    # ======================================================
+    # ---------------------------------------------------------
+    # EXPORT EACH IDENTIFIED MEMBER
+    # ---------------------------------------------------------
     for member in members:
-
         payment = Payment.objects.filter(
             member=member,
             payment_request=payment_request,
-            status="completed"
-        ).order_by("-id").first()
+            status=Payment.STATUS_COMPLETED,
+        ).order_by(
+            "-id",
+        ).first()
 
         if payment:
-            status = "Paid"
-            amount = float(payment.amount)
-            total_paid += amount
+            status = "paid"
+            amount = payment.amount or 0
 
             payment_date = (
                 payment.approved_at
@@ -1590,26 +1674,42 @@ def export_payment_members(request, pk):
                 or payment.created_at
             )
 
-            date = payment_date.strftime("%Y-%m-%d %H:%M") if payment_date else "N/A"
+            date = (
+                timezone.localtime(payment_date).strftime(
+                    "%d/%m/%Y %H:%M"
+                )
+                if payment_date
+                else "N/A"
+            )
+
+            total_paid += float(amount)
 
         else:
             status = "pending"
             amount = 0.00
-            total_pending += float(payment_request.amount)
             date = ""
+
+            total_pending += float(
+                payment_request.amount or 0
+            )
+
+        # A recovered population must not be mistaken for a
+        # verified historical compliance report.
+        if not target_snapshot_exists:
+            status = f"{status} - UNVERIFIED POPULATION"
 
         writer.writerow([
             payment_request.id,
-            member.member_uid,
-            f"{member.first_name} {member.surname}",
+            member.member_uid or "",
+            f"{member.first_name} {member.surname}".strip(),
             f"{amount:.2f}",
             status,
-            date
+            date,
         ])
 
-    # ======================================================
-    # TOTALS ROW
-    # ======================================================
+    # ---------------------------------------------------------
+    # TOTALS ROWS
+    # ---------------------------------------------------------
     writer.writerow([])
 
     writer.writerow([
@@ -1618,7 +1718,7 @@ def export_payment_members(request, pk):
         "TOTAL PAID",
         f"{total_paid:.2f}",
         "",
-        ""
+        "",
     ])
 
     writer.writerow([
@@ -1627,11 +1727,10 @@ def export_payment_members(request, pk):
         "TOTAL PENDING",
         f"{total_pending:.2f}",
         "",
-        ""
+        "",
     ])
 
     return response
-
 
 @admin_required
 def approve_claim_view(request, claim_id):
@@ -2152,72 +2251,93 @@ def export_payment_request_pdf(request, pk):
     )
 
     # =====================================================
-    # DETERMINE REQUIRED MEMBERS
-    #
-    # This MUST match the Payment Request Detail page.
-    #
-    # If a specific member is attached to the request,
-    # that member is the required member.
-    #
-    # Otherwise, the request applies to all active members.
-    #
-    # Do not add an organization requirement here.
+    # DETERMINE THE HISTORICAL REQUIRED MEMBER POPULATION
     # =====================================================
 
-    if payment_request.member:
+    # A populated target snapshot is the only reliable evidence
+    # that the original target population has been recorded.
+    target_snapshot_exists = payment_request.targeted_members.exists()
 
-        required_members = Member.objects.filter(
-            id=payment_request.member.id
+    required_member_ids = set(
+        payment_request.targeted_members.values_list(
+            "id",
+            flat=True,
+        )
+    )
+
+    # For older requests with no snapshot, gather request-specific
+    # evidence for transparency. This candidate population is NOT
+    # treated as a verified historical target population.
+    if not target_snapshot_exists:
+        required_member_ids.update(
+            payment_request.paid_members.values_list(
+                "id",
+                flat=True,
+            )
         )
 
-    else:
-
-        required_members = Member.objects.filter(
-            status="active"
+        required_member_ids.update(
+            payment_request.unpaid_members.values_list(
+                "id",
+                flat=True,
+            )
         )
 
-    # =====================================================
-    # PAID MEMBERS
-    #
-    # Match the Payment Request Detail page:
-    #
-    #     payment_request.paid_members.all()
-    # =====================================================
+        required_member_ids.update(
+            payment_request.selected_members.values_list(
+                "id",
+                flat=True,
+            )
+        )
 
-    paid_members = payment_request.paid_members.all()
+        required_member_ids.update(
+            Payment.objects.filter(
+                payment_request=payment_request,
+                status="completed",
+            ).values_list(
+                "member_id",
+                flat=True,
+            )
+        )
 
-    # =====================================================
-    # MEMBER COUNTS
-    # =====================================================
-
-    total_members = required_members.count()
-
-    paid_count = paid_members.count()
-
-    unpaid_count = max(
-        0,
-        total_members - paid_count
+    required_members = Member.objects.filter(
+        id__in=required_member_ids,
     )
 
     # =====================================================
-    # COMPLIANCE
-    #
-    # Compliance =
-    #
-    #     Paid Members
-    #     -------------
-    #     Active/Required Members
-    #
-    #     × 100
+    # PAID MEMBERS
     # =====================================================
 
-    compliance = 0
-
-    if total_members > 0:
-
-        compliance = round(
-            (paid_count / total_members) * 100
+    paid_member_ids = set(
+        Payment.objects.filter(
+            payment_request=payment_request,
+            status="completed",
+            member_id__in=required_member_ids,
+        ).values_list(
+            "member_id",
+            flat=True,
         )
+    )
+
+    paid_members = required_members.filter(
+        id__in=paid_member_ids,
+    ).distinct()
+
+    # =====================================================
+    # MEMBER COUNTS AND COMPLIANCE
+    # =====================================================
+
+    total_members = required_members.count()
+    paid_count = paid_members.count()
+    unpaid_count = max(0, total_members - paid_count)
+
+    # Do not present a compliance percentage unless the original
+    # target population is backed by the saved target snapshot.
+    compliance = (
+        round((paid_count / total_members) * 100)
+        if target_snapshot_exists and total_members
+        else None
+    )
 
     # =====================================================
     # TOTAL COLLECTED
@@ -2390,7 +2510,7 @@ def export_payment_request_pdf(request, pk):
     if payment_request.due_date:
 
         due_date = payment_request.due_date.strftime(
-            "%Y-%m-%d %H:%M"
+            "%d/%m/%Y %H:%M"
         )
 
     else:
@@ -2448,8 +2568,12 @@ def export_payment_request_pdf(request, pk):
         ["Description", "Value"],
 
         [
-            "Active/Required Members",
-            f"{total_members:,}"
+            "Historical Required Members",
+            (
+                f"{total_members:,}"
+                if target_snapshot_exists
+                else "Unverified - target snapshot missing"
+            )
         ],
 
         [
@@ -2459,12 +2583,18 @@ def export_payment_request_pdf(request, pk):
 
         [
             "Unpaid Members",
-            f"{unpaid_count:,}"
+            (
+                f"{unpaid_count:,}"
+                if target_snapshot_exists
+                else "Unverified"
+            )
         ],
 
         [
             "Compliance",
             f"{compliance}%"
+            if compliance is not None
+            else "Cannot be verified"
         ],
 
         [
@@ -2472,6 +2602,18 @@ def export_payment_request_pdf(request, pk):
             f"£{total_collected:,.2f}"
         ],
     ]
+
+    if not target_snapshot_exists:
+        elements.append(
+            Paragraph(
+                "WARNING: The historical target snapshot is missing. "
+                "Member counts shown from request-specific records are "
+                "not a verified original target population, and compliance "
+                "cannot be confirmed.",
+                normal_style,
+            )
+        )
+        elements.append(Spacer(1, 8))
 
     summary_table = Table(
         summary_data,
@@ -2590,14 +2732,19 @@ def export_payment_request_pdf(request, pk):
     # HANDLE EMPTY DATA SAFELY
     # ---------------------------------------------
 
-    if paid_count == 0 and unpaid_count == 0:
+    if not target_snapshot_exists or (
+        paid_count == 0 and unpaid_count == 0
+    ):
 
         ax.text(
             0.5,
             0.5,
-            "No member data",
+            "Historical target population not verified"
+            if not target_snapshot_exists
+            else "No member data",
             ha="center",
-            va="center"
+            va="center",
+            wrap=True,
         )
 
         ax.set_axis_off()
@@ -3061,7 +3208,7 @@ def export_payment_request_pdf(request, pk):
 
             settlement_date = (
                 settlement.settlement_date.strftime(
-                    "%Y-%m-%d %H:%M"
+                    "%d/%m/%Y %H:%M"
                 )
             )
 

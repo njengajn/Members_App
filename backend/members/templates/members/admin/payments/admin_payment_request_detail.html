@@ -1,584 +1,382 @@
+
 {% extends "members/admin/admin_base.html" %}
 {% load static %}
 
 {% block content %}
-
 <div class="container-fluid mt-3">
 
-  <!-- ===================================================== -->
   <!-- HEADER + QUICK STATS -->
-  <!-- ===================================================== -->
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">
-      Payment Request ID Number: {{ payment_request.id }}
-    </h4>
-
-    <div>
-      <span class="badge bg-secondary">
-        {{ payment_request.request_type }}
-      </span>
-
-      <span class="badge bg-dark">
-        £{{ payment_request.amount }}
-      </span>
-
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h4 class="mb-0">Payment Request ID Number: {{ payment_request.id }}</h4>
+    <div class="d-flex flex-wrap gap-2">
+      <span class="badge bg-secondary">{{ payment_request.request_type }}</span>
+      <span class="badge bg-dark">£{{ payment_request.amount }}</span>
       {% if payment_request.status == "active" %}
-        <span class="badge bg-success">
-          Active
-        </span>
+        <span class="badge bg-success">Active</span>
       {% else %}
-        <span class="badge bg-secondary">
-          {{ payment_request.status }}
-        </span>
+        <span class="badge bg-secondary">{{ payment_request.status }}</span>
       {% endif %}
     </div>
   </div>
 
+  {% if target_snapshot_missing %}
+    <div class="alert alert-warning" role="alert">
+      <strong>Historical target population is unverified.</strong>
+      This request has no saved target-member snapshot. The member and payment
+      records below are still displayed as available evidence, but they cannot
+      establish that the original target population is complete. Required,
+      outstanding and compliance totals cannot be verified.
+    </div>
+  {% endif %}
 
-  <!-- ===================================================== -->
   <!-- TOP SUMMARY CARDS -->
-  <!-- ===================================================== -->
   <div class="row g-2 mb-3">
-
-    <div class="col-md-3">
-      <div class="card p-2 text-center shadow-sm">
-        <small class="text-muted">
-          Due Date
-        </small>
-
-        <strong>
-          {{ payment_request.due_date|date:"M d, Y" }}
-        </strong>
+    <div class="col-6 col-lg">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div>Due Date</div>
+          <strong>
+            {% if payment_request.due_date %}
+              {{ payment_request.due_date|date:"M d, Y" }}
+            {% else %}
+              Not set
+            {% endif %}
+          </strong>
+        </div>
       </div>
     </div>
 
-
-    <div class="col-md-3">
-      <div class="card p-2 text-center shadow-sm">
-        <small class="text-muted">
-          Paid
-        </small>
-
-        <strong>
-          {{ total_paid }}
-        </strong>
+    <div class="col-6 col-lg">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div>Paid</div>
+          <strong>{{ total_paid }}</strong>
+        </div>
       </div>
     </div>
 
-
-    <div class="col-md-3">
-      <div class="card p-2 text-center shadow-sm">
-        <small class="text-muted">
-          Required
-        </small>
-
-        <strong>
-          {{ total_required }}
-        </strong>
+    <div class="col-6 col-lg">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div>Unpaid / Outstanding</div>
+          <strong>
+            {% if target_snapshot_missing %}
+              Unverified
+            {% else %}
+              {{ unpaid_members|length }}
+            {% endif %}
+          </strong>
+        </div>
       </div>
     </div>
 
-
-    <div class="col-md-3">
-      <div class="card p-2 text-center shadow-sm">
-        <small class="text-muted">
-          Compliance
-        </small>
-
-        <strong>
-          {{ compliance }}%
-        </strong>
+    <div class="col-6 col-lg">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div>Required</div>
+          <strong>
+            {% if target_snapshot_missing %}
+              Unverified
+            {% else %}
+              {{ total_required }}
+            {% endif %}
+          </strong>
+        </div>
       </div>
     </div>
 
+    <div class="col-6 col-lg">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div>Compliance</div>
+          <strong>
+            {% if target_snapshot_missing %}
+              Unverified
+            {% else %}
+              {{ compliance }}%
+            {% endif %}
+          </strong>
+        </div>
+      </div>
+    </div>
   </div>
 
-
-  <!-- ===================================================== -->
   <!-- PROGRESS BAR -->
-  <!-- ===================================================== -->
   <div class="card p-2 mb-3 shadow-sm">
-
-    <div class="progress" style="height: 20px;">
-
-      <div
-        class="progress-bar bg-success"
-        role="progressbar"
-        style="width: {{ compliance }}%;"
-        aria-valuenow="{{ compliance }}"
-        aria-valuemin="0"
-        aria-valuemax="100"
-      >
-        {{ compliance }}%
+    {% if target_snapshot_missing %}
+      <span class="text-muted">
+        Compliance progress cannot be verified without the historical target snapshot.
+      </span>
+    {% else %}
+      <div class="progress" style="height: 20px;"
+           role="progressbar"
+           aria-label="Payment compliance"
+           aria-valuenow="{{ compliance }}"
+           aria-valuemin="0"
+           aria-valuemax="100">
+        <div class="progress-bar bg-success"
+             style="width: {{ compliance }}%;">
+          {{ compliance }}%
+        </div>
       </div>
-
-    </div>
-
+    {% endif %}
   </div>
 
-
-  <!-- ===================================================== -->
   <!-- TARGET INFO -->
-  <!-- ===================================================== -->
   <div class="card p-2 mb-3 shadow-sm">
+    {% if target_snapshot_missing %}
+      <small class="text-muted">Target</small><br>
+      <strong>Historical target population unverified</strong>
 
-    {% if payment_request.member %}
-
-      <small class="text-muted">
-        Target Member
-      </small>
-
-      <br>
-
+    {% elif payment_request.member %}
+      <small class="text-muted">Target Member</small><br>
       <strong>
         {{ payment_request.member.first_name }}
         {{ payment_request.member.surname }}
       </strong>
-
       <span class="text-muted">
         ({{ payment_request.member.member_uid }})
       </span>
 
-    {% elif payment_request.selected_members.exists %}
-
-      <small class="text-muted">
-        Target
-      </small>
-
-      <br>
-
-      <strong>
-        Selected Members
-      </strong>
-
     {% elif payment_request.viewable_by_all %}
+      <small class="text-muted">Target</small><br>
+      <strong>All Active Members</strong>
+      <span class="text-muted">
+        ({{ total_required }} members in saved snapshot)
+      </span>
 
-      <small class="text-muted">
-        Target
-      </small>
+    {% elif payment_request.targeted_members.exists %}
+      <small class="text-muted">Target</small><br>
+      <strong>Selected Members</strong>
+      <span class="text-muted">
+        ({{ total_required }} members in saved snapshot)
+      </span>
 
-      <br>
-
-      <strong>
-        All Active Members
-      </strong>
+    {% elif payment_request.selected_members.exists %}
+      <small class="text-muted">Target</small><br>
+      <strong>Selected Members</strong>
 
     {% else %}
-
-      <small class="text-muted">
-        Target
-      </small>
-
-      <br>
-
-      <strong>
-        No members specified
-      </strong>
-
+      <small class="text-muted">Target</small><br>
+      <strong>No members specified</strong>
     {% endif %}
-
   </div>
 
-
-  <!-- ===================================================== -->
   <!-- PENDING PAYMENTS -->
-  <!-- ===================================================== -->
   <div class="card mb-3 shadow-sm">
-
     <div class="card-header py-2 bg-warning text-dark">
       Pending Payments ({{ pending_payments|length }})
     </div>
 
     <div class="card-body p-2">
-
       {% if pending_payments %}
-
         <div class="table-responsive">
-
           <table class="table table-sm table-hover align-middle mb-0">
-
             <thead class="table-light">
-
               <tr>
                 <th>Member</th>
                 <th>£</th>
                 <th>Submitted</th>
                 <th>Proof</th>
-                <th class="text-end">
-                  Action
-                </th>
+                <th class="text-end">Action</th>
               </tr>
-
             </thead>
 
-
             <tbody>
-
               {% for payment in pending_payments %}
-
                 <tr>
-
+                  <td>{{ payment.member }}</td>
+                  <td>£{{ payment.amount }}</td>
+                  <td>{{ payment.created_at|date:"M d H:i" }}</td>
                   <td>
-                    {{ payment.member }}
-                  </td>
-
-                  <td>
-                    £{{ payment.amount }}
-                  </td>
-
-                  <td>
-                    {{ payment.created_at|date:"M d H:i" }}
-                  </td>
-
-                  <td>
-
                     {% if payment.proof %}
-
-                      <a
-                        href="{{ payment.proof.url }}"
-                        target="_blank"
-                        class="btn btn-sm btn-outline-secondary"
-                      >
+                      <a href="{{ payment.proof.url }}"
+                         target="_blank"
+                         rel="noopener"
+                         class="btn btn-sm btn-outline-secondary">
                         View
                       </a>
-
                     {% else %}
-
-                      <span class="text-muted">
-                        -
-                      </span>
-
+                      <span class="text-muted">-</span>
                     {% endif %}
-
                   </td>
-
-                  <td class="text-end">
-
-                    <a
-                      href="{% url 'members_admin:approve_payment' payment.id %}"
-                      class="btn btn-success btn-sm"
-                      onclick="return confirm('Approve this payment?');"
-                    >
+                  <td class="text-end text-nowrap">
+                    <a href="{% url 'members_admin:approve_payment' payment.id %}"
+                       class="btn btn-success btn-sm"
+                       onclick="return confirm('Approve this payment?');"
+                       aria-label="Approve payment {{ payment.id }}">
                       ✔
                     </a>
-
-                    <button
-                      class="btn btn-danger btn-sm"
-                      onclick="rejectPayment({{ payment.id }});"
-                    >
+                    <button type="button"
+                            class="btn btn-danger btn-sm"
+                            onclick="rejectPayment({{ payment.id }});"
+                            aria-label="Reject payment {{ payment.id }}">
                       ✖
                     </button>
-
                   </td>
-
                 </tr>
-
               {% endfor %}
-
             </tbody>
-
           </table>
-
         </div>
-
       {% else %}
-
-        <p class="text-muted small mb-0">
-          No pending payments.
-        </p>
-
+        <p class="text-muted small mb-0">No pending payments.</p>
       {% endif %}
-
     </div>
-
   </div>
 
-
-  <!-- ===================================================== -->
   <!-- PAYMENT REQUEST ACTIONS -->
-  <!-- ===================================================== -->
   <div class="card mb-3 shadow-sm">
-
-    <div class="card-body p-2">
-
-      <!-- ================================================= -->
-      <!-- CLOSE PAYMENT REQUEST -->
-      <!-- ================================================= -->
+    <div class="card-body p-2 d-flex flex-wrap gap-2">
 
       {% if payment_request.status == "active" %}
-
-        <a
-          href="{% url 'members_admin:close_payment_request' payment_request.id %}"
-          class="btn btn-danger btn-sm"
-          onclick="return confirm('Close this payment request?');"
-        >
+        <a href="{% url 'members_admin:close_payment_request' payment_request.id %}"
+           class="btn btn-danger btn-sm"
+           onclick="return confirm('Close this payment request?');">
           Close Request
         </a>
-
       {% endif %}
-
-
-      <!-- ================================================= -->
-      <!-- RECONCILIATION / APPROVAL -->
-      <!-- ================================================= -->
 
       {% if payment_request.claim %}
-
         {% if payment_request.claim.settlement %}
-
           {% if payment_request.claim.settlement.is_approved %}
-
-            <span class="badge bg-success">
-              Finalised
-            </span>
-
-            <a
-              href="{% url 'members_admin:claim_settlement_detail' payment_request.claim.settlement.id %}"
-              class="btn btn-outline-success btn-sm ms-2"
-            >
+            <span class="badge bg-success align-self-center">Finalised</span>
+            <a href="{% url 'members_admin:claim_settlement_detail' payment_request.claim.settlement.id %}"
+               class="btn btn-outline-success btn-sm">
               View Settlement
             </a>
-
           {% elif payment_request.claim.settlement.prepared_by %}
-
-            <a
-              href="{% url 'members_admin:claim_settlement_detail' payment_request.claim.settlement.id %}"
-              class="btn btn-success btn-sm"
-            >
+            <a href="{% url 'members_admin:claim_settlement_detail' payment_request.claim.settlement.id %}"
+               class="btn btn-success btn-sm">
               Review / Approve
             </a>
-
           {% else %}
-
-            <a
-              href="{% url 'members_admin:reconcile_claim' payment_request.id %}"
-              class="btn btn-warning btn-sm"
-            >
+            <a href="{% url 'members_admin:reconcile_claim' payment_request.id %}"
+               class="btn btn-warning btn-sm">
               Reconcile
             </a>
-
           {% endif %}
-
         {% else %}
-
-          <a
-            href="{% url 'members_admin:reconcile_claim' payment_request.id %}"
-            class="btn btn-warning btn-sm"
-          >
+          <a href="{% url 'members_admin:reconcile_claim' payment_request.id %}"
+             class="btn btn-warning btn-sm">
             Reconcile
           </a>
-
         {% endif %}
-
-
+      {% elif payment_request.is_reconciled %}
+        <span class="badge bg-success align-self-center">Finalised</span>
+        <span class="text-muted small align-self-center">
+          Reconciled by {{ payment_request.reconciled_by }}
+        </span>
       {% else %}
-
-        {% if payment_request.is_reconciled %}
-
-          <span class="badge bg-success">
-            Finalised
-          </span>
-
-          <span class="text-muted small ms-2">
-            Reconciled by
-            {{ payment_request.reconciled_by }}
-          </span>
-
-        {% else %}
-
-          <a
-            href="{% url 'members_admin:reconcile_claim' payment_request.id %}"
-            class="btn btn-outline-primary btn-sm"
-          >
-            Reconcile Report
-          </a>
-
-        {% endif %}
-
+        <a href="{% url 'members_admin:reconcile_claim' payment_request.id %}"
+           class="btn btn-outline-primary btn-sm">
+          Reconcile Report
+        </a>
       {% endif %}
 
-
-      <!-- ================================================= -->
-      <!-- PRINT PDF REPORT -->
-      <!-- ================================================= -->
-
-      <a
-        href="{% url 'members_admin:export_payment_request_pdf' payment_request.id %}"
-        class="btn btn-outline-dark btn-sm"
-        target="_blank"
-        rel="noopener"
-      >
+      <a href="{% url 'members_admin:export_payment_request_pdf' payment_request.id %}"
+         class="btn btn-outline-dark btn-sm"
+         target="_blank" rel="noopener">
         Print PDF Report
       </a>
 
-
-      <!-- ================================================= -->
-      <!-- CSV -->
-      <!-- ================================================= -->
-
-      <a
-        href="{% url 'members_admin:export_payment_compliance_csv' payment_request.id %}"
-        class="btn btn-outline-primary btn-sm"
-      >
+      <a href="{% url 'members_admin:export_payment_compliance_csv' payment_request.id %}"
+         class="btn btn-outline-primary btn-sm">
         Export CSV
       </a>
 
-
-      <!-- ================================================= -->
-      <!-- EXCEL -->
-      <!-- ================================================= -->
-
-      <a
-        href="{% url 'members_admin:export_payment_members' payment_request.id %}"
-        class="btn btn-outline-success btn-sm"
-      >
+      <a href="{% url 'members_admin:export_payment_members' payment_request.id %}"
+         class="btn btn-outline-success btn-sm">
         Export Excel
       </a>
 
-
-      <!-- ================================================= -->
-      <!-- BACK -->
-      <!-- ================================================= -->
-
-      <a
-        href="{% url 'members_admin:admin_payments_list' %}"
-        class="btn btn-outline-secondary btn-sm"
-      >
+      <a href="{% url 'members_admin:admin_payments_list' %}"
+         class="btn btn-outline-secondary btn-sm">
         Back to payment requests
       </a>
-
     </div>
-
   </div>
 
-
-  <!-- ===================================================== -->
   <!-- MEMBERS SPLIT VIEW -->
-  <!-- ===================================================== -->
   <div class="row g-2">
 
-
-    <!-- ================================================= -->
     <!-- PAID -->
-    <!-- ================================================= -->
-
     <div class="col-md-6">
-
-      <div class="card shadow-sm">
-
+      <div class="card shadow-sm h-100">
         <div class="card-header py-2 text-success">
-
-          Paid ({{ paid_members|length }})
-
+          {% if target_snapshot_missing %}Payment Evidence{% else %}Paid{% endif %}
+          ({{ paid_members|length }})
         </div>
 
-
         <ul class="list-group list-group-flush small">
-
           {% for m in paid_members %}
-
-            <li
-              class="list-group-item d-flex justify-content-between"
-            >
-
-              {{ m.first_name }}
-              {{ m.surname }}
-
-              <span class="badge bg-success">
-                Paid
+            <li class="list-group-item d-flex justify-content-between">
+              <span>
+                {{ m.first_name }} {{ m.surname }}
+                {% if m.member_uid %}
+                  <span class="text-muted">({{ m.member_uid }})</span>
+                {% endif %}
               </span>
-
+              <span class="badge bg-success">Paid</span>
             </li>
-
           {% empty %}
-
             <li class="list-group-item text-muted">
-              None
+              {% if target_snapshot_missing %}
+                No completed payment evidence found.
+              {% else %}
+                None
+              {% endif %}
             </li>
-
           {% endfor %}
-
         </ul>
-
       </div>
-
     </div>
 
-
-    <!-- ================================================= -->
     <!-- UNPAID -->
-    <!-- ================================================= -->
-
     <div class="col-md-6">
-
-      <div class="card shadow-sm">
-
+      <div class="card shadow-sm h-100">
         <div class="card-header py-2 text-danger">
-
-          Outstanding ({{ unpaid_members|length }})
-
+          Outstanding
+          ({% if target_snapshot_missing %}Unverified{% else %}{{ unpaid_members|length }}{% endif %})
         </div>
 
-
         <ul class="list-group list-group-flush small">
-
-          {% for m in unpaid_members %}
-
-            <li
-              class="list-group-item d-flex justify-content-between"
-            >
-
-              {{ m.first_name }}
-              {{ m.surname }}
-
-              <span class="badge bg-warning text-dark">
-                Pending
-              </span>
-
-            </li>
-
-          {% empty %}
-
+          {% if target_snapshot_missing %}
             <li class="list-group-item text-muted">
-              All paid
+              Cannot be determined without the historical target snapshot.
             </li>
-
-          {% endfor %}
-
+          {% else %}
+            {% for m in unpaid_members %}
+              <li class="list-group-item d-flex justify-content-between">
+                <span>
+                  {{ m.first_name }} {{ m.surname }}
+                  {% if m.member_uid %}
+                    <span class="text-muted">({{ m.member_uid }})</span>
+                  {% endif %}
+                </span>
+                <span class="badge bg-warning text-dark">Pending/unpaid</span>
+              </li>
+            {% empty %}
+              <li class="list-group-item text-muted">All paid</li>
+            {% endfor %}
+          {% endif %}
         </ul>
-
       </div>
-
     </div>
-
   </div>
-
-
 </div>
 
-
-<!-- ===================================================== -->
-<!-- REJECT SCRIPT -->
-<!-- ===================================================== -->
-
 <script>
-
 function rejectPayment(paymentId) {
+    const reason = prompt("Enter rejection reason:");
 
-    const reason = prompt(
-        "Enter rejection reason:"
-    );
-
-    if (!reason) {
+    if (!reason || !reason.trim()) {
         return false;
     }
 
     window.location.href =
         `/admin-panel/payments/${paymentId}/reject/?reason=` +
-        encodeURIComponent(reason);
+        encodeURIComponent(reason.trim());
 }
-
 </script>
-
-
 {% endblock %}

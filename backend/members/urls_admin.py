@@ -245,8 +245,8 @@ urlpatterns = [
     
 
     path("payments/<int:pk>/confirm/", confirm_manual_payment, name="confirm_manual_payment"),
-    path("admin-panel/payments/<int:pk>/approve/", approve_payment, name="approve_payment"),
-    path("admin-panel/payments/<int:pk>/reject/", reject_payment, name="reject_payment"),    
+    path("payments/<int:pk>/approve/", approve_payment, name="approve_payment"),
+    path("payments/<int:pk>/reject/", reject_payment, name="reject_payment"),
     path("payments/<int:pk>/", admin_payment_request_detail, name="payment_request_detail"),
     path("payments/<int:pk>/edit/", update_payment_request, name="update_payment_request",),
     path("payments/<int:pk>/mark-paid/<int:member_id>/", admin_mark_payment_paid, name="admin_mark_payment_paid",),     

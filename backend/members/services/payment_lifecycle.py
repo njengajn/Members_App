@@ -10,6 +10,10 @@ Payment lifecycle engine.
 from django.utils import timezone
 from django.db import transaction
 from backend.members.models import (
+    Claim,
+    ClaimSettlement,
+    Dependant,
+    Payment,
     PaymentRequest,
     MemberPaymentStatus,
     Member,
@@ -29,375 +33,290 @@ def process_payment_lifecycle(
     performed_by=None,
 ):
     """
-    SINGLE SOURCE OF TRUTH FOR PAYMENT REQUEST LIFECYCLE
-
-    MODES
-    ---------------------------------------------------------
-    1. request_id is None:
-         Process ALL overdue active requests.
-
-    2. request_id is supplied:
-         Process ONLY that payment request.
+    Close eligible payment requests only.
 
     BUSINESS RULES
     ---------------------------------------------------------
-    1. Overdue active requests are closed.
+    1. When request_id is supplied, process only that request.
+    2. Pending, non-rejected payment approvals block closure.
+    3. Record the administrator who closes the request.
+    4. Closing a request must never trigger retirement.
+    5. Reconciliation and retirement are separate operations.
 
-    2. Explicit/manual closing is request-specific.
-
-    3. A member-causer claim:
-         - retires the member
-         - retires all of that member's dependants
-
-    4. A dependant-causer claim:
-         - retires the causer dependant only
-
-    5. Membership/subscription non-payment continues to use
-       the existing unpaid-member retirement rules.
-
-    6. Fully-paid requests do NOT need this lifecycle engine
-       merely because they have reached their required amount.
-
-    7. This function must never process unrelated requests
-       when a specific request_id is supplied.
+    Returns a list of dictionaries containing request_id and
+    status, as expected by update_payment_request_status().
     """
 
     now = timezone.now()
+    results = []
 
-    # =====================================================
-    # DETERMINE WHICH REQUESTS TO PROCESS
-    # =====================================================
-
+    # An explicit request ID must never cause unrelated requests
+    # to be processed.
     if request_id is not None:
-
-        # -------------------------------------------------
-        # REQUEST-SPECIFIC MODE
-        # -------------------------------------------------
-        # Only ONE PaymentRequest can be processed.
-        # -------------------------------------------------
-
         requests = (
             PaymentRequest.objects
+            .select_for_update()
             .filter(id=request_id)
-            .select_related(
-                "member",
-                "claim",
-            )
-            .prefetch_related(
-                "selected_members",
-                "paid_members",
-            )
+            .select_related("member", "claim")
         )
-
     else:
-
-        # -------------------------------------------------
-        # GLOBAL OVERDUE MODE
-        # -------------------------------------------------
-        # Used by scheduled/automatic lifecycle processing.
-        # -------------------------------------------------
-
+        # Preserve the existing bulk behaviour for callers that
+        # intentionally process overdue active requests.
         requests = (
             PaymentRequest.objects
+            .select_for_update()
             .filter(
                 due_date__lt=now,
-                status__in=[
-                    PaymentRequest.STATUS_ACTIVE,
-                    PaymentRequest.STATUS_CLOSED,
-                ]
+                status=PaymentRequest.STATUS_ACTIVE,
             )
-            .select_related(
-                "member",
-                "claim",
-            )
-            .prefetch_related(
-                "selected_members",
-                "paid_members",
-            )
+            .select_related("member", "claim")
         )
 
-    # =====================================================
-    # PROCESS REQUESTS
-    # =====================================================
+    for payment_request in requests:
+        # Do not change requests that are already closed or archived.
+        if payment_request.status != PaymentRequest.STATUS_ACTIVE:
+            results.append({
+                "request_id": payment_request.id,
+                "status": (
+                    "archived"
+                    if payment_request.status
+                    == PaymentRequest.STATUS_ARCHIVED
+                    else "not_active"
+                ),
+            })
+            continue
 
-    for pr in requests:
+        # Closure is blocked until all non-rejected payment
+        # approvals for this request have been resolved.
+        if get_pending_payment_approvals(payment_request).exists():
+            results.append({
+                "request_id": payment_request.id,
+                "status": "pending_approvals",
+            })
+            continue
 
-        # =================================================
-        # REQUEST-SPECIFIC MODE
-        # =================================================
-        #
-        # An explicitly supplied request_id means this
-        # request must be processed even if it is not overdue.
-        #
-        # However, a request already closed needs no further
-        # closing operation.
-        # =================================================
+        payment_request.status = PaymentRequest.STATUS_CLOSED
 
-        if request_id is not None:
+        update_fields = ["status", "updated_at"]
 
-            if pr.status == PaymentRequest.STATUS_ARCHIVED:
-                continue
+        if performed_by is not None:
+            payment_request.closed_by = performed_by
+            payment_request.closed_at = now
+            update_fields.extend(["closed_by", "closed_at"])
 
-            if pr.status == PaymentRequest.STATUS_ACTIVE:
+        payment_request.save(update_fields=update_fields)
 
-                pr.status = PaymentRequest.STATUS_CLOSED
+        results.append({
+            "request_id": payment_request.id,
+            "status": "closed",
+        })
 
-                # -----------------------------------------
-                # Record who explicitly closed the request.
-                #
-                # Automatic lifecycle calls have
-                # performed_by=None and therefore do not
-                # falsely attribute the close to an admin.
-                # -----------------------------------------
+    return results
 
-                if performed_by is not None:
+@transaction.atomic
+def process_reconciled_payment_request(
+    request_id,
+    performed_by=None,
+):
+    """
+    Apply retirement rules to one closed payment request.
 
-                    pr.closed_by = performed_by
-                    pr.closed_at = now
+    CLAIM REQUESTS
+    - Require an approved settlement.
+    - The settlement preparer cannot approve their own settlement.
+    - Member-causer: retire the member and all dependants through
+      Member.retire().
+    - Dependant-causer: retire only the identified dependant.
 
-                    pr.save(
-                        update_fields=[
-                            "status",
-                            "closed_by",
-                            "closed_at",
-                            "updated_at",
-                        ]
-                    )
+    SUBSCRIPTION REQUESTS
+    - Require closure, reconciliation, an overdue due date,
+      an active targeted member, and explicit unpaid status.
+    - Never retire a member with evidence of payment.
 
-                else:
+    MEMBERSHIP AND OTHER REQUESTS
+    - Never trigger non-payment retirement.
 
-                    pr.save(
-                        update_fields=[
-                            "status",
-                            "updated_at",
-                        ]
-                    )
+    Processing is request-specific and idempotent.
+    Manual administrative retirement remains separate.
+    """
+    from django.utils import timezone
 
-        # =================================================
-        # GLOBAL MODE
-        # =================================================
+    payment_request = (
+        PaymentRequest.objects
+        .select_for_update()
+        .select_related("member", "claim")
+        .get(pk=request_id)
+    )
 
-        else:
+    # A request must be closed before any retirement processing.
+    if payment_request.status != PaymentRequest.STATUS_CLOSED:
+        return False
 
-            # -------------------------------------------------
-            # Only active overdue requests are automatically
-            # closed.
-            #
-            # Already-closed requests remain closed but still
-            # need any applicable lifecycle retirement rules
-            # processed.
-            # -------------------------------------------------
+    # Pending, non-rejected payment approvals block processing.
+    if get_pending_payment_approvals(payment_request).exists():
+        return False
 
-            if pr.status == PaymentRequest.STATUS_ACTIVE:
+    claim = getattr(payment_request, "claim", None)
 
-                pr.status = PaymentRequest.STATUS_CLOSED
+    # ==========================================================
+    # CLAIM RETIREMENT
+    # ==========================================================
+    if payment_request.request_type == "claim":
+        if claim is None:
+            return False
 
-                pr.save(
-                    update_fields=[
-                        "status",
-                        "updated_at",
-                    ]
+        settlement = getattr(claim, "settlement", None)
+
+        if settlement is None or not settlement.is_approved:
+            return False
+
+        # Enforce separation of duties even if this service is
+        # called outside the normal settlement-approval view.
+        if (
+            settlement.prepared_by_id is not None
+            and settlement.prepared_by_id
+            == settlement.approved_by_id
+        ):
+            return False
+
+        # ------------------------------------------------------
+        # MEMBER-CAUSER
+        # ------------------------------------------------------
+        if claim.cause_type == Claim.CLAIM_CAUSER_MEMBER:
+            member = claim.member
+
+            if member is None:
+                return False
+
+            if member.status != Member.STATUS_RETIRED:
+                member.retire(
+                    reason=f"Claim settled (Claim #{claim.id})",
+                    payment_request=payment_request,
+                    admin_user=performed_by,
                 )
 
-        # =================================================
-        # CLAIM RETIREMENT
-        # =================================================
-        #
-        # Claims have their own business rule.
-        #
-        # IMPORTANT:
-        # Do NOT use the generic payment-member retirement
-        # logic for claims.
-        # =================================================
+            return True
 
-        claim = getattr(pr, "claim", None)
+        # ------------------------------------------------------
+        # DEPENDANT-CAUSER
+        # ------------------------------------------------------
+        if claim.cause_type == Claim.CLAIM_CAUSER_DEPENDANT:
+            dependant = claim.causer_dependant
 
-        if claim:
+            # Never substitute the parent member if the dependant
+            # cannot be identified.
+            if dependant is None:
+                return False
 
-            # -------------------------------------------------
-            # MEMBER-CAUSER CLAIM
-            # -------------------------------------------------
-            #
-            # Retire the member and ALL dependants.
-            #
-            # Member.retire() already contains the project
-            # rule that synchronises dependant retirement.
-            # -------------------------------------------------
+            if dependant.status != "retired":
+                dependant.status = "retired"
+                dependant.save(update_fields=["status"])
 
-            if claim.causer_dependant is None:
+            return True
 
-                member = claim.member
+        # Unknown cause types must never trigger retirement.
+        return False
 
-                if member and member.status != Member.STATUS_RETIRED:
+    # ==========================================================
+    # NON-CLAIM RETIREMENT
+    # ==========================================================
+    # Only subscriptions can trigger automatic non-payment
+    # retirement. Membership and Other requests are excluded.
+    if payment_request.request_type != "subscription":
+        return True
 
-                    member.retire(
-                        reason=f"Claim settled (Claim #{claim.id})",
-                        payment_request=pr,
-                        admin_user=performed_by,
-                    )
+    # Subscription requests must be reconciled first.
+    if not payment_request.is_reconciled:
+        return False
 
-            # -------------------------------------------------
-            # DEPENDANT-CAUSER CLAIM
-            # -------------------------------------------------
-            #
-            # Retire ONLY the dependant who was the causer.
-            # Do not retire the parent member or siblings.
-            # -------------------------------------------------
+    # Only overdue subscriptions can trigger retirement.
+    if (
+        payment_request.due_date is None
+        or payment_request.due_date >= timezone.now()
+    ):
+        return True
 
-            else:
+    # ----------------------------------------------------------
+    # DETERMINE TARGET MEMBERS
+    # ----------------------------------------------------------
+    if payment_request.viewable_by_all:
+        target_members = Member.objects.filter(
+            status=Member.STATUS_ACTIVE,
+        )
+    elif payment_request.selected_members.exists():
+        target_members = payment_request.selected_members.filter(
+            status=Member.STATUS_ACTIVE,
+        )
+    elif payment_request.member_id:
+        target_members = Member.objects.filter(
+            pk=payment_request.member_id,
+            status=Member.STATUS_ACTIVE,
+        )
+    else:
+        # No identifiable target: do not infer one.
+        return True
 
-                dependant = claim.causer_dependant
+    # ----------------------------------------------------------
+    # COLLECT ALL EVIDENCE THAT A MEMBER HAS PAID
+    # ----------------------------------------------------------
+    paid_ids = set(
+        payment_request.paid_members.values_list("pk", flat=True)
+    )
 
-                if dependant.status != "retired":
+    paid_ids.update(
+        Payment.objects.filter(
+            payment_request=payment_request,
+            status=Payment.STATUS_COMPLETED,
+        ).values_list("member_id", flat=True)
+    )
 
-                    dependant.status = "retired"
+    paid_ids.update(
+        MemberPaymentStatus.objects.filter(
+            payment_request=payment_request,
+            status=MemberPaymentStatus.STATUS_PAID,
+        ).values_list("member_id", flat=True)
+    )
 
-                    # Keep the retirement reason explicit.
-                    if hasattr(
-                        dependant,
-                        "retirement_reason"
-                    ):
-                        dependant.retirement_reason = (
-                            f"Claim settled (Claim #{claim.id})"
-                        )
+    # ----------------------------------------------------------
+    # RETIRE ONLY EXPLICITLY UNPAID ACTIVE TARGETS
+    # ----------------------------------------------------------
+    unpaid_ids = set(
+        MemberPaymentStatus.objects.filter(
+            payment_request=payment_request,
+            status=MemberPaymentStatus.STATUS_UNPAID,
+        ).values_list("member_id", flat=True)
+    )
 
-                    if hasattr(
-                        dependant,
-                        "retired_reason"
-                    ):
-                        dependant.retired_reason = (
-                            f"Claim settled (Claim #{claim.id})"
-                        )
+    eligible_ids = set(
+        target_members.values_list("pk", flat=True)
+    )
 
-                    if hasattr(
-                        dependant,
-                        "retired_at"
-                    ):
-                        dependant.retired_at = now
+    retire_ids = eligible_ids & unpaid_ids - paid_ids
 
-                    dependant.save()
+    for member in target_members.filter(pk__in=retire_ids):
+        # Recheck current status before applying retirement.
+        member.refresh_from_db(fields=["status"])
 
-            # -------------------------------------------------
-            # A claim has now been handled by the claim-specific
-            # retirement rule.
-            #
-            # Do NOT also run the generic unpaid-member logic.
-            # -------------------------------------------------
-
+        if member.status != Member.STATUS_ACTIVE:
             continue
 
-        # =================================================
-        # ONLY MEMBERSHIP/SUBSCRIPTION USE THE GENERIC
-        # NON-PAYMENT RETIREMENT RULE
-        # =================================================
-
-        if pr.request_type not in [
-            "membership",
-            "subscription",
-        ]:
-            continue
-
-        # =================================================
-        # DETERMINE TARGET MEMBERS
-        # =================================================
-
-        target_members = Member.objects.none()
-
-        # -------------------------------------------------
-        # SELECTED MEMBERS
-        # -------------------------------------------------
-
-        if pr.selected_members.exists():
-
-            target_members = pr.selected_members.filter(
-                status=Member.STATUS_ACTIVE
-            )
-
-        # -------------------------------------------------
-        # GLOBAL REQUEST
-        # -------------------------------------------------
-
-        elif pr.viewable_by_all:
-
-            organization = None
-
-            if pr.member:
-
-                organization = pr.member.organization
-
-            if not organization:
-                continue
-
-            target_members = Member.objects.filter(
-                organization=organization,
-                status=Member.STATUS_ACTIVE
-            )
-
-        # -------------------------------------------------
-        # SINGLE MEMBER
-        # -------------------------------------------------
-
-        elif pr.member:
-
-            target_members = Member.objects.filter(
-                id=pr.member.id,
-                status=Member.STATUS_ACTIVE
-            )
-
-        # =================================================
-        # TRUE PAYMENT CHECK
-        # =================================================
-
-        paid_member_ids = set(
-            pr.paid_members.values_list(
-                "id",
-                flat=True
-            )
+        member.retire(
+            reason="non_payment_subscription",
+            payment_request=payment_request,
+            admin_user=performed_by,
         )
 
-        # =================================================
-        # PROCESS TARGET MEMBERS
-        # =================================================
+        AuditLog.objects.create(
+            action="member_retired_non_payment",
+            target_member=member,
+            message=(
+                "Member retired for non-payment of overdue "
+                f"subscription request #{payment_request.pk}."
+            ),
+            admin=performed_by,
+        )
 
-        for member in target_members:
-
-            # -------------------------------------------------
-            # Skip already retired members.
-            # -------------------------------------------------
-
-            if member.status == Member.STATUS_RETIRED:
-                continue
-
-            # -------------------------------------------------
-            # Paid members must never be retired for
-            # non-payment.
-            # -------------------------------------------------
-
-            if member.id in paid_member_ids:
-                continue
-
-            # -------------------------------------------------
-            # RETIRE UNPAID MEMBER
-            # -------------------------------------------------
-
-            member.retire(
-                reason=f"non_payment_{pr.request_type}",
-                payment_request=pr,
-                admin_user=performed_by,
-            )
-
-            # -------------------------------------------------
-            # AUDIT
-            # -------------------------------------------------
-
-            AuditLog.objects.create(
-                action="member_retired_non_payment",
-                target_member=member,
-                message=(
-                    f"Auto retired due to unpaid "
-                    f"{pr.request_type} request #{pr.id}"
-                )
-            )
+    return True
 
 # ==========================================================
 # RISK MEMBERS
@@ -415,3 +334,19 @@ def get_risk_members():
         payment_request__due_date__lte=soon,
         payment_request__status=PaymentRequest.STATUS_ACTIVE,
     ).select_related("member", "payment_request")
+
+
+def get_pending_payment_approvals(payment_request):
+    """
+    Return payments belonging to this request that have not
+    yet been approved.
+
+    Rejected payments should not remain blocked if the
+    project records their rejection in a separate status field.
+    """
+    return Payment.objects.filter(
+        payment_request=payment_request,
+        approved_at__isnull=True,
+    ).exclude(
+        status="rejected"
+    )

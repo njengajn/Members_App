@@ -322,18 +322,6 @@ def handle_subscription_payment(
             )
 
     # =====================================
-    # CLOSE REQUEST IF FULLY PAID
-    # =====================================
-
-    if payment_request.is_completed():
-
-        payment_request.status = (
-            PaymentRequest.STATUS_CLOSED
-        )
-
-        payment_request.save()
-
-    # =====================================
     # NOTIFICATION
     # =====================================
 

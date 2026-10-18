@@ -339,11 +339,6 @@ def send_payment_request_notification(
 
     if member.email:
 
-        print(
-            "Sending payment request email to:",
-            member.email
-        )
-
         send_html_email(
 
             recipient=member.email,
@@ -415,12 +410,6 @@ def send_payment_request_notification(
     # =====================================================
 
     if member.phone:
-
-        print(
-            "PAYMENT TEMPLATE SID:",
-            settings
-            .TWILIO_PAYMENT_REQUEST_TEMPLATE_SID
-        )
 
         send_whatsapp_template_message(
 
