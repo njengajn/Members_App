@@ -74,46 +74,98 @@ def is_admin(user):
 @user_passes_test(is_admin)
 def admin_view_payment_request(request, pk):
     """
-    Admin payment request detail page.
+    Display payment request compliance using the saved historical
+    target population.
+
+    The targeted_members snapshot is authoritative. Current member
+    status and the current active population must not change historical
+    reporting.
 
     Displays:
     - Paid members
     - Outstanding members
-    - Compliance %
-    - Progress bar
+    - Compliance percentage
+    - Progress bar and payment details
+
+    This view is read-only: it does not record payments, reconcile
+    the request, close it, or trigger member retirement.
     """
 
-    payment_request = get_object_or_404(PaymentRequest, pk=pk)
+    payment_request = get_object_or_404(
+        PaymentRequest,
+        pk=pk,
+    )
 
-    # Determine required members
-    if payment_request.member:
-        required_members = Member.objects.filter(id=payment_request.member.id)
-    else:
-        required_members = Member.objects.filter(status="active")
+    # Use the saved historical target population.
+    # Do not substitute all active members when member is None.
+    required_members = payment_request.targeted_members.all().order_by(
+        "first_name",
+        "surname",
+        "id",
+    )
 
-    # Payments recorded for this request
-    payments = Payment.objects.filter(payment_request=payment_request)
-
-    paid_members = Member.objects.filter(
-        payments__payment_request=payment_request,
-        payments__status="completed"
+    # Get IDs of members with completed payments for this request.
+    # Intersecting with required_members below prevents payments from
+    # non-target members from inflating the compliance figures.
+    paid_ids = Payment.objects.filter(
+        payment_request=payment_request,
+        status=Payment.STATUS_COMPLETED,
+        member__isnull=False,
+    ).values_list(
+        "member_id",
+        flat=True,
     ).distinct()
 
-    unpaid_members = required_members.exclude(id__in=paid_members)
+    # Count a member as paid only when they belong to the saved
+    # historical target population and have a completed payment.
+    paid_members = required_members.filter(
+        id__in=paid_ids,
+    )
 
+    # Outstanding members are the remaining historical targets.
+    unpaid_members = required_members.exclude(
+        id__in=paid_ids,
+    )
+
+    # Calculate all summary figures from the same target population.
     total_required = required_members.count()
     total_paid = paid_members.count()
+    total_unpaid = unpaid_members.count()
 
-    compliance = 0
-    if total_required > 0:
-        compliance = round((total_paid / total_required) * 100)
+    compliance = (
+        round((total_paid / total_required) * 100)
+        if total_required
+        else 0
+    )
+
+    # Preserve the existing pending-payment section.
+    payments = Payment.objects.filter(
+        payment_request=payment_request,
+    ).select_related(
+        "member",
+    ).order_by(
+        "-updated_at",
+        "-id",
+    )
+
+   # Pending payments have no created_at field.
+    # Use updated_at, which exists on the Payment model.
+    pending_payments = payments.filter(
+        status=Payment.STATUS_PENDING,
+    ).order_by(
+        "-updated_at",
+        "-id",
+    )
 
     context = {
         "payment_request": payment_request,
+        "payments": payments,
+        "pending_payments": pending_payments,
         "paid_members": paid_members,
         "unpaid_members": unpaid_members,
         "total_required": total_required,
         "total_paid": total_paid,
+        "total_unpaid": total_unpaid,
         "compliance": compliance,
     }
 
