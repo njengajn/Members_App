@@ -171,8 +171,17 @@ def admin_member_invitations(request):
             )
             return redirect("members_admin:member_invitations")
 
+        public_site_url = (settings.PUBLIC_SITE_URL or "").strip().rstrip("/")
+
+        if not public_site_url:
+            messages.error(
+                request,
+                "The public website URL is not configured. Please contact support.",
+            )
+            return redirect("members_admin:member_invitations")
+
         setup_url = (
-            f"{settings.MEMBER_PORTAL_URL.rstrip('/')}"
+            f"{public_site_url}"
             f"{reverse('members:password_reset')}"
         )
 
