@@ -2238,6 +2238,11 @@ class EmailOTP(models.Model):
 
     is_used = models.BooleanField(default=False)
 
+    # Number of incorrect OTP submissions for this code.
+    # The counter persists in the database across browser sessions.
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+
+
     # =========================================
     # SET OTP (HASH)
     # =========================================

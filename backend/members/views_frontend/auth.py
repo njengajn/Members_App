@@ -1,5 +1,8 @@
+import secrets
+
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.conf import settings
@@ -201,236 +204,243 @@ def logout_view(request):
     logout(request)
     return redirect("members:login")
 
+
 # =========================================================
 # PASSWORD RESET REQUEST
 # =========================================================
 
 def password_reset_request(request):
-
     """
     Step 1:
-    User enters email.
-    System generates secure OTP.
+    Generate a secure OTP and bind it to the specific user,
+    OTP record, and password-reset purpose.
     """
 
-    if request.method == "POST":
-
-        email = request.POST.get("email")
-
-        # =================================================
-        # VALIDATE USER
-        # =================================================
-
-        try:
-
-            user = User.objects.get(email=email)
-
-        except User.DoesNotExist:
-
-            messages.error(
-                request,
-                "Email not found."
-            )
-
-            return redirect(
-                "members:password_reset"
-            )
-
-        # =================================================
-        # RATE LIMIT
-        # Max 3 OTP requests in 5 minutes
-        # =================================================
-
-        window = timezone.now() - timedelta(minutes=5)
-
-        otp_attempts = EmailOTP.objects.filter(
-            email=email,
-            created_at__gte=window
-        ).count()
-
-        if otp_attempts >= 3:
-
-            messages.error(
-                request,
-                "Too many attempts. Try again later."
-            )
-
-            return redirect(
-                "members:password_reset"
-            )
-
-        # =================================================
-        # GENERATE OTP
-        # =================================================
-
-        generated_otp = str(
-            random.randint(100000, 999999)
+    if request.method != "POST":
+        return render(
+            request,
+            "members/auth/password_reset_request.html",
         )
 
-        # =================================================
-        # CREATE OTP OBJECT
-        # =================================================
+    # =====================================================
+    # VALIDATE EMAIL INPUT
+    # =====================================================
 
-        otp_obj = EmailOTP(
-            email=email,
-            purpose=EmailOTP.PURPOSE_RESET,
+    email = (request.POST.get("email") or "").strip()
+
+    if not email:
+        messages.error(
+            request,
+            "Please enter your email address.",
         )
+        return redirect("members:password_reset")
 
-        # HASH OTP
-        otp_obj.set_otp(generated_otp)
+    # =====================================================
+    # FIND USER
+    # =====================================================
 
-        otp_obj.save()
+    try:
+        user = User.objects.get(email__iexact=email)
+        email = user.email
 
-        # =================================================
-        # STORE USER SESSION
-        # =================================================
+    except User.DoesNotExist:
+        messages.error(
+            request,
+            "Instructions will be sent to your email shortly.",
+        )
+        return redirect("members:password_reset")
 
-        request.session["reset_user_id"] = user.id
+    except User.MultipleObjectsReturned:
+        messages.error(
+            request,
+            "We could not verify this email address. Please contact support.",
+        )
+        return redirect("members:password_reset")
 
-        # =================================================
-        # EMAIL CONTENT
-        # =================================================
+    # =====================================================
+    # RATE LIMIT
+    # Maximum 3 password-reset OTP requests in 5 minutes.
+    # =====================================================
 
-        subject = "KRO Password Reset Code"
+    window = timezone.now() - timedelta(minutes=5)
 
-        #logo_url = request.build_absolute_uri(
-         #   "/static/images/logo.png"
-        #)
-        
-        branding = None
+    otp_attempts = EmailOTP.objects.filter(
+        email__iexact=email,
+        purpose=EmailOTP.PURPOSE_RESET,
+        created_at__gte=window,
+    ).count()
 
-        member = getattr(user, "member", None)
+    if otp_attempts >= 3:
+        messages.error(
+            request,
+            "Too many attempts. Try again later.",
+        )
+        return redirect("members:password_reset")
 
-        if member and member.organization:
+    # =====================================================
+    # GENERATE SECURE OTP
+    # =====================================================
 
-            branding = (
-                OrganizationBranding.objects.filter(
-                    organization=member.organization
-                ).first()
-            )
+    generated_otp = str(
+        secrets.randbelow(900000) + 100000
+    )
 
-        # =================================================
-        # MEMBER FIRST NAME
-        # =================================================
+    # =====================================================
+    # CREATE OTP RECORD
+    # =====================================================
 
-        member_first_name = ""
+    otp_obj = EmailOTP(
+        email=email,
+        purpose=EmailOTP.PURPOSE_RESET,
+    )
 
-        # Prefer Member model first_name
-        if member and member.first_name:
+    # Preserve the model's existing OTP hashing mechanism.
+    otp_obj.set_otp(generated_otp)
+    otp_obj.save()
 
-            member_first_name = (
-                member.first_name.strip()
-            )
+    # =====================================================
+    # BIND SESSION TO USER AND OTP
+    # =====================================================
 
-        # Fallback to Django User first_name
-        elif user.first_name:
+    # Remove any previous reset-session binding before replacing it.
+    request.session.pop("reset_user_id", None)
+    request.session.pop("reset_otp_id", None)
+    request.session.pop("reset_purpose", None)
 
-            member_first_name = (
-                user.first_name.strip()
-            )
+    request.session["reset_user_id"] = user.pk
+    request.session["reset_otp_id"] = otp_obj.pk
+    request.session["reset_purpose"] = EmailOTP.PURPOSE_RESET
 
-        # Final fallback
-        else:
+    # =====================================================
+    # ORGANISATION BRANDING
+    # =====================================================
 
-            member_first_name = "Member"
+    branding = None
+    member = getattr(user, "member", None)
 
-        # =================================================
-        # RENDER HTML EMAIL
-        # =================================================
+    if member and member.organization:
+        branding = OrganizationBranding.objects.filter(
+            organization=member.organization,
+        ).first()
 
-        html_content = render_to_string(
+    # =====================================================
+    # MEMBER FIRST NAME
+    # =====================================================
+
+    if member and member.first_name:
+        member_first_name = member.first_name.strip()
+
+    elif user.first_name:
+        member_first_name = user.first_name.strip()
+
+    else:
+        member_first_name = "Member"
+
+    # =====================================================
+    # RENDER EMAIL
+    # =====================================================
+
+    subject = "KRO Password Reset Code"
+
+    html_content = render_to_string(
         "members/emails/password_reset_otp.html",
         {
-
             "otp": generated_otp,
-
             "current_year": timezone.now().year,
-
             "branding": branding,
-
             "first_name": member_first_name,
-
-            # =====================================
-            # PUBLIC LOGO URL # "https://res.cloudinary.com/dufhgyo4m/image/upload/f_auto,q_auto/logo_xgme9m"
-            # =====================================
-
             "logo_url": (
                 f"{settings.PUBLIC_SITE_URL}/static/images/favicon.jpg"
             ),
-        }
+        },
     )
 
-        text_content = (
-            f"Your password reset code is: "
-            f"{generated_otp}"
-        )
+    text_content = (
+        f"Your password reset code is: {generated_otp}"
+    )
 
-        # =================================================
-        # CREATE EMAIL
-        # =================================================
+    email_message = EmailMultiAlternatives(
+        subject=subject,
+        body=text_content,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[email],
+    )
 
-        email_message = EmailMultiAlternatives(
-            subject=subject,
+    email_message.attach_alternative(
+        html_content,
+        "text/html",
+    )
 
-            body=text_content,
+    # =====================================================
+    # SEND EMAIL
+    # =====================================================
 
-            from_email=settings.DEFAULT_FROM_EMAIL,
+    try:
+        email_message.send(fail_silently=False)
 
-            to=[email],
-        )
+    except Exception:
+        # Invalidate the newly created code if email delivery fails.
+        EmailOTP.objects.filter(
+            pk=otp_obj.pk,
+            purpose=EmailOTP.PURPOSE_RESET,
+            is_used=False,
+        ).update(is_used=True)
 
-        # =================================================
-        # ATTACH HTML VERSION
-        # =================================================
+        # Remove the binding to the undelivered code.
+        for key in (
+            "reset_user_id",
+            "reset_otp_id",
+            "reset_purpose",
+        ):
+            request.session.pop(key, None)
 
-        email_message.attach_alternative(
-            html_content,
-            "text/html"
-        )
-
-        # =================================================
-        # SEND EMAIL
-        # =================================================
-
-        email_message.send(
-            fail_silently=False
-        )
-
-        # =================================================
-        # OPTIONAL WHATSAPP OTP
-        # =================================================
-
-        member = getattr(user, "member", None)
-
-        if member and member.phone:
-
-            try:
-
-                send_whatsapp_otp(
-                    member.phone,
-                    generated_otp
-                )
-
-            except Exception:
-                pass
-
-        # =================================================
-        # SUCCESS MESSAGE
-        # =================================================
-
-        messages.success(
+        messages.error(
             request,
-            "Verification code sent."
+            "We could not send the verification code. Please try again later.",
         )
+        return redirect("members:password_reset")
 
-        return redirect(
-            "members:password_reset_verify"
-        )
+    # =====================================================
+    # INVALIDATE OLDER UNUSED RESET CODES
+    # =====================================================
 
-    return render(
-        request,
-        "members/auth/password_reset_request.html"
+    # Do this only after successful email delivery so a failed new
+    # email does not invalidate a previously delivered code.
+    EmailOTP.objects.filter(
+        email__iexact=email,
+        purpose=EmailOTP.PURPOSE_RESET,
+        is_used=False,
+    ).exclude(
+        pk=otp_obj.pk,
+    ).update(
+        is_used=True,
     )
+
+    # =====================================================
+    # OPTIONAL WHATSAPP DELIVERY
+    # =====================================================
+
+    # WhatsApp remains optional and must not undo successful email
+    # delivery if the WhatsApp provider is unavailable.
+    if member and member.phone:
+        try:
+            send_whatsapp_otp(
+                member.phone,
+                generated_otp,
+            )
+        except Exception:
+            pass
+
+    # =====================================================
+    # SUCCESS
+    # =====================================================
+
+    messages.success(
+        request,
+        "Verification code sent.",
+    )
+
+    return redirect("members:password_reset_verify")
 
 
 # =========================================================
@@ -438,176 +448,366 @@ def password_reset_request(request):
 # =========================================================
 
 def password_reset_verify(request):
-
     """
     Step 2:
-    Verify OTP and reset password.
+    Verify reCAPTCHA, verify the session-bound OTP, validate
+    the new password and confirmation, and reset the password.
+
+    Security controls:
+    - Server-side Google reCAPTCHA verification.
+    - OTP bound to the session user, OTP record, and purpose.
+    - Unused and unexpired OTP required.
+    - Maximum five incorrect OTP submissions per OTP.
+    - Existing member password policy enforced.
+    - Password confirmation must match.
+    - Password update and OTP consumption are transactional.
     """
 
-    if request.method == "POST":
+    MAX_OTP_ATTEMPTS = 5
 
-        entered_otp = request.POST.get("otp")
+    RESET_SESSION_KEYS = (
+        "reset_user_id",
+        "reset_otp_id",
+        "reset_purpose",
+    )
 
-        password = request.POST.get("password")
+    template_name = "members/auth/password_reset_verify.html"
 
-        user_id = request.session.get(
-            "reset_user_id"
-        )
+    # =====================================================
+    # LOAD ORGANISATION BRANDING
+    # =====================================================
 
-        # =================================================
-        # VALIDATE SESSION
-        # =================================================
+    branding = None
+    session_user_id = request.session.get("reset_user_id")
 
-        if not user_id:
-
-            messages.error(
-                request,
-                "Password reset session expired."
-            )
-
-            return redirect(
-                "members:password_reset"
-            )
-
-        # =================================================
-        # GET LATEST UNUSED OTP
-        # =================================================
-
-        otp_obj = (
-            EmailOTP.objects.filter(
-                purpose=EmailOTP.PURPOSE_RESET,
-                is_used=False
-            )
-            .order_by("-created_at")
-            .first()
-        )
-
-        # =================================================
-        # OTP NOT FOUND
-        # =================================================
-
-        if not otp_obj:
-
-            messages.error(
-                request,
-                "Invalid verification code."
-            )
-
-            return redirect(
-                "members:password_reset_verify"
-            )
-
-        # =================================================
-        # OTP EXPIRED
-        # =================================================
-
-        if otp_obj.is_expired():
-
-            messages.error(
-                request,
-                "Verification code expired."
-            )
-
-            return redirect(
-                "members:password_reset"
-            )
-
-        # =================================================
-        # VERIFY HASHED OTP
-        # =================================================
-
-        if not otp_obj.check_otp(entered_otp):
-
-            messages.error(
-                request,
-                "Invalid verification code."
-            )
-
-            return redirect(
-                "members:password_reset_verify"
-            )
-
-        # =================================================
-        # GET USER
-        # =================================================
-
+    if session_user_id:
         try:
+            branding_user = User.objects.get(pk=session_user_id)
+            branding_member = getattr(
+                branding_user,
+                "member",
+                None,
+            )
 
-            user = User.objects.get(id=user_id)
+            if branding_member and branding_member.organization:
+                branding = OrganizationBranding.objects.filter(
+                    organization=branding_member.organization,
+                ).first()
 
         except User.DoesNotExist:
+            # Session validation below handles a missing user.
+            pass
 
-            messages.error(
-                request,
-                "User not found."
-            )
+    # Use the same uppercase context variable as the existing login
+    # and registration CAPTCHA integrations.
+    template_context = {
+        "branding": branding,
+        "RECAPTCHA_SITE_KEY": getattr(
+            settings,
+            "RECAPTCHA_SITE_KEY",
+            "",
+        ),
+    }
 
-            return redirect(
-                "members:password_reset"
-            )
+    # =====================================================
+    # DISPLAY FORM
+    # =====================================================
 
-        # =================================================
-        # PASSWORD POLICY
-        # =================================================
-
-        try:
-            # Use exactly the same password policy as registration.
-            # This prevents password-reset from becoming a weaker route.
-            validate_member_password(
-                password,
-                user=user,
-            )
-        except ValidationError as exc:
-            messages.error(
-                request,
-                exc.messages[0]
-            )
-
-            return redirect(
-                "members:password_reset_verify"
-            )
-
-        # =================================================
-        # UPDATE PASSWORD
-        # =================================================
-
-        user.set_password(password)
-
-        user.save()
-
-        # =================================================
-        # MARK OTP USED
-        # =================================================
-
-        otp_obj.is_used = True
-
-        otp_obj.save(
-            update_fields=["is_used"]
+    if request.method != "POST":
+        return render(
+            request,
+            template_name,
+            template_context,
         )
 
-        # =================================================
-        # CLEAR SESSION
-        # =================================================
+    # =====================================================
+    # VALIDATE RESET SESSION
+    # =====================================================
 
-        if "reset_user_id" in request.session:
+    user_id = request.session.get("reset_user_id")
+    otp_id = request.session.get("reset_otp_id")
+    purpose = request.session.get("reset_purpose")
 
-            del request.session[
-                "reset_user_id"
-            ]
+    if (
+        not user_id
+        or not otp_id
+        or purpose != EmailOTP.PURPOSE_RESET
+    ):
+        for key in RESET_SESSION_KEYS:
+            request.session.pop(key, None)
+
+        messages.error(
+            request,
+            "Your password reset session has expired. Please request a new code.",
+        )
+        return redirect("members:password_reset")
+
+    # =====================================================
+    # VERIFY GOOGLE reCAPTCHA
+    # =====================================================
+
+    # The CAPTCHA widget is not a security check by itself.
+    # Validate the response token with Google on the server.
+    captcha_response = (
+        request.POST.get("g-recaptcha-response") or ""
+    ).strip()
+
+    recaptcha_site_key = getattr(
+        settings,
+        "RECAPTCHA_SITE_KEY",
+        "",
+    )
+
+    recaptcha_secret = getattr(
+        settings,
+        "RECAPTCHA_SECRET_KEY",
+        "",
+    )
+
+    # Fail closed if CAPTCHA is not configured.
+    if not recaptcha_site_key or not recaptcha_secret:
+        messages.error(
+            request,
+            "Password reset verification is temporarily unavailable. Please try again later.",
+        )
+        return redirect("members:password_reset_verify")
+
+    if not captcha_response:
+        messages.error(
+            request,
+            "Please complete reCAPTCHA verification.",
+        )
+        return redirect("members:password_reset_verify")
+
+    try:
+        captcha_response_result = requests.post(
+            "https://www.google.com/recaptcha/api/siteverify",
+            data={
+                "secret": recaptcha_secret,
+                "response": captcha_response,
+            },
+            timeout=5,
+        )
+
+        # Treat HTTP failures and malformed responses as failed
+        # verification instead of allowing the reset to continue.
+        captcha_response_result.raise_for_status()
+        captcha_result = captcha_response_result.json()
+
+        captcha_valid = (
+            captcha_result.get("success") is True
+        )
+
+    except (requests.RequestException, ValueError):
+        captcha_valid = False
+
+    if not captcha_valid:
+        messages.error(
+            request,
+            "reCAPTCHA verification failed. Please try again.",
+        )
+        return redirect("members:password_reset_verify")
+
+    # =====================================================
+    # READ FORM VALUES
+    # =====================================================
+
+    # IMPORTANT: These names match the reset template:
+    # name="otp", name="password", name="confirm_password".
+    entered_otp = (
+        request.POST.get("otp") or ""
+    ).strip()
+
+    password1 = request.POST.get("password") or ""
+    password2 = request.POST.get("confirm_password") or ""
+
+    # =====================================================
+    # CONFIRM PASSWORD MATCH
+    # =====================================================
+
+    # A password mismatch is not an incorrect OTP submission.
+    # Do not increment the OTP attempt counter or consume the OTP.
+    if password1 != password2:
+        messages.error(
+            request,
+            "The passwords do not match. Please enter the same password in both fields.",
+        )
+        return redirect("members:password_reset_verify")
+
+    # =====================================================
+    # VERIFY OTP AND UPDATE PASSWORD
+    # =====================================================
+
+    try:
+        with transaction.atomic():
+
+            # Resolve the user from the reset session.
+            user = User.objects.get(pk=user_id)
+
+            # Retrieve only the OTP issued to this user for this
+            # reset session and purpose. Lock the record to protect
+            # the attempt counter from concurrent submissions.
+            otp_obj = (
+                EmailOTP.objects
+                .select_for_update()
+                .get(
+                    pk=otp_id,
+                    email__iexact=user.email,
+                    purpose=EmailOTP.PURPOSE_RESET,
+                    is_used=False,
+                )
+            )
+
+            # -------------------------------------------------
+            # ATTEMPT LIMIT
+            # -------------------------------------------------
+
+            if otp_obj.failed_attempts >= MAX_OTP_ATTEMPTS:
+                otp_obj.is_used = True
+                otp_obj.save(update_fields=["is_used"])
+                outcome = "locked"
+
+            # -------------------------------------------------
+            # EXPIRY
+            # -------------------------------------------------
+
+            elif otp_obj.is_expired():
+                otp_obj.is_used = True
+                otp_obj.save(update_fields=["is_used"])
+                outcome = "expired"
+
+            # -------------------------------------------------
+            # OTP FORMAT AND HASH
+            # -------------------------------------------------
+
+            elif (
+                len(entered_otp) != 6
+                or not entered_otp.isascii()
+                or not entered_otp.isdigit()
+                or not otp_obj.check_otp(entered_otp)
+            ):
+                otp_obj.failed_attempts += 1
+
+                # Invalidate the OTP immediately on the fifth
+                # incorrect submission.
+                if otp_obj.failed_attempts >= MAX_OTP_ATTEMPTS:
+                    otp_obj.is_used = True
+
+                otp_obj.save(
+                    update_fields=[
+                        "failed_attempts",
+                        "is_used",
+                    ]
+                )
+
+                outcome = (
+                    "locked"
+                    if otp_obj.is_used
+                    else "incorrect"
+                )
+
+            # -------------------------------------------------
+            # VALID OTP: APPLY PASSWORD POLICY
+            # -------------------------------------------------
+
+            else:
+                try:
+                    # Reuse the existing server-side validation
+                    # function used by the registration workflow.
+                    validate_member_password(
+                        password1,
+                        user=user,
+                    )
+
+                except ValidationError as exc:
+                    # Invalid passwords do not count as incorrect
+                    # OTP attempts. The valid OTP remains available.
+                    outcome = "password_invalid"
+
+                    password_error = (
+                        exc.messages[0]
+                        if exc.messages
+                        else "Please choose a valid password."
+                    )
+
+                else:
+                    # Only update the password after CAPTCHA,
+                    # OTP, confirmation, and policy checks succeed.
+                    user.set_password(password1)
+                    user.save(update_fields=["password"])
+
+                    # Consume the OTP in the same transaction.
+                    otp_obj.is_used = True
+                    otp_obj.save(update_fields=["is_used"])
+
+                    outcome = "success"
+
+    except (User.DoesNotExist, EmailOTP.DoesNotExist):
+        # Reject missing, used, or incorrectly bound OTP records.
+        for key in RESET_SESSION_KEYS:
+            request.session.pop(key, None)
+
+        messages.error(
+            request,
+            "This verification code is invalid or no longer available. Please request a new code.",
+        )
+        return redirect("members:password_reset")
+
+    # =====================================================
+    # HANDLE VERIFICATION RESULTS
+    # =====================================================
+
+    if outcome == "locked":
+        for key in RESET_SESSION_KEYS:
+            request.session.pop(key, None)
+
+        messages.error(
+            request,
+            "Too many incorrect verification attempts. Please request a new code.",
+        )
+        return redirect("members:password_reset")
+
+    if outcome == "expired":
+        for key in RESET_SESSION_KEYS:
+            request.session.pop(key, None)
+
+        messages.error(
+            request,
+            "Your verification code has expired. Please request a new code.",
+        )
+        return redirect("members:password_reset")
+
+    if outcome == "incorrect":
+        messages.error(
+            request,
+            "Invalid verification code. Please try again.",
+        )
+        return redirect("members:password_reset_verify")
+
+    if outcome == "password_invalid":
+        messages.error(
+            request,
+            password_error,
+        )
+        return redirect("members:password_reset_verify")
+
+    if outcome == "success":
+        for key in RESET_SESSION_KEYS:
+            request.session.pop(key, None)
 
         messages.success(
             request,
-            "Password updated successfully."
+            "Password updated successfully.",
         )
+        return redirect("members:login")
 
-        return redirect(
-            "members:login"
-        )
-
-    return render(
+    # Defensive fallback.
+    messages.error(
         request,
-        "members/auth/password_reset_verify.html"
+        "We could not complete your password reset. Please request a new code.",
     )
+    return redirect("members:password_reset")
+
 
 def magic_login(request, token):
 

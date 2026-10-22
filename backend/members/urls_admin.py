@@ -76,13 +76,13 @@ from backend.members.views_admin.admin_finance import (
     treasurer_analytics_dashboard,
     treasurer_analytics_pdf,
     treasurer_analytics_excel,
-)
+    )
 
 from backend.members.views_admin.admin_payment_request_detail import (
     admin_view_payment_request,
     export_payment_compliance_csv,
-    admin_payment_request_detail
-)
+    admin_payment_request_detail,
+    )
 from backend.members.views_admin.admin_treasurer_dashboard import treasurer_dashboard
 from backend.members.views_admin.admin_financial_risk import financial_risk_monitor
 from backend.members.views_admin.claims import admin_create_claim, search_members
@@ -94,7 +94,7 @@ from backend.members.views_admin.admin_members import (
     reject_member,
     toggle_member_edit,
     member_card_view,
-)
+    )
 # =========================================================
 # ADMIN DOCUMENT VIEWS
 # =========================================================
@@ -114,7 +114,7 @@ from backend.members.views_admin.admin_documents import (
     admin_document_thumbnail,
     admin_document_review,
     admin_document_file,
-)
+    )
 from backend.members.views_admin import admin_dashboard, payment_filters
 from backend.members.views_admin.admin_member_search import admin_member_search
 from backend.members.views_admin.admin_claims import create_payment_request_from_claim
@@ -123,13 +123,15 @@ from backend.members.views_admin.admin_audit import admin_audit_logs, export_aud
 from backend.members.views_admin.admin_security import admin_security_dashboard
 from backend.members.views_admin.member_actions import restore_member, restore_member_view, retire_member_view
 from backend.members.views_admin import claim_settlement
-
+from backend.members.views_admin.member_invitations import (
+    admin_member_invitations,
+    )
 
 from backend.members.views_admin.admin_treasurer_dashboard import (
     treasurer_dashboard,
     treasurer_dashboard_pdf,
     treasurer_dashboard_excel,
-)
+    )
 
 # =========================================================
 # ADMIN DOCUMENT VIEWS
@@ -138,7 +140,7 @@ from backend.members.views_admin.admin_treasurer_dashboard import (
 from backend.members.views_admin.admin_members import (
     toggle_member_dependant_edit,
     toggle_member_portal_access,
-)
+    )
 
 app_name = "members_admin"
 
@@ -447,4 +449,9 @@ urlpatterns = [
     #=============================
     path("admin/members/history/", membership_history, name="membership_history",),
     
+    #=====================
+    # MEMBER onboarding invitation
+    #=============================
+    path("member-invitations/", admin_member_invitations, name="member_invitations",),
+
 ]

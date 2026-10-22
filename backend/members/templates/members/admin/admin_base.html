@@ -143,6 +143,10 @@
         Finance Analytics
       </a>
 
+      <a href="{% url 'members_admin:member_invitations' %}">
+        Member invitation
+      </a>
+
       {% if perms.members.can_view_audit_logs %}
 
         <a

@@ -1,0 +1,42 @@
+
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <title>Member Portal Invitation</title>
+</head>
+<body>
+    <p>Hello {{ member.first_name|default:"Member" }},</p>
+
+    <p>
+        You have been invited to access the KRO member portal.
+    </p>
+
+    <p>
+        To get started, use the link below to request a verification
+        code and set your password.
+    </p>
+
+    <p>
+        <a href="{{ password_setup_url }}">
+            Set up your member portal password
+        </a>
+    </p>
+
+    <p>
+        You will need access to your registered email address to
+        complete verification. Do not share your verification code
+        with anyone.
+    </p>
+
+    <p>
+        If you were not expecting this invitation, please contact
+        the organisation's administrator.
+    </p>
+
+    <p>
+        Kind regards,<br>
+        KRO Membership Team
+    </p>
+</body>
+</html>
