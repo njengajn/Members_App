@@ -171,9 +171,10 @@ def admin_member_invitations(request):
             )
             return redirect("members_admin:member_invitations")
 
-        setup_url = request.build_absolute_uri(
-            reverse("members:password_reset")
-        )
+        setup_url = (
+            f"{settings.PUBLIC_SITE_URL.rstrip('/')}"
+            f"{reverse('members:password_reset')}"
+            )
 
         sent = []
         failed = []
