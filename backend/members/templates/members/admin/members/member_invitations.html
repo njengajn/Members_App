@@ -135,7 +135,7 @@
                 <div class="card-body border-bottom py-3">
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                         <p class="small text-muted mb-0">
-                            Showing {{ start_index }}–{{ end_index }}
+                            Showing {{ start_index }}&ndash;{{ end_index }}
                             of {{ paginator.count }} member{{ paginator.count|pluralize }}.
                         </p>
 
@@ -159,7 +159,7 @@
 
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 invitation-members-table">
                             <caption class="visually-hidden">
                                 Eligible members, ordered alphabetically by surname.
                                 Select members to invite them to the portal.
@@ -178,7 +178,7 @@
                             <tbody>
                                 {% for member in members %}
                                     <tr>
-                                        <td class="text-center">
+                                        <td data-label="Select" class="invitation-select-cell text-center">
                                             <input
                                                 class="form-check-input invitation-member-checkbox"
                                                 type="checkbox"
@@ -188,10 +188,12 @@
                                                 aria-label="Select {{ member.full_name }}"
                                             >
                                         </td>
-                                        <td class="fw-semibold text-nowrap">
-                                            {{ member.member_uid|default:"Not assigned" }}
+
+                                        <td data-label="Member UID" class="fw-semibold invitation-member-uid">
+                                            <span class="d-md-inline">{{ member.member_uid|default:"Not assigned" }}</span>
                                         </td>
-                                        <td>
+
+                                        <td data-label="Name" class="invitation-member-name">
                                             <label
                                                 for="member-{{ member.pk }}"
                                                 class="mb-0 fw-medium invitation-member-label"
@@ -199,26 +201,26 @@
                                                 {{ member.full_name }}
                                             </label>
                                         </td>
-                                        <td>
+
+                                        <td data-label="Email" class="invitation-member-email">
                                             {% if member.user.email %}
-                                                {{ member.user.email }}
+                                                <span>{{ member.user.email }}</span>
                                             {% else %}
-                                                <span class="text-danger">
+                                                <span class="text-danger fw-semibold">
                                                     Missing email
                                                 </span>
                                             {% endif %}
                                         </td>
-                                        <td>
+
+                                        <td data-label="Portal access" class="invitation-member-access">
                                             {% if member.is_portal_access_enabled %}
                                                 <span class="badge rounded-pill bg-success-subtle text-success-emphasis border border-success-subtle">
-                                                    <i class="bi bi-check-circle me-1"
-                                                       aria-hidden="true"></i>
+                                                    <i class="bi bi-check-circle me-1" aria-hidden="true"></i>
                                                     Enabled
                                                 </span>
                                             {% else %}
                                                 <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border">
-                                                    <i class="bi bi-dash-circle me-1"
-                                                       aria-hidden="true"></i>
+                                                    <i class="bi bi-dash-circle me-1" aria-hidden="true"></i>
                                                     Disabled
                                                 </span>
                                             {% endif %}
@@ -489,6 +491,14 @@
         }
     }
 
+    function updateSelectedRow(checkbox) {
+        const row = checkbox.closest("tr");
+
+        if (row) {
+            row.classList.toggle("is-selected", checkbox.checked);
+        }
+    }
+
     function syncVisibleCheckboxes() {
         checkboxes.forEach(function (checkbox) {
             if (checkbox.checked) {
@@ -516,6 +526,7 @@
 
     checkboxes.forEach(function (checkbox) {
         checkbox.checked = selectedIds.has(checkbox.value);
+        updateSelectedRow(checkbox);
 
         checkbox.addEventListener("change", function () {
             if (checkbox.checked) {
@@ -524,6 +535,7 @@
                 selectedIds.delete(checkbox.value);
             }
 
+            updateSelectedRow(checkbox);
             saveSelection();
             updateCount();
         });

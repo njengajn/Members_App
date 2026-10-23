@@ -176,7 +176,7 @@ def admin_member_invitations(request):
         if not public_site_url:
             messages.error(
                 request,
-                "The public website URL is not configured. Please contact support.",
+                "Not able to connect you at the moment. Please contact support.",
             )
             return redirect("members_admin:member_invitations")
 
