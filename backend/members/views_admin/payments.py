@@ -279,8 +279,6 @@ def payments_awaiting_confirmation(request):
         .order_by("-id")
     )
 
-    print("DEBUG → awaiting payments:", payments.count())
-
     return render(
         request,
         "members/admin/payments/awaiting_confirmation.html",

@@ -1,7 +1,3 @@
-# =========================================================
-# backend/members/services/notifications.py
-# =========================================================
-
 """
 Centralized notification system.
 
@@ -18,10 +14,11 @@ Handles:
 - Stripe payment alerts
 """
 
+import json
+import logging
 import os
 
 from django.conf import settings
-import json
 from django.core.mail import (
     EmailMultiAlternatives,
 )
@@ -35,6 +32,9 @@ from backend.members.models import (
     MemberPaymentStatus,
     PaymentRequest,
 )
+
+logger = logging.getLogger(__name__)
+
 # =========================================================
 # SAFE PAYMENT PORTAL URL
 # =========================================================
@@ -62,10 +62,6 @@ def send_whatsapp_message(
 
     if not phone_number:
 
-        print(
-            "WhatsApp skipped: "
-            "No phone number."
-        )
 
         return
 
@@ -92,15 +88,7 @@ def send_whatsapp_message(
             settings.TWILIO_AUTH_TOKEN,
         )
         
-        print(
-            "FROM:",
-            f"whatsapp:{settings.TWILIO_WHATSAPP_NUMBER}"
-        )
 
-        print(
-            "TO:",
-            f"whatsapp:{phone_number}"
-        )
 
         response = client.messages.create(
 
@@ -114,18 +102,9 @@ def send_whatsapp_message(
             to=f"whatsapp:{phone_number}",
         )
 
-        print(
-            "WhatsApp sent:",
-            response.sid
-        )
 
-    except Exception as e:
-
-        print(
-            "WhatsApp error:",
-            str(e)
-        )
-
+    except Exception:
+        logger.warning("NOTIFICATION_DELIVERY_FAILED")
 
 # =========================================================
 # BASE EMAIL SENDER
@@ -144,10 +123,6 @@ def send_html_email(
 
     if not recipient:
 
-        print(
-            "Email skipped: "
-            "No recipient."
-        )
 
         return
 
@@ -221,20 +196,9 @@ def send_html_email(
             fail_silently=False
         )
 
-        print(
-            "Email sent:",
-            recipient
-        )
 
-    except Exception as e:
-
-        import traceback
-
-        print(
-            "\nEMAIL ERROR:\n"
-        )
-
-        traceback.print_exc()
+    except Exception:
+        logger.warning("NOTIFICATION_DELIVERY_FAILED")
 
 # =========================================================
 # SEND WHATSAPP TEMPLATE MESSAGE
@@ -252,10 +216,6 @@ def send_whatsapp_template_message(
 
     if not phone_number:
 
-        print(
-            "WhatsApp skipped: "
-            "No phone number."
-        )
 
         return
 
@@ -311,10 +271,7 @@ def send_whatsapp_template_message(
         )
 
     except Exception:
-
-        import traceback
-
-        traceback.print_exc()
+        logger.warning("NOTIFICATION_DELIVERY_FAILED")
 
 # =========================================================
 # PAYMENT REQUEST CREATED
