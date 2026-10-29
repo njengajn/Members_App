@@ -122,10 +122,7 @@ urlpatterns = [
     path("register/step-3/", register_step_3_next_of_kin, name="register_step_3"),
     path("register/step-4/", register_step_4_dependants, name="register_step_4"),
     path("register/step-5/", register_step_5_confirmation, name="register_step_5"),
-    #path("register/verify-email/", register_verify_email, name="register_verify_email"),
     path("members/register/verify-email/", register_verify_email, name="register_verify_email"),
-    
-    #path("members/ajax/register/", views.register_step_1_user, name="ajax_register"),
     
     path("members/ajax/register/", register_ajax, name="ajax_register"),
     path("dependants/", members_dependants_list, name="dependants"),
@@ -143,9 +140,6 @@ urlpatterns = [
     path("api/address-autocomplete/", address_autocomplete, name="address_autocomplete"),
     
     path(".well-known/appspecific/com.chrome.devtools.json", lambda request: HttpResponse("{}", content_type="application/json")),
-    
-    
-    #path("documents/requests/", document_requests, name="document_requests"),
     
     path("documents/requests/", member_requests, name="member_requests"),
     #path("documents/requests/", upload_document, name="upload_document"),

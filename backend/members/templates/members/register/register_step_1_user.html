@@ -70,16 +70,30 @@ The JavaScript file is supplementary only.
 
     <div class="register-section">
         <label class="form-label">Password</label>
-        <input
-            id="registration_password"
-            name="password"
-            type="password"
-            class="form-control"
-            placeholder="Enter password"
-            autocomplete="new-password"
-            minlength="8"
-            required
-        >
+        <div class="input-group">
+            <input
+                id="registration_password"
+                name="password"
+                type="password"
+                class="form-control"
+                placeholder="Enter password"
+                autocomplete="new-password"
+                minlength="8"
+                aria-describedby="password-visibility-help"
+                required
+            >
+            <button
+                type="button"
+                class="btn btn-outline-secondary password-visibility-toggle"
+                data-password-target="registration_password"
+                aria-controls="registration_password"
+                aria-pressed="false"
+                aria-label="Show password"
+            >Show</button>
+        </div>
+        <div id="password-visibility-help" class="form-text">
+            Use Show to reveal the password while typing. Hide it again before leaving the page.
+        </div>
 
         <div class="form-text mt-2">Password must contain:</div>
 
@@ -97,15 +111,30 @@ The JavaScript file is supplementary only.
 
     <div class="register-section">
         <label class="form-label">Confirm Password</label>
-        <input
-            name="confirm_password"
-            type="password"
-            class="form-control"
-            placeholder="Confirm password"
-            autocomplete="new-password"
-            minlength="8"
-            required
-        >
+        <div class="input-group">
+            <input
+                id="registration_confirm_password"
+                name="confirm_password"
+                type="password"
+                class="form-control"
+                placeholder="Confirm password"
+                autocomplete="new-password"
+                minlength="8"
+                aria-describedby="confirm-password-visibility-help"
+                required
+            >
+            <button
+                type="button"
+                class="btn btn-outline-secondary password-visibility-toggle"
+                data-password-target="registration_confirm_password"
+                aria-controls="registration_confirm_password"
+                aria-pressed="false"
+                aria-label="Show confirmation password"
+            >Show</button>
+        </div>
+        <div id="confirm-password-visibility-help" class="form-text">
+            This control only changes whether the confirmation password is visible.
+        </div>
     </div>
 
     <div class="register-section captcha-wrapper">
@@ -228,6 +257,31 @@ The JavaScript file is supplementary only.
 document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("registerStep1Form");
     const password = document.getElementById("registration_password");
+
+    // Presentation-only controls: do not change field names, values, or validation.
+    document.querySelectorAll(".password-visibility-toggle").forEach(function (button) {
+        button.addEventListener("click", function () {
+            const targetId = button.getAttribute("data-password-target");
+            const field = targetId ? document.getElementById(targetId) : null;
+
+            if (!field) {
+                return;
+            }
+
+            const shouldReveal = field.type === "password";
+            field.type = shouldReveal ? "text" : "password";
+            button.textContent = shouldReveal ? "Hide" : "Show";
+            button.setAttribute("aria-pressed", shouldReveal ? "true" : "false");
+
+            const label = targetId === "registration_confirm_password"
+                ? "confirmation password"
+                : "password";
+            button.setAttribute(
+                "aria-label",
+                (shouldReveal ? "Hide " : "Show ") + label
+            );
+        });
+    });
 
     if (password) {
         password.addEventListener("input", function () {
