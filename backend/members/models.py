@@ -2271,6 +2271,111 @@ Stores ONLY non-derivable data.
 """
 
 
+def registration_draft_expiry():
+    """Registration drafts expire seven days after creation."""
+    return timezone.now() + timedelta(days=7)
+
+
+class RegistrationDraft(models.Model):
+    """
+    Stores an incomplete, email-verified membership registration.
+
+    The payload contains registration form data only. Passwords and
+    plaintext resume tokens must never be stored in this model.
+    """
+
+    STEP_CHOICES = [
+        (2, "Member profile"),
+        (3, "Next of kin"),
+        (4, "Dependants"),
+        (5, "Confirmation"),
+    ]
+
+    verified_email = models.EmailField(db_index=True)
+
+    username = models.CharField(max_length=150)
+
+    # Registration fields captured from the steps completed so far.
+    # Never include a plaintext password in this payload.
+    payload = models.JSONField(default=dict, blank=True)
+
+    # The step to restore when the applicant resumes.
+    current_step = models.PositiveSmallIntegerField(
+        choices=STEP_CHOICES,
+        default=2,
+    )
+
+    # SHA-256 digest of a randomly generated resume token.
+    # The raw token is emailed to the applicant but is not persisted.
+    resume_token_hash = models.CharField(
+        max_length=64,
+        unique=True,
+        editable=False,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    expires_at = models.DateTimeField(
+        default=registration_draft_expiry,
+        db_index=True,
+    )
+
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+    )
+
+    class Meta:
+        ordering = ["-updated_at"]
+        verbose_name = "Registration draft"
+        verbose_name_plural = "Registration drafts"
+
+    def set_resume_token(self, raw_token):
+        """Store a digest rather than the raw resume token."""
+        import hashlib
+
+        if not raw_token:
+            raise ValueError("A resume token is required.")
+
+        self.resume_token_hash = hashlib.sha256(
+            raw_token.encode("utf-8")
+        ).hexdigest()
+
+    def is_resumable(self):
+        """Return whether this draft can still be resumed."""
+        return (
+            self.is_active
+            and self.completed_at is None
+            and timezone.now() < self.expires_at
+        )
+
+    def check_resume_token(self, raw_token):
+        """Validate the token without storing or exposing it."""
+        import hashlib
+        import hmac
+
+        if not raw_token or not self.is_resumable():
+            return False
+
+        candidate_hash = hashlib.sha256(
+            raw_token.encode("utf-8")
+        ).hexdigest()
+
+        return hmac.compare_digest(
+            candidate_hash,
+            self.resume_token_hash,
+        )
+
+    def __str__(self):
+        return f"Registration draft: {self.verified_email}"
+
+
 class ClaimSettlement(models.Model):
     
     STATUS_DRAFT = "draft"
