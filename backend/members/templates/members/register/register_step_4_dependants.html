@@ -33,7 +33,7 @@
             {% endif %}
 
             <li>Children (if any)</li>
-            <li>Parents (status captured in Step 2)</li>
+            <li>Mother and/or Father, where eligible under the information provided in Step 2</li>
             <li>Maternal siblings only</li>
 
         </ul>
@@ -198,9 +198,9 @@
                             Sibling
                         </option>
 
-                        <option value="PARENT">
-                            Parent
-                        </option>
+                        {% if mother_status == "ALIVE" or father_status == "ALIVE" %}
+                            <option value="PARENT">Parent</option>
+                        {% endif %}
 
                     </select>
 
@@ -232,31 +232,14 @@
                             Select parent type
                         </option>
 
-                        <option value="MOTHER">
-                            Mother
-                        </option>
-
-                        <option value="FATHER">
-                            Father
-                        </option>
+                        {% if mother_status == "ALIVE" %}
+                            <option value="MOTHER">Mother</option>
+                        {% endif %}
+                        {% if father_status == "ALIVE" %}
+                            <option value="FATHER">Father</option>
+                        {% endif %}
 
                     </select>
-
-                </div>
-
-
-                <div class="col-12 col-md-6">
-
-                    <label class="form-label">
-                        Parent Status
-                    </label>
-
-                    <div
-                        class="form-control bg-light dependant-parent-status-display"
-                        aria-live="polite"
-                    >
-                        Select Mother or Father to see the status captured in Step 2.
-                    </div>
 
                 </div>
 
@@ -358,6 +341,16 @@
 
 
         <div class="col-12 col-md-6">
+
+            <button type="submit" name="save_draft" value="1" class="btn btn-outline-secondary w-100 mb-2" formnovalidate>
+
+
+                Save draft and email me a resume link
+
+
+            </button>
+
+
 
             <button
                 type="submit"
@@ -542,4 +535,3 @@
 </style>
 
 {% endblock %}
-

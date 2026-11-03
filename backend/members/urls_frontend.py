@@ -9,9 +9,6 @@ from backend.members.views_frontend.privacy_policy import privacy_policy
 # AUTH
 from backend.members.views_frontend.auth import login_view, logout_view, password_reset_request, password_reset_verify
 
-# DASHBOARD
-#from backend.members.views_frontend.dashboard import dependants_view, member_dashboard
-
 # CLAIMS
 from backend.members.views_frontend.claims import (
     member_claims_list,
@@ -50,7 +47,8 @@ from backend.members.views_frontend.register_flow import (
     register_step_3_next_of_kin,
     register_step_4_dependants,
     register_step_5_confirmation,
-    register_verify_email
+    register_verify_email,
+    resume_registration,
 )
 from backend.members.views_admin.payments import payment_webhook
 from backend.members.views_frontend.api import postcode_lookup
@@ -80,9 +78,12 @@ urlpatterns = [
     # DASHBOARD
     path("dashboard/", member_dashboard, name="dashboard"),
 
-    # DEPENDANTS 
+    # DEPENDANTS
     path("dependants/", members_dependants_list, name="dependants"),
     path("dependants/add/", members_add_dependant, name="add_dependant"),
+    path("dependants/<int:pk>/edit/", members_edit_dependant, name="edit_dependant"),
+    path("dependants/<int:pk>/delete/", members_delete_dependant, name="delete_dependant"),
+    path("dependants/<int:pk>/", members_dependant_detail, name="dependant_detail"),
 
     # CLAIMS    
     path("claims/create/", create_claim_entry, name="create_claim_entry"),
@@ -123,19 +124,14 @@ urlpatterns = [
     path("register/step-4/", register_step_4_dependants, name="register_step_4"),
     path("register/step-5/", register_step_5_confirmation, name="register_step_5"),
     path("members/register/verify-email/", register_verify_email, name="register_verify_email"),
+    path("register/resume/<str:token>/", resume_registration, name="resume_registration",),
     
     path("members/ajax/register/", register_ajax, name="ajax_register"),
-    path("dependants/", members_dependants_list, name="dependants"),
-    path("dependants/add/", members_add_dependant, name="add_dependant"),
-    path("dependants/<int:pk>/edit/", members_edit_dependant, name="edit_dependant"),
-    path("dependants/<int:pk>/delete/", members_delete_dependant, name="delete_dependant"),
-    path("dependants/<int:pk>/", members_dependant_detail, name="dependant_detail"),
     
     path("password-reset/", password_reset_request, name="password_reset"),
     path("password-reset/verify/", password_reset_verify, name="password_reset_verify"),
     
     #api
-
     path("api/postcode-lookup/", postcode_lookup, name="postcode_lookup"),
     path("api/address-autocomplete/", address_autocomplete, name="address_autocomplete"),
     

@@ -1,0 +1,236 @@
+{% extends "members/register/register_base.html" %}
+{% load static %}
+
+{% block register_content %}
+<div class="mb-4">
+    <h4 class="page-title mb-1">Resume your registration</h4>
+    <p class="page-subtitle mb-0">
+        For your security, please set your password again before continuing.
+        Your saved registration details will then be restored.
+    </p>
+</div>
+
+{% if resume_error %}
+    <div class="alert alert-danger" role="alert">{{ resume_error }}</div>
+{% endif %}
+
+{% if token_valid %}
+<form id="resumeRegistrationForm" method="post">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label for="resume_password" class="form-label">New password</label>
+        <div class="input-group">
+            <input
+                id="resume_password"
+                name="password"
+                type="password"
+                class="form-control"
+                placeholder="Enter a new password"
+                autocomplete="new-password"
+                minlength="8"
+                aria-describedby="resume-password-help resumePasswordRequirements"
+                required
+            >
+            <button
+                type="button"
+                class="btn btn-outline-secondary password-visibility-toggle"
+                data-password-target="resume_password"
+                aria-controls="resume_password"
+                aria-pressed="false"
+                aria-label="Show password"
+            >Show</button>
+        </div>
+        <div id="resume-password-help" class="form-text mt-2">
+            Use a new password that meets all five requirements below.
+        </div>
+        <div class="form-text mt-2">Password must contain:</div>
+        <ul
+            class="password-requirements small text-muted mb-0 mt-1"
+            id="resumePasswordRequirements"
+            aria-live="polite"
+        >
+            <li data-rule="length">At least 8 characters</li>
+            <li data-rule="upper">At least one uppercase letter</li>
+            <li data-rule="lower">At least one lowercase letter</li>
+            <li data-rule="number">At least one number</li>
+            <li data-rule="special">At least one special character</li>
+        </ul>
+    </div>
+
+    <div class="mb-3">
+        <label for="resume_confirm_password" class="form-label">Confirm new password</label>
+        <div class="input-group">
+            <input
+                id="resume_confirm_password"
+                name="confirm_password"
+                type="password"
+                class="form-control"
+                placeholder="Enter the same password again"
+                autocomplete="new-password"
+                minlength="8"
+                aria-describedby="resume-confirm-password-help"
+                required
+            >
+            <button
+                type="button"
+                class="btn btn-outline-secondary password-visibility-toggle"
+                data-password-target="resume_confirm_password"
+                aria-controls="resume_confirm_password"
+                aria-pressed="false"
+                aria-label="Show confirmation password"
+            >Show</button>
+        </div>
+        <div id="resume-confirm-password-help" class="form-text">
+            Both password entries must match.
+        </div>
+        <div id="resumePasswordMatch" class="small mt-1" aria-live="polite"></div>
+    </div>
+
+    <button type="submit" class="btn btn-success w-100">
+        Set password and resume registration
+    </button>
+</form>
+{% else %}
+    <a class="btn btn-primary w-100" href="{% url 'members:register_step_1' %}">
+        Start a new registration
+    </a>
+{% endif %}
+
+<style>
+.password-requirements {
+    padding-left: 1.2rem;
+}
+
+.password-requirements li {
+    margin-bottom: 0.15rem;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("resumeRegistrationForm");
+    const password = document.getElementById("resume_password");
+    const confirmPassword = document.getElementById("resume_confirm_password");
+    const requirements = document.getElementById("resumePasswordRequirements");
+    const matchMessage = document.getElementById("resumePasswordMatch");
+
+    // Match the five client-side rules used on registration Step 1.
+    function getPasswordRules(value) {
+        return {
+            length: value.length >= 8,
+            upper: /[A-Z]/.test(value),
+            lower: /[a-z]/.test(value),
+            number: /\d/.test(value),
+            special: /[^A-Za-z0-9]/.test(value)
+        };
+    }
+
+    function updatePasswordRequirements() {
+        if (!password || !requirements) {
+            return false;
+        }
+
+        const value = password.value;
+        const rules = getPasswordRules(value);
+        let allValid = true;
+
+        Object.keys(rules).forEach(function (rule) {
+            const item = requirements.querySelector('[data-rule="' + rule + '"]');
+            if (!item) {
+                return;
+            }
+
+            item.classList.toggle("text-success", rules[rule]);
+            item.classList.toggle("text-danger", value.length > 0 && !rules[rule]);
+
+            if (!rules[rule]) {
+                allValid = false;
+            }
+        });
+
+        password.setCustomValidity(
+            value.length > 0 && !allValid
+                ? "Password must meet all five requirements listed above."
+                : ""
+        );
+
+        return allValid;
+    }
+
+    function updatePasswordMatch() {
+        if (!password || !confirmPassword || !matchMessage) {
+            return false;
+        }
+
+        if (!confirmPassword.value) {
+            matchMessage.textContent = "";
+            matchMessage.classList.remove("text-success", "text-danger");
+            confirmPassword.setCustomValidity("");
+            return false;
+        }
+
+        const matches = password.value === confirmPassword.value;
+        matchMessage.textContent = matches
+            ? "Passwords match."
+            : "Passwords do not match.";
+        matchMessage.classList.toggle("text-success", matches);
+        matchMessage.classList.toggle("text-danger", !matches);
+        confirmPassword.setCustomValidity(matches ? "" : "Passwords do not match.");
+        return matches;
+    }
+
+    document.querySelectorAll(".password-visibility-toggle").forEach(function (button) {
+        button.addEventListener("click", function () {
+            const targetId = button.getAttribute("data-password-target");
+            const field = targetId ? document.getElementById(targetId) : null;
+
+            if (!field) {
+                return;
+            }
+
+            const shouldReveal = field.type === "password";
+            field.type = shouldReveal ? "text" : "password";
+            button.textContent = shouldReveal ? "Hide" : "Show";
+            button.setAttribute("aria-pressed", shouldReveal ? "true" : "false");
+
+            const label = targetId === "resume_confirm_password"
+                ? "confirmation password"
+                : "password";
+            button.setAttribute("aria-label", (shouldReveal ? "Hide " : "Show ") + label);
+        });
+    });
+
+    if (password) {
+        password.addEventListener("input", function () {
+            updatePasswordRequirements();
+            updatePasswordMatch();
+        });
+    }
+
+    if (confirmPassword) {
+        confirmPassword.addEventListener("input", updatePasswordMatch);
+    }
+
+    if (form) {
+        form.addEventListener("submit", function (event) {
+            const rulesValid = updatePasswordRequirements();
+            const passwordsMatch = updatePasswordMatch();
+
+            if (!rulesValid) {
+                event.preventDefault();
+                password.focus();
+                password.reportValidity();
+                return;
+            }
+
+            if (!passwordsMatch) {
+                event.preventDefault();
+                confirmPassword.focus();
+                confirmPassword.reportValidity();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

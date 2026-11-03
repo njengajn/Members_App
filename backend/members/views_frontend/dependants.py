@@ -10,6 +10,7 @@ from backend.members.services.document_files import (
     generate_document_thumbnail,
     prepare_document_file,
 )
+from django.utils import timezone
 
 
 # ======================================================
@@ -142,7 +143,6 @@ def members_add_dependant(request):
 
     member.check_can_edit_expiry()
 
-
     if not member.can_edit:
 
         messages.error(
@@ -173,7 +173,6 @@ def members_add_dependant(request):
         )
     )
 
-
     existing_spouse_count = (
         existing_dependants
         .filter(
@@ -181,7 +180,6 @@ def members_add_dependant(request):
         )
         .count()
     )
-
 
     existing_parent_count = (
         existing_dependants
@@ -191,7 +189,6 @@ def members_add_dependant(request):
         .count()
     )
 
-
     existing_mother_count = (
         existing_dependants
         .filter(
@@ -200,7 +197,6 @@ def members_add_dependant(request):
         )
         .count()
     )
-
 
     existing_father_count = (
         existing_dependants
@@ -241,7 +237,6 @@ def members_add_dependant(request):
             .upper()
         )
 
-
         parent_type = (
             request.POST.get(
                 "parent_type",
@@ -251,17 +246,6 @@ def members_add_dependant(request):
             .upper()
         )
 
-
-        parent_status = (
-            request.POST.get(
-                "parent_status",
-                "",
-            )
-            .strip()
-            .upper()
-        )
-
-
         country = (
             request.POST.get(
                 "country",
@@ -269,7 +253,6 @@ def members_add_dependant(request):
             )
             .strip()
         )
-
 
         county = (
             request.POST.get(
@@ -279,7 +262,6 @@ def members_add_dependant(request):
             .strip()
         )
 
-
         sub_county_town = (
             request.POST.get(
                 "sub_county_town",
@@ -288,14 +270,86 @@ def members_add_dependant(request):
             .strip()
         )
 
+        additional_errors = []
+
+
+        # ==================================================
+        # AUTHORITATIVE PARENT STATUS
+        # ==================================================
+        #
+        # Never trust parent_status from POST.
+        #
+        # The Member record is the source of truth.
+        #
+        # Preserve all three valid statuses:
+        # ALIVE, DECEASED and UNKNOWN.
+        # ==================================================
+
+        parent_status = ""
+
+        form_data = request.POST.copy()
+
+        if relationship == "PARENT":
+
+            if parent_type == Dependant.PARENT_MOTHER:
+
+                parent_status = (
+                    member.mother_status or ""
+                ).strip().upper()
+
+            elif parent_type == Dependant.PARENT_FATHER:
+
+                parent_status = (
+                    member.father_status or ""
+                ).strip().upper()
+
+            else:
+
+                additional_errors.append(
+                    "Please select Mother or Father."
+                )
+
+
+            # Validate the status recorded on the Member.
+            if parent_status not in {
+                Member.PARENT_ALIVE,
+                Member.PARENT_DECEASED,
+                Member.PARENT_UNKNOWN,
+            }:
+
+                additional_errors.append(
+                    "The parent status recorded on your "
+                    "membership record is missing or invalid. "
+                    "Please contact the administrator."
+                )
+
+
+            # Override the browser-submitted value.
+            # The form will validate using the Member's status.
+            form_data["parent_status"] = parent_status
+
+        else:
+
+            # Parent-only values are irrelevant to other
+            # relationship types.
+
+            parent_type = ""
+            parent_status = ""
+
+            form_data["parent_type"] = ""
+            form_data["parent_status"] = ""
+
 
         # ==================================================
         # FORM VALIDATION
         # ==================================================
 
-        form_valid = form.is_valid()
+        form = DependantForm(
+            form_data,
+            request.FILES or None,
+        )
 
-        additional_errors = []
+        form_valid = form.is_valid()
 
 
         # ==================================================
@@ -337,7 +391,6 @@ def members_add_dependant(request):
                 .upper()
             )
 
-
             if marital_status != "MARRIED":
 
                 additional_errors.append(
@@ -363,35 +416,6 @@ def members_add_dependant(request):
         # ==================================================
 
         if relationship == "PARENT":
-
-            # ----------------------------------------------
-            # Parent type is required.
-            # ----------------------------------------------
-
-            if parent_type not in {
-                "MOTHER",
-                "FATHER",
-            }:
-
-                additional_errors.append(
-                    "Please select Mother or Father."
-                )
-
-
-            # ----------------------------------------------
-            # Parent status is required.
-            # ----------------------------------------------
-
-            if parent_status not in {
-                "ALIVE",
-                "DECEASED",
-                "UNKNOWN",
-            }:
-
-                additional_errors.append(
-                    "Please select the parent status."
-                )
-
 
             # ----------------------------------------------
             # Maximum two parents.
@@ -435,15 +459,6 @@ def members_add_dependant(request):
                 )
 
 
-        else:
-
-            # Parent-only values are irrelevant to all
-            # other relationship types.
-
-            parent_type = ""
-            parent_status = ""
-
-
         # ==================================================
         # LOCATION RULES
         # ==================================================
@@ -455,10 +470,9 @@ def members_add_dependant(request):
             }
             or (
                 relationship == "PARENT"
-                and parent_status == "ALIVE"
+                and parent_status == Member.PARENT_ALIVE
             )
         )
-
 
         if location_required:
 
@@ -468,13 +482,11 @@ def members_add_dependant(request):
                     "Please enter the country."
                 )
 
-
             if not county:
 
                 additional_errors.append(
                     "Please enter the county."
                 )
-
 
             if not sub_county_town:
 
@@ -507,7 +519,6 @@ def members_add_dependant(request):
                     request,
                     error,
                 )
-
 
             return render(
                 request,
@@ -543,18 +554,15 @@ def members_add_dependant(request):
             )
         )
 
-
         doc_title = (
             form.cleaned_data.get(
                 "document_title"
             )
         )
 
-
         processed_file = None
 
         original_filename = None
-
 
         if doc_file:
 
@@ -613,7 +621,6 @@ def members_add_dependant(request):
                 commit=False
             )
 
-
             dependant.member = member
 
             dependant.relationship = (
@@ -657,7 +664,6 @@ def members_add_dependant(request):
                 "pending"
             )
 
-
             dependant.save()
 
 
@@ -679,7 +685,6 @@ def members_add_dependant(request):
                         original_filename
                     ),
                 )
-
 
                 # Preserve existing document validation.
 
@@ -703,7 +708,6 @@ def members_add_dependant(request):
             request,
             "Dependant added.",
         )
-
 
         return redirect(
             "members:dependants"
@@ -736,184 +740,348 @@ def members_add_dependant(request):
         },
     )
 
+
 @login_required
 @member_required
 def members_edit_dependant(request, pk):
     """
-    Edit an existing dependant.
+    Edit an existing dependant belonging to the logged-in member.
 
-    Existing behaviour:
-    - Only the logged-in member can edit their own dependant.
-    - Editing must be enabled for the member.
-    - A normal dependant edit resets the dependant to pending
-      so that the updated information can be reviewed again.
+    Historical Deceased/Unknown parents are protected using their
+    original database values. Parent status is not editable here.
 
-    Parent business rules:
-    - Parent type must be Mother or Father.
-    - Parent status must be Alive, Deceased or Unknown.
-    - An Alive parent may retain their details.
-    - A Deceased parent is always retired.
-    - An Unknown parent has no identifying or location information.
-    - An Unknown parent is always retired.
-    - Deceased and Unknown parents can never become Active.
+    Ordinary dependant edits return to pending for review.
+    Historical non-alive parent records retain their existing status.
+
+    Supporting documents use the established MemberDocument workflow.
     """
 
-    member = request.user.member
+    # ======================================================
+    # CURRENT MEMBER
+    # ======================================================
 
-    # Preserve the existing edit-expiry check.
+    try:
+        member = request.user.member
+    except Member.DoesNotExist:
+        messages.warning(
+            request,
+            "You are not registered as a member yet.",
+        )
+        return redirect("members:member_dashboard")
+
+    # ======================================================
+    # EDIT PERMISSION
+    # ======================================================
+
     member.check_can_edit_expiry()
 
-    # Editing must be enabled.
     if not member.can_edit:
         messages.error(
             request,
-            "Editing is disabled."
+            "Editing is disabled for your account.",
         )
         return redirect("members:dependants")
 
-    # Only allow the logged-in member to edit their own dependant.
+    # ======================================================
+    # DEPENDANT OWNERSHIP
+    # ======================================================
+
     dependant = get_object_or_404(
         Dependant,
         pk=pk,
-        member=member
+        member=member,
     )
 
-    form = DependantForm(
-        request.POST or None,
-        instance=dependant
+    original_relationship = dependant.relationship
+    original_parent_type = dependant.parent_type
+    original_parent_status = dependant.parent_status
+    original_dependant_status = dependant.status
+
+    historical_non_alive_parent = (
+        original_relationship == Dependant.TYPE_PARENT
+        and original_parent_status in {
+            Dependant.PARENT_DECEASED,
+            Dependant.PARENT_UNKNOWN,
+        }
     )
 
-    if form.is_valid():
-        dep = form.save(commit=False)
+    # ======================================================
+    # FORM
+    # ======================================================
 
-        relationship = (
-            dep.relationship or ""
+    if request.method == "POST":
+
+        form_data = request.POST.copy()
+
+        submitted_relationship = (
+            form_data.get("relationship") or ""
         ).strip().upper()
 
-        parent_type = (
-            dep.parent_type or ""
+        submitted_parent_type = (
+            form_data.get("parent_type") or ""
         ).strip().upper()
 
-        parent_status = (
-            dep.parent_status or ""
-        ).strip().upper()
+        form = DependantForm(
+            form_data,
+            request.FILES or None,
+            instance=dependant,
+        )
 
-        # ==========================================================
-        # PARENT
-        # ==========================================================
+        # --------------------------------------------------
+        # RELATIONSHIP PROTECTION
+        # --------------------------------------------------
 
-        if relationship == Dependant.TYPE_PARENT:
+        if submitted_relationship != original_relationship:
+            form.add_error(
+                "relationship",
+                "The relationship of an existing dependant cannot be changed here. Please contact an administrator if it needs correcting.",
+            )
 
-            # Parent type must be Mother or Father.
-            if parent_type not in {
-                Dependant.PARENT_MOTHER,
-                Dependant.PARENT_FATHER,
-            }:
-                form.add_error(
-                    "parent_type",
-                    "Please select Mother or Father."
-                )
-
-            # Parent status must be explicitly selected.
-            if parent_status not in {
-                Dependant.PARENT_ALIVE,
-                Dependant.PARENT_DECEASED,
-                Dependant.PARENT_UNKNOWN,
-            }:
-                form.add_error(
-                    "parent_status",
-                    "Please select the parent's status."
-                )
-
-            # ------------------------------------------------------
-            # UNKNOWN PARENT
-            # ------------------------------------------------------
-            #
-            # UNKNOWN is a deliberate business state.
-            #
-            # It means we know this is a parent and whether the
-            # parent is Mother/Father, but we do not have any
-            # identifying or location information.
-            #
-            # The dependant can NEVER be Active in this state.
-            # ------------------------------------------------------
-
-            if parent_status == Dependant.PARENT_UNKNOWN:
-
-                # Explicitly remove all identifying information.
-                dep.first_name = ""
-                dep.middle_name = ""
-                dep.surname = ""
-                dep.dob = None
-
-                # Explicitly remove all location information.
-                dep.country = ""
-                dep.county = ""
-                dep.sub_county_town = ""
-
-                # UNKNOWN parents are permanently protected
-                # from activation.
-                dep.status = Dependant.STATUS_RETIRED
-
-            # ------------------------------------------------------
-            # DECEASED PARENT
-            # ------------------------------------------------------
-
-            elif parent_status == Dependant.PARENT_DECEASED:
-
-                # A deceased parent can never become Active.
-                dep.status = Dependant.STATUS_RETIRED
-
-            # ------------------------------------------------------
-            # ALIVE PARENT
-            # ------------------------------------------------------
-
-            elif parent_status == Dependant.PARENT_ALIVE:
-
-                # Preserve the existing approval workflow.
-                # Editing an eligible parent requires review again.
-                dep.status = Dependant.STATUS_PENDING
-
-        # ==========================================================
-        # NON-PARENT DEPENDANT
-        # ==========================================================
-
-        else:
-            # Preserve existing behaviour:
-            # editing an ordinary dependant resets approval.
-            dep.status = Dependant.STATUS_PENDING
-
-        # If the server-side lifecycle checks above added an error,
-        # do not save the dependant.
-        if form.errors:
             return render(
                 request,
-                "members/dependants/members_dependants_form.html",
+                "members/dependants/members_dependant_form.html",
                 {
                     "form": form,
                     "member": member,
-                }
+                    "historical_non_alive_parent":
+                        historical_non_alive_parent,
+                },
             )
 
-        # Save only after all server-side rules have passed.
-        dep.save()
+        # --------------------------------------------------
+        # HISTORICAL NON-ALIVE PARENT
+        # --------------------------------------------------
 
-        messages.success(
-            request,
-            "Updated."
+        if historical_non_alive_parent:
+
+            # Restore protected values before form validation.
+            form_data["relationship"] = original_relationship
+            form_data["parent_type"] = original_parent_type
+            form_data["parent_status"] = original_parent_status
+
+            form = DependantForm(
+                form_data,
+                request.FILES or None,
+                instance=dependant,
+            )
+
+        # --------------------------------------------------
+        # EXISTING ALIVE PARENT
+        # --------------------------------------------------
+
+        elif original_relationship == Dependant.TYPE_PARENT:
+
+            if submitted_parent_type != original_parent_type:
+                form.add_error(
+                    "parent_type",
+                    "The parent type of an existing parent record cannot be changed here. Please contact an administrator if it needs correcting.",
+                )
+
+                return render(
+                    request,
+                    "members/dependants/members_dependant_form.html",
+                    {
+                        "form": form,
+                        "member": member,
+                        "historical_non_alive_parent": False,
+                    },
+                )
+
+            if original_parent_type == Dependant.PARENT_MOTHER:
+                member_parent_status = (
+                    member.mother_status or ""
+                ).strip().upper()
+
+            elif original_parent_type == Dependant.PARENT_FATHER:
+                member_parent_status = (
+                    member.father_status or ""
+                ).strip().upper()
+
+            else:
+                member_parent_status = ""
+
+            # Do not silently change an existing Alive dependant
+            # into a Deceased/Unknown parent record.
+            if member_parent_status != Member.PARENT_ALIVE:
+                form.add_error(
+                    None,
+                    "The parent status on your membership record does not match this dependant record. Please contact the administrator before editing this parent.",
+                )
+
+                return render(
+                    request,
+                    "members/dependants/members_dependant_form.html",
+                    {
+                        "form": form,
+                        "member": member,
+                        "historical_non_alive_parent": False,
+                    },
+                )
+
+            # Never trust the browser-submitted parent status.
+            form_data["relationship"] = original_relationship
+            form_data["parent_type"] = original_parent_type
+            form_data["parent_status"] = Member.PARENT_ALIVE
+
+            form = DependantForm(
+                form_data,
+                request.FILES or None,
+                instance=dependant,
+            )
+
+        else:
+            # Non-parent records cannot acquire parent-only fields.
+            form_data["parent_type"] = ""
+            form_data["parent_status"] = ""
+
+            form = DependantForm(
+                form_data,
+                request.FILES or None,
+                instance=dependant,
+            )
+
+        # ==================================================
+        # VALIDATION
+        # ==================================================
+
+        if form.is_valid():
+
+            dep = form.save(commit=False)
+
+            # --------------------------------------------------
+            # HISTORICAL NON-ALIVE PARENT
+            # --------------------------------------------------
+
+            if historical_non_alive_parent:
+
+                dep.relationship = original_relationship
+                dep.parent_type = original_parent_type
+                dep.parent_status = original_parent_status
+
+                # Preserve historical identity and location.
+                dep.first_name = dependant.first_name
+                dep.middle_name = dependant.middle_name
+                dep.surname = dependant.surname
+                dep.dob = dependant.dob
+
+                dep.country = dependant.country
+                dep.county = dependant.county
+                dep.sub_county_town = dependant.sub_county_town
+
+                # Preserve the existing lifecycle status.
+                dep.status = original_dependant_status
+
+            # --------------------------------------------------
+            # EXISTING ALIVE PARENT
+            # --------------------------------------------------
+
+            elif original_relationship == Dependant.TYPE_PARENT:
+
+                dep.relationship = original_relationship
+                dep.parent_type = original_parent_type
+                dep.parent_status = Member.PARENT_ALIVE
+
+                dep.status = "pending"
+
+            # --------------------------------------------------
+            # OTHER DEPENDANTS
+            # --------------------------------------------------
+
+            else:
+                dep.status = "pending"
+
+            # ==================================================
+            # DOCUMENT PREPARATION
+            # ==================================================
+
+            doc_file = form.cleaned_data.get("document_file")
+
+            doc_title = (
+                form.cleaned_data.get("document_title") or ""
+            ).strip()
+
+            processed_file = None
+            original_filename = None
+
+            if doc_file:
+
+                original_filename = doc_file.name
+
+                try:
+                    processed_file = prepare_document_file(
+                        uploaded_file=doc_file,
+                        member=member,
+                        document_title=(
+                            doc_title or "Dependant Document"
+                        ),
+                    )
+
+                except DocumentUploadValidationError as exc:
+                    messages.error(
+                        request,
+                        str(exc),
+                    )
+
+                    return render(
+                        request,
+                        "members/dependants/members_dependant_form.html",
+                        {
+                            "form": form,
+                            "member": member,
+                            "historical_non_alive_parent":
+                                historical_non_alive_parent,
+                        },
+                    )
+
+            # ==================================================
+            # SAVE
+            # ==================================================
+
+            with transaction.atomic():
+
+                dep.updated_at = timezone.now()
+                dep.save()
+
+                if processed_file:
+
+                    document = MemberDocument(
+                        member=member,
+                        dependant=dep,
+                        title=doc_title or "Dependant Document",
+                        file=processed_file,
+                        original_filename=original_filename,
+                    )
+
+                    document.full_clean()
+                    document.save()
+
+                    generate_document_thumbnail(document)
+
+            messages.success(
+                request,
+                "Dependant updated successfully.",
+            )
+
+            return redirect("members:dependants")
+
+    else:
+        form = DependantForm(
+            instance=dependant,
         )
 
-        return redirect(
-            "members:dependants"
-        )
+    # ======================================================
+    # GET OR INVALID POST
+    # ======================================================
 
     return render(
         request,
-        "members/dependants/members_dependants_form.html",
+        "members/dependants/members_dependant_form.html",
         {
             "form": form,
             "member": member,
-        }
+            "historical_non_alive_parent":
+                historical_non_alive_parent,
+        },
     )
 
 @login_required

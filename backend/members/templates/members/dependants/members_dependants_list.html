@@ -1,3 +1,4 @@
+
 {% extends "members/members_base.html" %}
 
 {% block content %}
@@ -5,12 +6,34 @@
 <div class="container mt-4">
 
     <!-- ====================================================== -->
-    <!-- PAGE TITLE -->
+    <!-- PAGE HEADER -->
     <!-- ====================================================== -->
 
-    <h2 class="mb-3 text-primary">
-        My Dependants
-    </h2>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+
+        <h2 class="mb-0 text-primary">
+            My Dependants
+        </h2>
+
+        {% if request.user.member.can_edit %}
+            <a href="{% url 'members:add_dependant' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Dependant
+            </a>
+        {% else %}
+            <div class="d-inline-block">
+                <button type="button"
+                        class="btn btn-secondary"
+                        disabled
+                        title="You do not have permission to add a dependant.">
+                    <i class="fas fa-lock"></i> Add Dependant
+                </button>
+                <small class="d-block text-muted mt-1">
+                    No permission to add a dependant. Please contact the administrator.
+                </small>
+            </div>
+        {% endif %}
+
+    </div>
 
 
     <!-- ====================================================== -->
@@ -23,64 +46,28 @@
             Your Dependants
         </div>
 
-
         <div class="card-body">
 
             {% if dependants %}
 
-                <!-- ================================================== -->
-                <!-- RESPONSIVE TABLE CONTAINER -->
-                <!-- ================================================== -->
-                <!--
-                    Keep this class consistent with the payment
-                    table implementation.
-
-                    mobile-ui.css converts the table into stacked
-                    cards on devices below 768px.
-                -->
-
                 <div class="payments-table-container">
 
-                    <table
-                        class="table table-striped table-bordered mobile-table mobile-table-responsive"
-                    >
+                    <table class="table table-striped table-bordered mobile-table mobile-table-responsive">
 
                         <thead class="table-light">
 
                             <tr>
-
-                                <th>
-                                    First Name
-                                </th>
-
-                                <th>
-                                    Middle Name
-                                </th>
-
-                                <th>
-                                    Surname
-                                </th>
-
-                                <th>
-                                    Relationship
-                                </th>
-
-                                <th>
-                                    DOB
-                                </th>
-
-                                <th>
-                                    Status
-                                </th>
-
-                                <th>
-                                    Added On
-                                </th>
-
+                                <th>First Name</th>
+                                <th>Middle Name</th>
+                                <th>Surname</th>
+                                <th>Relationship</th>
+                                <th>DOB</th>
+                                <th>Status</th>
+                                <th>Added On</th>
+                                <th>Action</th>
                             </tr>
 
                         </thead>
-
 
                         <tbody>
 
@@ -88,70 +75,69 @@
 
                                 <tr>
 
-                                    <!-- ================================= -->
-                                    <!-- FIRST NAME -->
-                                    <!-- ================================= -->
-
                                     <td data-label="First Name">
-                                        {{ dep.first_name }}
+                                        {{ dep.first_name|default:"—" }}
                                     </td>
-
-
-                                    <!-- ================================= -->
-                                    <!-- MIDDLE NAME -->
-                                    <!-- ================================= -->
 
                                     <td data-label="Middle Name">
                                         {{ dep.middle_name|default:"—" }}
                                     </td>
 
-
-                                    <!-- ================================= -->
-                                    <!-- SURNAME -->
-                                    <!-- ================================= -->
-
                                     <td data-label="Surname">
-                                        {{ dep.surname }}
+                                        {{ dep.surname|default:"—" }}
                                     </td>
-
-
-                                    <!-- ================================= -->
-                                    <!-- RELATIONSHIP -->
-                                    <!-- ================================= -->
 
                                     <td data-label="Relationship">
-                                        {{ dep.relationship }}
+                                        {{ dep.get_relationship_display|default:dep.relationship }}
                                     </td>
-
-
-                                    <!-- ================================= -->
-                                    <!-- DATE OF BIRTH -->
-                                    <!-- ================================= -->
 
                                     <td data-label="DOB">
-                                        {{ dep.dob|date:"d M Y" }}
+                                        {{ dep.dob|date:"d M Y"|default:"—" }}
                                     </td>
 
-
-                                    <!-- ================================= -->
-                                    <!-- STATUS -->
-                                    <!-- ================================= -->
-
                                     <td data-label="Status">
-
                                         <span class="badge bg-secondary">
                                             {{ dep.status|title }}
                                         </span>
-
                                     </td>
 
-
-                                    <!-- ================================= -->
-                                    <!-- ADDED ON -->
-                                    <!-- ================================= -->
-
                                     <td data-label="Added On">
-                                        {{ dep.created_at|date:"d M Y" }}
+                                        {{ dep.created_at|date:"d M Y"|default:"—" }}
+                                    </td>
+
+                                    <td>
+                                        {% if dep.updated_at %}
+                                            {{ dep.updated_at|date:"d M Y, H:i" }}
+                                        {% else %}
+                                            Never edited
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- ================================= -->
+                                    <!-- EDIT DEPENDANT ACTION -->
+                                    <!-- ================================= -->
+
+                                    <td data-label="Action">
+
+                                        {% if request.user.member.can_edit %}
+                                            <a href="{% url 'members:edit_dependant' dep.pk %}"
+                                            class="btn btn-sm btn-primary">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </a>
+                                        {% else %}
+                                            <div class="d-inline-block">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-secondary"
+                                                        disabled
+                                                        title="Editing is locked.">
+                                                    <i class="fas fa-lock"></i> Edit
+                                                </button>
+                                                <small class="d-block text-muted mt-1">
+                                                    Editing is locked. Please contact the administrator.
+                                                </small>
+                                            </div>
+                                        {% endif %}
+
                                     </td>
 
                                 </tr>
@@ -166,122 +152,25 @@
 
             {% else %}
 
-                <p class="text-muted mb-0">
-                    No dependants added yet.
-                </p>
+                <div class="text-center py-4">
 
-            {% endif %}
+                    <p class="text-muted mb-3">
+                        No dependants added yet.
+                    </p>
 
-        </div>
-
-    </div>
-
-
-    <!-- ====================================================== -->
-    <!-- ADD NEW DEPENDANT -->
-    <!-- ====================================================== -->
-
-    <div class="card mb-4 shadow-sm">
-
-        <div class="card-header bg-dark text-white">
-            Add New Dependant
-        </div>
-
-
-        <div class="card-body">
-
-            <form
-                method="POST"
-                novalidate
-            >
-
-                {% csrf_token %}
-
-
-                <!-- ============================================== -->
-                <!-- NAME FIELDS -->
-                <!-- ============================================== -->
-
-                <div class="row g-3 mb-3">
-
-                    <div class="col-12 col-md-4">
-
-                        {{ form.first_name.label_tag }}
-                        {{ form.first_name }}
-
-                    </div>
-
-
-                    <div class="col-12 col-md-4">
-
-                        {{ form.middle_name.label_tag }}
-                        {{ form.middle_name }}
-
-                    </div>
-
-
-                    <div class="col-12 col-md-4">
-
-                        {{ form.surname.label_tag }}
-                        {{ form.surname }}
-
-                    </div>
-
-                </div>
-
-
-                <!-- ============================================== -->
-                <!-- RELATIONSHIP / DOB / STATUS -->
-                <!-- ============================================== -->
-
-                <div class="row g-3 mb-3">
-
-                    <div class="col-12 col-md-4">
-
-                        {{ form.relationship.label_tag }}
-                        {{ form.relationship }}
-
-                    </div>
-
-
-                    <div class="col-12 col-md-4">
-
-                        {{ form.dob.label_tag }}
-                        {{ form.dob }}
-
-                    </div>
-
-
-                    <div class="col-12 col-md-4">
-
-                        {{ form.status.label_tag }}
-                        {{ form.status }}
-
-                    </div>
-
-                </div>
-
-
-                <!-- ============================================== -->
-                <!-- ADD DEPENDANT BUTTON -->
-                <!-- ============================================== -->
-
-                {% if request.user.member.can_edit %}
-
-                    <div class="d-grid d-sm-block">
-
+                    {% if request.user.member.can_edit %}
                         <a
                             href="{% url 'members:add_dependant' %}"
                             class="btn btn-primary"
                         >
-                            Add Dependant
+                            <i class="fas fa-plus me-1"></i>
+                            Add Your First Dependant
                         </a>
+                    {% endif %}
 
-                    </div>
+                </div>
 
-                {% endif %}
-
-            </form>
+            {% endif %}
 
         </div>
 

@@ -1,3 +1,4 @@
+
 {% extends "members/register/register_base.html" %}
 {% load static %}
 
@@ -108,26 +109,100 @@
 
         <div class="dependant-summary">
 
+            <!-- NAME -->
+
             <div class="summary-item">
 
                 <strong>Name:</strong>
 
-                {{ d.first_name }}
-                {{ d.middle_name }}
-                {{ d.surname }}
+                {% if d.first_name or d.middle_name or d.surname %}
+
+                    {{ d.first_name }}
+                    {{ d.middle_name }}
+                    {{ d.surname }}
+
+                {% elif d.relationship == "PARENT" %}
+
+                    <span class="text-muted">
+                        Not collected
+                    </span>
+
+                {% else %}
+
+                    <span class="text-muted">
+                        Not provided
+                    </span>
+
+                {% endif %}
 
             </div>
+
+            <!-- RELATIONSHIP -->
 
             <div class="summary-item">
+
                 <strong>Relationship:</strong>
-                {{ d.relationship }}
+
+                {{ d.relationship|title }}
+
             </div>
+
+            <!-- PARENT DETAILS -->
+
+            {% if d.relationship == "PARENT" %}
+
+                <div class="summary-item">
+
+                    <strong>Parent Type:</strong>
+
+                    {% if d.parent_type == "MOTHER" %}
+                        Mother
+                    {% elif d.parent_type == "FATHER" %}
+                        Father
+                    {% else %}
+                        Not specified
+                    {% endif %}
+
+                </div>
+
+                <div class="summary-item">
+
+                    <strong>Parent Status:</strong>
+
+                    {% if d.parent_status == "ALIVE" %}
+                        <span class="text-success">
+                            Alive
+                        </span>
+                    {% elif d.parent_status == "DECEASED" %}
+                        <span class="text-muted">
+                            Deceased
+                        </span>
+                    {% elif d.parent_status == "UNKNOWN" %}
+                        <span class="text-muted">
+                            Unknown
+                        </span>
+                    {% else %}
+                        <span class="text-danger">
+                            Not recorded
+                        </span>
+                    {% endif %}
+
+                </div>
+
+            {% endif %}
+
+            <!-- DATE OF BIRTH -->
 
             {% if d.dob %}
-            <div class="summary-item">
-                <strong>Date of Birth:</strong>
-                {{ d.dob }}
-            </div>
+
+                <div class="summary-item">
+
+                    <strong>Date of Birth:</strong>
+
+                    {{ d.dob|date:"Y-m-d" }}
+
+                </div>
+
             {% endif %}
 
         </div>
@@ -167,7 +242,22 @@
 
         <div class="col-12 col-md-6">
 
-            <button class="btn btn-success w-100">
+            <button
+                type="submit"
+                name="save_draft"
+                value="1"
+                class="btn btn-outline-secondary w-100 mb-2"
+                formnovalidate
+            >
+
+                Save draft and email me a resume link
+
+            </button>
+
+            <button
+                type="submit"
+                class="btn btn-success w-100"
+            >
 
                 Finish Registration
 

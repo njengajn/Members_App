@@ -87,6 +87,16 @@ class Member(models.Model):
         (MARITAL_SEPARATED, "Separated"),
     ]
 
+    PARENT_ALIVE = "ALIVE"
+    PARENT_DECEASED = "DECEASED"
+    PARENT_UNKNOWN = "UNKNOWN"
+
+    PARENT_STATUS_CHOICES = [
+        (PARENT_ALIVE, "Alive"),
+        (PARENT_DECEASED, "Deceased"),
+        (PARENT_UNKNOWN, "Unknown"),
+    ]
+
     # -----------------------------
     # ORGANIZATION
     # -----------------------------
@@ -101,13 +111,7 @@ class Member(models.Model):
     # -----------------------------
     # UID
     # -----------------------------
-    member_uid = models.CharField(
-        max_length=20,
-        unique=True,
-        blank=True,
-        null=True,
-        editable=False
-    )
+    member_uid = models.CharField(max_length=20,unique=True, blank=True, null=True, editable=False)
 
     # Prevent UID being regenerated
     uid_assigned = models.BooleanField(default=False)
@@ -123,6 +127,8 @@ class Member(models.Model):
     email = models.EmailField(unique=True,  blank=True, null=True,help_text="Automatically synchronised with related User email.")
     address = models.ForeignKey("Address", on_delete=models.SET_NULL, null=True, blank=True, related_name="members")
     marital_status = models.CharField(max_length=16, choices=MARITAL_STATUS_CHOICES, blank=True,)
+    mother_status = models.CharField(max_length=16, choices=PARENT_STATUS_CHOICES, blank=True, default="",)
+    father_status = models.CharField(max_length=16, choices=PARENT_STATUS_CHOICES, blank=True, default="",)
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
     applied_at = models.DateTimeField(auto_now_add=True,db_index=True,help_text="Date the application was submitted.")
     joined_at = models.DateTimeField(null=True, blank=True, db_index=True, help_text="Date membership was activated.")
@@ -754,6 +760,13 @@ class Dependant(models.Model):
 
     created_at = models.DateTimeField(
         auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Date and time the dependant was last edited."
     )
 
     def full_name(self):
