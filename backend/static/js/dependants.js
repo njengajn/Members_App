@@ -3,14 +3,14 @@
 REGISTRATION STEP 4 – DEPENDANTS
 =====================================================================
 
-Complete Step 4 JavaScript.
+Parent eligibility is determined by the statuses captured in Step 2.
+The statuses are deliberately not displayed on Step 4.
 
-Parent status is captured once in Step 2.
-This file never asks the user to select parent status again.
-The selected Mother/Father determines which Step 2 status applies.
+Only Mother/Father recorded as ALIVE are offered as parent choices.
+If a parent is not eligible, their identity/location fields are never
+shown or enabled.
 
-The server remains authoritative and validates/sanitises all submitted
-values. This JavaScript only controls the user interface.
+The server must independently validate every submitted value.
 =====================================================================
 */
 
@@ -18,109 +18,141 @@ values. This JavaScript only controls the user interface.
     "use strict";
 
     document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("registerStep4");
         const addButton = document.getElementById("addDepBtn");
         const container = document.getElementById("dependantsList");
         const indexesInput = document.getElementById("dependantIndexes");
         const cachedElement = document.getElementById("cachedDependants");
-        const form = document.getElementById("registerStep4");
 
-        if (!addButton || !container || !indexesInput || !form) {
+        if (!form || !addButton || !container || !indexesInput) {
             return;
         }
 
         const maritalStatus = String(
             form.dataset.maritalStatus || ""
-        ).toUpperCase();
+        ).trim().toUpperCase();
 
-        const isMarried = maritalStatus === String(
+        const marriedValue = String(
             form.dataset.marriedValue || "MARRIED"
-        ).toUpperCase();
+        ).trim().toUpperCase();
 
+        const isMarried = maritalStatus === marriedValue;
+
+        // Parent statuses are read silently from Step 2 data attributes.
         const parentStatuses = {
-            MOTHER: String(form.dataset.motherStatus || "").toUpperCase(),
-            FATHER: String(form.dataset.fatherStatus || "").toUpperCase()
+            MOTHER: String(form.dataset.motherStatus || "").trim().toUpperCase(),
+            FATHER: String(form.dataset.fatherStatus || "").trim().toUpperCase()
         };
 
-        let cachedDependants = [];
-        let nextIndex = 1;
-
-        if (cachedElement) {
-            try {
-                cachedDependants = JSON.parse(
-                    cachedElement.textContent
-                ) || [];
-            } catch (error) {
-                console.error(
-                    "Unable to restore cached dependant data.",
-                    error
-                );
-            }
+        function availableParentTypes() {
+            return ["MOTHER", "FATHER"].filter(function (type) {
+                return parentStatuses[type] === "ALIVE";
+            });
         }
 
         function escapeHtml(value) {
-            return String(value || "")
+            return String(value == null ? "" : value)
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;")
-                .replace(/\"/g, "&quot;")
+                .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
         }
 
-        function updateIndexes() {
-            const indexes = [];
+        function readCachedDependants() {
+            if (!cachedElement) {
+                return [];
+            }
 
-            container.querySelectorAll(
-                ".dependant-item"
-            ).forEach(function (card) {
-                if (card.dataset.dependantIndex) {
-                    indexes.push(card.dataset.dependantIndex);
+            try {
+                const parsed = JSON.parse(cachedElement.textContent || "[]");
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                console.error("Unable to read saved dependant information.", error);
+                return [];
+            }
+        }
+
+        /*
+         * Important restoration rule:
+         * Do not filter a spouse merely because a status/field is missing
+         * from the cached object. The registration session is the source
+         * of the cached records. The server validates the marital rule.
+         *
+         * Only stale/ineligible parent entries are excluded because Step 4
+         * must not create Deceased/Unknown parent dependant records.
+         */
+        function normaliseCachedDependants(items) {
+            return items.filter(function (item) {
+                if (!item || typeof item !== "object") {
+                    return false;
                 }
+
+                const relationship = String(
+                    item.relationship || item.relation || ""
+                ).trim().toUpperCase();
+
+                if (!["CHILD", "SPOUSE", "SIBLING", "PARENT"].includes(relationship)) {
+                    return false;
+                }
+
+                if (relationship === "PARENT") {
+                    const parentType = String(
+                        item.parent_type || ""
+                    ).trim().toUpperCase();
+
+                    return availableParentTypes().includes(parentType);
+                }
+
+                // Preserve spouse/child/sibling entries exactly as cached.
+                return true;
+            }).map(function (item) {
+                // Normalise legacy key spelling without losing any field values.
+                return {
+                    ...item,
+                    relationship: String(
+                        item.relationship || item.relation || ""
+                    ).trim().toUpperCase()
+                };
             });
+        }
+
+        let nextIndex = 1;
+
+        function cards() {
+            return Array.from(
+                container.querySelectorAll(".dependant-item")
+            );
+        }
+
+        function updateIndexes() {
+            const indexes = cards().map(function (card) {
+                return card.dataset.dependantIndex;
+            }).filter(Boolean);
 
             indexesInput.value = indexes.join(",");
         }
 
         function updateNumbers() {
-            container.querySelectorAll(
-                ".dependant-item"
-            ).forEach(function (card, position) {
-                const number = card.querySelector(
-                    ".dependant-number"
-                );
-
+            cards().forEach(function (card, position) {
+                const number = card.querySelector(".dependant-number");
                 if (number) {
                     number.textContent = "Dependant " + (position + 1);
                 }
             });
         }
 
-        function setIdentityState(card, required) {
-            const first = card.querySelector(
-                ".dependant-first-name"
-            );
-            const surname = card.querySelector(
-                ".dependant-surname"
-            );
-            const dob = card.querySelector(
-                ".dependant-dob"
-            );
-
-            [first, surname, dob].forEach(function (field) {
+        function setRequired(card, selectors, required) {
+            selectors.forEach(function (selector) {
+                const field = card.querySelector(selector);
                 if (field) {
                     field.required = required;
                 }
             });
         }
 
-        function clearIdentity(card) {
-            const fields = [
-                ".dependant-first-name",
-                ".dependant-middle-name",
-                ".dependant-surname",
-                ".dependant-dob"
-            ];
-
-            fields.forEach(function (selector) {
+        function clearFields(card, selectors) {
+            selectors.forEach(function (selector) {
                 const field = card.querySelector(selector);
                 if (field) {
                     field.value = "";
@@ -128,253 +160,229 @@ values. This JavaScript only controls the user interface.
             });
         }
 
-        function clearLocation(card) {
-            const fields = [
-                ".dependant-country",
-                ".dependant-county",
-                ".dependant-sub-county-town"
-            ];
+        const identitySelectors = [
+            ".dependant-first-name",
+            ".dependant-surname",
+            ".dependant-dob"
+        ];
 
-            fields.forEach(function (selector) {
-                const field = card.querySelector(selector);
-                if (field) {
-                    field.value = "";
-                    field.required = false;
-                }
-            });
-        }
+        const locationSelectors = [
+            ".dependant-country",
+            ".dependant-county",
+            ".dependant-sub-county-town"
+        ];
 
-        function setLocation(card, visible, required) {
-            const wrapper = card.querySelector(
-                ".dependant-location-fields"
-            );
-
-            const fields = [
-                ".dependant-country",
-                ".dependant-county",
-                ".dependant-sub-county-town"
-            ];
-
+        function showLocation(card, visible, required) {
+            const wrapper = card.querySelector(".dependant-location-fields");
             if (wrapper) {
                 wrapper.classList.toggle("d-none", !visible);
             }
+            setRequired(card, locationSelectors, required);
+        }
 
-            fields.forEach(function (selector) {
-                const field = card.querySelector(selector);
-                if (field) {
-                    field.required = required;
+        function parentFields(card) {
+            return card.querySelector(".dependant-parent-fields");
+        }
+
+        function configureParentOptions(card) {
+            const select = card.querySelector(".dependant-parent-type");
+            if (!select) {
+                return;
+            }
+
+            const allowed = availableParentTypes();
+            const current = String(select.value || "").toUpperCase();
+
+            // Keep only parent choices that Step 2 marked Alive.
+            Array.from(select.options).forEach(function (option) {
+                if (!option.value) {
+                    return;
                 }
+                option.disabled = !allowed.includes(option.value.toUpperCase());
             });
-        }
 
-        function getParentStatus(card) {
-            const parentType = card.querySelector(
-                ".dependant-parent-type"
-            );
-
-            if (!parentType) {
-                return "";
+            if (current && !allowed.includes(current)) {
+                select.value = "";
             }
 
-            return parentStatuses[
-                String(parentType.value || "").toUpperCase()
-            ] || "";
+            // New cards are generated with only allowed options.
         }
 
-        function updateParentStatusDisplay(card) {
-            const parentType = card.querySelector(
-                ".dependant-parent-type"
-            );
-            const display = card.querySelector(
-                ".dependant-parent-status-display"
-            );
+        function updateCard(card) {
+            const relationship = card.querySelector(".dependant-relationship");
+            const parentWrapper = parentFields(card);
+            const parentType = card.querySelector(".dependant-parent-type");
 
-            if (!display) {
+            if (!relationship || !parentWrapper) {
                 return;
             }
 
-            const type = String(
-                parentType ? parentType.value : ""
-            ).toUpperCase();
+            const relation = String(relationship.value || "").toUpperCase();
 
-            const status = parentStatuses[type] || "";
-
-            const labels = {
-                ALIVE: "Alive",
-                DECEASED: "Deceased",
-                UNKNOWN: "Unknown"
-            };
-
-            if (!type) {
-                display.textContent =
-                    "Select Mother or Father to see the status captured in Step 2.";
-                return;
-            }
-
-            display.textContent =
-                labels[status] ||
-                "Parent status is missing. Return to Step 2.";
-        }
-
-        function updateConditionalFields(card) {
-            const relationship = card.querySelector(
-                ".dependant-relationship"
-            );
-            const parentFields = card.querySelector(
-                ".dependant-parent-fields"
-            );
-            const parentType = card.querySelector(
-                ".dependant-parent-type"
-            );
-
-            if (!relationship || !parentFields) {
-                return;
-            }
-
-            const relationshipValue = String(
-                relationship.value || ""
-            ).toUpperCase();
-
-            parentFields.classList.add("d-none");
-
+            // Default state: identity required, location and parent controls hidden.
+            parentWrapper.classList.add("d-none");
             if (parentType) {
                 parentType.required = false;
             }
 
-            setIdentityState(card, true);
-            setLocation(card, false, false);
+            setRequired(card, identitySelectors, true);
+            showLocation(card, false, false);
 
-            if (relationshipValue === "CHILD") {
-                clearLocation(card);
+            if (relation === "CHILD") {
+                clearFields(card, locationSelectors);
                 return;
             }
 
-            if (relationshipValue === "SPOUSE") {
+            if (relation === "SPOUSE") {
                 if (!isMarried) {
                     relationship.value = "";
-                    clearLocation(card);
+                    clearFields(card, locationSelectors);
                     return;
                 }
 
-                setLocation(card, true, true);
+                showLocation(card, true, true);
                 return;
             }
 
-            if (relationshipValue === "SIBLING") {
-                setLocation(card, true, true);
+            if (relation === "SIBLING") {
+                showLocation(card, true, true);
                 return;
             }
 
-            if (relationshipValue === "PARENT") {
-                parentFields.classList.remove("d-none");
+            if (relation === "PARENT") {
+                const allowed = availableParentTypes();
+
+                if (!allowed.length) {
+                    relationship.value = "";
+                    parentWrapper.classList.add("d-none");
+                    setRequired(card, identitySelectors, false);
+                    clearFields(card, identitySelectors.concat(locationSelectors));
+                    return;
+                }
+
+                parentWrapper.classList.remove("d-none");
 
                 if (parentType) {
                     parentType.required = true;
+                    configureParentOptions(card);
                 }
 
-                updateParentStatusDisplay(card);
+                const selectedType = String(
+                    parentType ? parentType.value : ""
+                ).toUpperCase();
 
-                const status = getParentStatus(card);
-
-                if (status === "UNKNOWN") {
-                    clearIdentity(card);
-                    clearLocation(card);
-                    setIdentityState(card, false);
+                // Never expose identity/location fields for an ineligible parent.
+                if (!allowed.includes(selectedType)) {
+                    setRequired(card, identitySelectors, false);
+                    showLocation(card, false, false);
+                    clearFields(card, identitySelectors.concat(locationSelectors));
                     return;
                 }
 
-                if (status === "ALIVE") {
-                    setIdentityState(card, true);
-                    setLocation(card, true, true);
-                    return;
-                }
-
-                if (status === "DECEASED") {
-                    setIdentityState(card, true);
-                    clearLocation(card);
-                    setLocation(card, false, false);
-                    return;
-                }
-
-                setIdentityState(card, true);
-                clearLocation(card);
+                // An eligible Alive parent requires full identity and location.
+                setRequired(card, identitySelectors, true);
+                showLocation(card, true, true);
                 return;
             }
 
-            clearLocation(card);
+            // No relationship selected.
+            setRequired(card, identitySelectors, false);
+            showLocation(card, false, false);
         }
 
-        function applyRelationshipLimits() {
-            const relationshipSelects = container.querySelectorAll(
-                ".dependant-relationship"
-            );
+        function selectedRelationshipCount(value) {
+            return cards().filter(function (card) {
+                const select = card.querySelector(".dependant-relationship");
+                return select &&
+                    String(select.value || "").toUpperCase() === value;
+            }).length;
+        }
 
-            let spouseCount = 0;
-            let parentCount = 0;
+        function applyLimits() {
+            const spouseCount = selectedRelationshipCount("SPOUSE");
+            const parentCount = selectedRelationshipCount("PARENT");
 
-            relationshipSelects.forEach(function (select) {
-                const value = String(
-                    select.value || ""
-                ).toUpperCase();
+            cards().forEach(function (card) {
+                const relationship = card.querySelector(".dependant-relationship");
+                const parentType = card.querySelector(".dependant-parent-type");
 
-                if (value === "SPOUSE") {
-                    spouseCount += 1;
+                if (relationship) {
+                    const spouseOption = relationship.querySelector('option[value="SPOUSE"]');
+                    const parentOption = relationship.querySelector('option[value="PARENT"]');
+
+                    if (spouseOption) {
+                        spouseOption.disabled = (
+                            !isMarried ||
+                            (spouseCount >= 1 && relationship.value !== "SPOUSE")
+                        );
+                    }
+
+                    if (parentOption) {
+                        parentOption.disabled = (
+                            availableParentTypes().length === 0 ||
+                            (parentCount >= 2 && relationship.value !== "PARENT")
+                        );
+                    }
                 }
 
-                if (value === "PARENT") {
-                    parentCount += 1;
+                if (
+                    !relationship ||
+                    !parentType ||
+                    String(relationship.value || "").toUpperCase() !== "PARENT"
+                ) {
+                    return;
                 }
-            });
 
-            relationshipSelects.forEach(function (select) {
-                const spouse = select.querySelector(
-                    'option[value="SPOUSE"]'
-                );
-                const parent = select.querySelector(
-                    'option[value="PARENT"]'
-                );
+                const currentType = String(parentType.value || "").toUpperCase();
 
-                if (spouse) {
-                    spouse.disabled = (
-                        !isMarried ||
-                        (
-                            spouseCount >= 1 &&
-                            select.value !== "SPOUSE"
-                        )
+                Array.from(parentType.options).forEach(function (option) {
+                    if (!option.value) {
+                        return;
+                    }
+
+                    const type = option.value.toUpperCase();
+                    const usedByAnotherCard = cards().some(function (otherCard) {
+                        if (otherCard === card) {
+                            return false;
+                        }
+
+                        const otherRelationship = otherCard.querySelector(
+                            ".dependant-relationship"
+                        );
+                        const otherParentType = otherCard.querySelector(
+                            ".dependant-parent-type"
+                        );
+
+                        return otherRelationship &&
+                            otherParentType &&
+                            String(otherRelationship.value || "").toUpperCase() === "PARENT" &&
+                            String(otherParentType.value || "").toUpperCase() === type;
+                    });
+
+                    option.disabled = (
+                        !availableParentTypes().includes(type) ||
+                        (usedByAnotherCard && type !== currentType)
                     );
-                }
-
-                if (parent) {
-                    parent.disabled = (
-                        parentCount >= 2 &&
-                        select.value !== "PARENT"
-                    );
-                }
+                });
             });
         }
 
         function bindCard(card) {
-            const relationship = card.querySelector(
-                ".dependant-relationship"
-            );
-            const parentType = card.querySelector(
-                ".dependant-parent-type"
-            );
-            const removeButton = card.querySelector(
-                ".remove-dep"
-            );
+            const relationship = card.querySelector(".dependant-relationship");
+            const parentType = card.querySelector(".dependant-parent-type");
+            const removeButton = card.querySelector(".remove-dep");
 
             if (relationship) {
                 relationship.addEventListener("change", function () {
-                    updateConditionalFields(card);
-                    applyRelationshipLimits();
+                    updateCard(card);
+                    applyLimits();
                 });
             }
 
             if (parentType) {
                 parentType.addEventListener("change", function () {
-                    updateParentStatusDisplay(card);
-                    updateConditionalFields(card);
+                    updateCard(card);
+                    applyLimits();
                 });
             }
 
@@ -383,35 +391,44 @@ values. This JavaScript only controls the user interface.
                     card.remove();
                     updateIndexes();
                     updateNumbers();
-                    applyRelationshipLimits();
+                    applyLimits();
                 });
             }
 
-            updateConditionalFields(card);
+            updateCard(card);
         }
 
-        function createCard(data, forcedIndex) {
-            const index = forcedIndex || String(nextIndex++);
-            const numericIndex = parseInt(index, 10);
-
-            if (
-                !Number.isNaN(numericIndex) &&
-                numericIndex >= nextIndex
-            ) {
-                nextIndex = numericIndex + 1;
-            }
-
-            const card = document.createElement("div");
-            card.className = "dependant-item dependant-card";
-            card.dataset.dependantIndex = index;
-
+        function createCard(data, index) {
             const relationship = String(
-                data.relationship || ""
+                data.relationship || data.relation || ""
             ).toUpperCase();
 
             const parentType = String(
                 data.parent_type || ""
             ).toUpperCase();
+
+            const allowedParents = availableParentTypes();
+
+            const parentOptions = allowedParents.map(function (type) {
+                const label = type === "MOTHER" ? "Mother" : "Father";
+                return `
+                    <option value="${type}" ${parentType === type ? "selected" : ""}>
+                        ${label}
+                    </option>
+                `;
+            }).join("");
+
+            const spouseOption = isMarried
+                ? `<option value="SPOUSE" ${relationship === "SPOUSE" ? "selected" : ""}>Spouse</option>`
+                : "";
+
+            const parentRelationshipOption = allowedParents.length
+                ? `<option value="PARENT" ${relationship === "PARENT" ? "selected" : ""}>Parent</option>`
+                : "";
+
+            const card = document.createElement("div");
+            card.className = "dependant-item dependant-card";
+            card.dataset.dependantIndex = String(index);
 
             card.innerHTML = `
                 <div class="dependant-header">
@@ -426,7 +443,6 @@ values. This JavaScript only controls the user interface.
                             class="form-control dependant-first-name"
                             placeholder="Enter first name"
                             value="${escapeHtml(data.first_name || "")}"
-                            required
                         >
                     </div>
 
@@ -447,7 +463,6 @@ values. This JavaScript only controls the user interface.
                             class="form-control dependant-surname"
                             placeholder="Enter surname"
                             value="${escapeHtml(data.surname || "")}"
-                            required
                         >
                     </div>
                 </div>
@@ -460,7 +475,6 @@ values. This JavaScript only controls the user interface.
                             name="dep_${index}_dob"
                             class="form-control dependant-dob"
                             value="${escapeHtml(data.dob || "")}"
-                            required
                         >
                     </div>
 
@@ -473,9 +487,9 @@ values. This JavaScript only controls the user interface.
                         >
                             <option value="">Select relationship</option>
                             <option value="CHILD" ${relationship === "CHILD" ? "selected" : ""}>Child</option>
-                            ${isMarried ? `<option value="SPOUSE" ${relationship === "SPOUSE" ? "selected" : ""}>Spouse</option>` : ""}
+                            ${spouseOption}
                             <option value="SIBLING" ${relationship === "SIBLING" ? "selected" : ""}>Sibling</option>
-                            <option value="PARENT" ${relationship === "PARENT" ? "selected" : ""}>Parent</option>
+                            ${parentRelationshipOption}
                         </select>
                     </div>
                 </div>
@@ -488,18 +502,10 @@ values. This JavaScript only controls the user interface.
                             class="form-select dependant-parent-type"
                         >
                             <option value="">Select parent type</option>
-                            <option value="MOTHER" ${parentType === "MOTHER" ? "selected" : ""}>Mother</option>
-                            <option value="FATHER" ${parentType === "FATHER" ? "selected" : ""}>Father</option>
+                            ${parentOptions}
                         </select>
-                    </div>
-
-                    <div class="col-12 col-md-6">
-                        <label class="form-label">Parent Status</label>
-                        <div
-                            class="form-control bg-light dependant-parent-status-display"
-                            aria-live="polite"
-                        >
-                            Select Mother or Father to see the status captured in Step 2.
+                        <div class="form-text dependant-parent-warning d-none" role="alert">
+                            Only a parent recorded as Alive can be added here.
                         </div>
                     </div>
                 </div>
@@ -546,43 +552,103 @@ values. This JavaScript only controls the user interface.
 
             container.appendChild(card);
             bindCard(card);
-            updateIndexes();
-            updateNumbers();
-            applyRelationshipLimits();
         }
 
-        addButton.addEventListener("click", function () {
-            createCard({}, String(nextIndex++));
+        // ---------------------------------------------------------
+        // RESTORE OR CREATE CARDS
+        // ---------------------------------------------------------
+
+        const cached = normaliseCachedDependants(readCachedDependants());
+
+        // Remove the static blank template card before restoring the
+        // saved collection. This prevents it from being submitted as an
+        // additional dependant alongside the restored records.
+        cards().forEach(function (card) {
+            card.remove();
         });
 
-        /*
-         * Preserve the server-rendered first card when there is no cache.
-         * When cached data exists, replace the blank first card with the
-         * exact cached dependant collection.
-         */
-        const initialCards = Array.from(
-            container.querySelectorAll(".dependant-item")
-        );
-
-        if (cachedDependants.length > 0) {
-            initialCards.forEach(function (card) {
-                card.remove();
+        if (cached.length) {
+            /*
+             * Use a deterministic index derived from the array position.
+             * Do not increment a shared counter both outside and inside
+             * createCard(). Each saved object maps to exactly one form card.
+             */
+            cached.forEach(function (item, position) {
+                createCard(item, position + 1);
             });
 
-            cachedDependants.forEach(function (data) {
-                createCard(
-                    data,
-                    String(nextIndex++)
-                );
-            });
+            nextIndex = cached.length + 1;
         } else {
-            initialCards.forEach(function (card) {
-                bindCard(card);
-            });
+            // A clean registration starts with one blank dependant card.
+            createCard({}, 1);
+            nextIndex = 2;
         }
 
-        updateIndexes();
-        updateNumbers();
-        applyRelationshipLimits();
+        function refreshFormState() {
+            cards().forEach(updateCard);
+            applyLimits();
+            updateIndexes();
+            updateNumbers();
+        }
+
+        refreshFormState();
+
+        // Add a new card with a unique, sequential field index.
+        addButton.addEventListener("click", function () {
+            createCard({}, nextIndex);
+            nextIndex += 1;
+            refreshFormState();
+        });
+
+        // ---------------------------------------------------------
+        // CLIENT-SIDE SUBMISSION GUARD
+        // ---------------------------------------------------------
+
+        form.addEventListener("submit", function (event) {
+            const currentCards = cards();
+
+            const spouseCount = selectedRelationshipCount("SPOUSE");
+            const parentCards = currentCards.filter(function (card) {
+                const relation = card.querySelector(".dependant-relationship");
+                return relation &&
+                    String(relation.value || "").toUpperCase() === "PARENT";
+            });
+
+            const selectedParents = parentCards.map(function (card) {
+                const field = card.querySelector(".dependant-parent-type");
+                return field ? String(field.value || "").toUpperCase() : "";
+            });
+
+            const duplicateParent = selectedParents.some(function (type, index) {
+                return type && selectedParents.indexOf(type) !== index;
+            });
+
+            const invalidParent = selectedParents.some(function (type) {
+                return !availableParentTypes().includes(type);
+            });
+
+            const invalidSpouse = (
+                (!isMarried && spouseCount > 0) ||
+                (isMarried && spouseCount > 1)
+            );
+
+            if (
+                invalidSpouse ||
+                parentCards.length > 2 ||
+                duplicateParent ||
+                invalidParent ||
+                selectedParents.some(function (type) { return !type; })
+            ) {
+                event.preventDefault();
+
+                window.alert(
+                    "Please check the dependant details. A spouse can only be registered once when Married. Each Alive parent can only be registered once."
+                );
+                return;
+            }
+
+            // Always synchronise the indexes immediately before submit.
+            updateIndexes();
+        });
     });
 })();
