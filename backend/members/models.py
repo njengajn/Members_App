@@ -1364,7 +1364,7 @@ class PaymentRequest(models.Model):
         MEMBER-SPECIFIC overdue (CRITICAL FIX)
         """
 
-        # 🚫 NEVER overdue if already paid
+        # NEVER overdue if already paid
         if self.member_payment_status(member) == "paid":
             return False
 

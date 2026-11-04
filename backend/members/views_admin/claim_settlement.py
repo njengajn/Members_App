@@ -860,26 +860,46 @@ def export_claim_pdf(request, settlement_id):
 
     # -----------------------------------------------------
     # ADMINISTRATOR FULL NAMES
+    # Use the associated Member record where available.
     # -----------------------------------------------------
 
     prepared_by_user = settlement.prepared_by
     approved_by_user = settlement.approved_by
 
-    if prepared_by_user:
-        prepared_by = (
-            prepared_by_user.get_full_name().strip()
-            or prepared_by_user.get_username()
-        )
-    else:
-        prepared_by = "Pending"
 
-    if approved_by_user:
-        approved_by = (
-            approved_by_user.get_full_name().strip()
-            or approved_by_user.get_username()
-        )
-    else:
-        approved_by = "Pending"
+    def get_administrator_full_name(user):
+        """
+        Retrieve the administrator's full name from their
+        associated Member record.
+
+        Fall back to the Django User name if no Member record
+        is associated with the administrator.
+        """
+
+        if not user:
+            return "Pending"
+
+        # Retrieve the associated Member record.
+        member = getattr(user, "member", None)
+
+        if member:
+            full_name = member.full_name.strip()
+
+            if full_name:
+                return full_name
+
+        # Fallback if the administrator has no Member record.
+        full_name = user.get_full_name().strip()
+
+        if full_name:
+            return full_name
+
+        return user.get_username()
+
+
+    prepared_by = get_administrator_full_name(prepared_by_user)
+
+    approved_by = get_administrator_full_name(approved_by_user)
 
     # -----------------------------------------------------
     # RECONCILIATION / APPROVAL STATUS

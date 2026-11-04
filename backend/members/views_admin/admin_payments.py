@@ -3180,40 +3180,37 @@ def export_payment_request_pdf(request, pk):
             )
         )
 
-        prepared_by = (
+        def get_member_full_name(user):
+            if not user:
+                return "-"
+
+            member = getattr(user, "member", None)
+
+            if member:
+                return member.full_name
+
+            return user.get_full_name().strip() or user.get_username()
+
+
+        prepared_by = get_member_full_name(
             settlement.prepared_by
-            if settlement.prepared_by
-            else "-"
         )
 
         approved_by = (
-            settlement.approved_by
+            get_member_full_name(settlement.approved_by)
             if settlement.approved_by
             else "Pending"
         )
 
         # -------------------------------------------------
         # FORMAT SETTLEMENT DATE
-        #
-        # Keep the date as YYYY-MM-DD.
-        # Show hour and minutes only.
-        #
-        # Example:
-        # 2026-05-07 00:31:23.176159+00:00
-        # becomes:
-        # 2026-05-07 00:31
         # -------------------------------------------------
 
         if settlement.settlement_date:
-
-            settlement_date = (
-                settlement.settlement_date.strftime(
-                    "%d/%m/%Y %H:%M"
-                )
+            settlement_date = settlement.settlement_date.strftime(
+                "%d/%m/%Y %H:%M"
             )
-
         else:
-
             settlement_date = "-"
 
         approval_status = (
@@ -3223,26 +3220,10 @@ def export_payment_request_pdf(request, pk):
         )
 
         authorisation_data = [
-
-            [
-                "Prepared By",
-                str(prepared_by)
-            ],
-
-            [
-                "Approved By",
-                str(approved_by)
-            ],
-
-            [
-                "Settlement Date",
-                settlement_date
-            ],
-
-            [
-                "Status",
-                approval_status
-            ],
+            ["Prepared By", prepared_by],
+            ["Approved By", approved_by],
+            ["Settlement Date", settlement_date],
+            ["Status", approval_status],
         ]
 
         authorisation_table = Table(
