@@ -141,11 +141,13 @@ def process_reconciled_payment_request(
     """
     from django.utils import timezone
 
+    # Lock only the PaymentRequest row.
+    # Do not join nullable member/claim relationships in this
+    # select_for_update() query on PostgreSQL.
     payment_request = (
         PaymentRequest.objects
         .select_for_update()
-        .select_related("member", "claim")
-        .get(pk=request_id)
+        .get(id=request_id)
     )
 
     # A request must be closed before any retirement processing.
