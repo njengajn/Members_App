@@ -57,7 +57,6 @@ def process_payment_lifecycle(
             PaymentRequest.objects
             .select_for_update()
             .filter(id=request_id)
-            .select_related("member", "claim")
         )
     else:
         # Preserve the existing bulk behaviour for callers that
@@ -69,7 +68,6 @@ def process_payment_lifecycle(
                 due_date__lt=now,
                 status=PaymentRequest.STATUS_ACTIVE,
             )
-            .select_related("member", "claim")
         )
 
     for payment_request in requests:
