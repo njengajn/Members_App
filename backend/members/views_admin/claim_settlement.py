@@ -149,12 +149,11 @@ def reconcile_claim(request, request_id):
     8. Unpaid outcomes are saved for historical reporting.
     """
 
-    # Lock and load only the requested payment request.
+    # Lock only the PaymentRequest row.
+    # Do not use select_related() with nullable relationships
+    # in a select_for_update() query on PostgreSQL.
     payment_request = get_object_or_404(
-        PaymentRequest.objects.select_for_update().select_related(
-            "member",
-            "claim",
-        ).prefetch_related(
+        PaymentRequest.objects.select_for_update().prefetch_related(
             "selected_members",
             "paid_members",
             "targeted_members",
