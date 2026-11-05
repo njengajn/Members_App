@@ -14,4 +14,8 @@ COPY . .
 CMD sh -c "python manage.py migrate && \
     python manage.py collectstatic --noinput && \
     exec gunicorn backend.core.wsgi:application \
-    --bind 0.0.0.0:${PORT:-8080}"
+    --bind 0.0.0.0:${PORT:-8080} \
+    --access-logfile - \
+    --error-logfile - \
+    --capture-output \
+    --log-level info

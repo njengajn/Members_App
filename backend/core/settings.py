@@ -353,3 +353,42 @@ PAYMENTS_PORTAL_URL = os.getenv(
     "PAYMENTS_PORTAL_URL",
     f"{MEMBER_PORTAL_URL}/payments",
 ).rstrip("/")
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "formatters": {
+        "standard": {
+            "format": (
+                "{levelname} {asctime} "
+                "{name} {message}"
+            ),
+            "style": "{",
+        },
+    },
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+    },
+
+    "loggers": {
+        # Django application errors, including HTTP 500 exceptions.
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+
+        # Django operational warnings and errors.
+        "django": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
