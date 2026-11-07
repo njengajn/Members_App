@@ -43,6 +43,7 @@ def create_claim_entry(request):
 
     return redirect("/claims/create/member/")
 
+
 @login_required
 @member_required
 def member_create_claim(request):
@@ -108,12 +109,13 @@ def member_create_claim(request):
     # ==========================================================
     #
     # This is an authoritative server-side safeguard.
-    # A member must be ACTIVE and must have completed the
-    # 180-day cooling-off period before a claim can be created.
     #
-    # Do this check before processing POST data so a forged POST
-    # cannot bypass the restriction. The member is deliberately
-    # returned to the same page with clear feedback.
+    # Eligibility is determined by the Member model's
+    # can_make_claim property, which uses the member's
+    # individually configured cooling_off value.
+    #
+    # Check before processing POST data so a direct POST
+    # cannot bypass the restriction.
     # ==========================================================
 
     if not member.can_make_claim:
@@ -121,9 +123,9 @@ def member_create_claim(request):
         messages.error(
             request,
             (
-                "You cannot make a claim yet. Claims can only be "
-                "submitted after you have completed the 180-day "
-                "active membership cooling-off period."
+                "You cannot make a claim yet. Claims can only "
+                "be submitted after you have completed your "
+                "configured active membership cooling-off period."
             ),
         )
 
@@ -131,6 +133,7 @@ def member_create_claim(request):
             request,
             "members/claims/members_create_claim.html",
             {
+                "member": member,
                 "form": ClaimForm(user=request.user),
                 "bank_details_form": ClaimBankDetailsForm(),
                 "declaration_form": ClaimSubmissionDeclarationForm(),
@@ -374,8 +377,6 @@ def member_create_claim(request):
 
                 # --------------------------------------------------
                 # IMPORTANT:
-                # ``members:claims`` does not exist.
-                #
                 # Use the existing member claim-detail URL and
                 # pass the newly created claim primary key.
                 # --------------------------------------------------
@@ -411,6 +412,7 @@ def member_create_claim(request):
         request,
         "members/claims/members_create_claim.html",
         {
+            "member": member,
             "form": form,
             "bank_details_form": bank_details_form,
             "declaration_form": declaration_form,

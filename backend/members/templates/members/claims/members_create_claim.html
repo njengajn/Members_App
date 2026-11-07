@@ -64,51 +64,136 @@ Create Claim
 {% endif %}
 
 
-<!-- ================================================= -->
-
-<!-- CLAIM ELIGIBILITY / FORM -->
 
 <!-- ================================================= -->
+<!-- CLAIM COOLING-OFF PROGRESS -->
+<!-- ================================================= -->
 
-{% if cooling_off_blocked %}
+<div class="card shadow-sm mb-4">
 
-<div class="card shadow-sm mb-4 border-warning">
-
-    <div class="card-header bg-warning-subtle">
-        <strong>Claim submission not yet available</strong>
+    <div class="card-header">
+        <strong>Claim Cooling-off Progress</strong>
     </div>
 
     <div class="card-body">
 
-        <p class="mb-2">
-            You cannot make a claim yet because your 180-day
-            active membership cooling-off period has not been
-            completed.
-        </p>
+        <div class="d-flex justify-content-between align-items-center mb-2">
 
-        {% if days_until_claim is not None %}
-            <p class="mb-1">
-                <strong>{{ days_until_claim }} day{{ days_until_claim|pluralize }} remaining.</strong>
-            </p>
-        {% endif %}
+            <span class="fw-semibold">
+                Your cooling-off period
+            </span>
 
-        {% if claim_eligibility_date %}
-            <p class="text-muted mb-0">
-                You will be eligible to submit a claim from
-                <strong>{{ claim_eligibility_date|date:"j F Y" }}</strong>.
-            </p>
+            <span class="fw-semibold">
+                {{ member.cooling_off }} days
+            </span>
+
+        </div>
+
+        <div
+            class="progress"
+            style="height: 24px;"
+            role="progressbar"
+            aria-valuenow="{{ member.claim_progress_percent }}"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-label="Claim cooling-off progress"
+        >
+
+            <div
+                class="
+                    progress-bar
+                    {% if member.can_make_claim %}
+                        bg-success
+                    {% else %}
+                        bg-warning
+                    {% endif %}
+                "
+                style="width: {{ member.claim_progress_percent }}%;"
+            >
+                {{ member.claim_progress_percent }}%
+            </div>
+
+        </div>
+
+        {% if member.can_make_claim %}
+
+            <div class="small text-success mt-3">
+                <strong>
+                    Cooling-off period completed.
+                </strong>
+                You can now submit a claim, subject to the
+                other claim requirements.
+            </div>
+
+        {% else %}
+
+            {% if days_until_claim is not None %}
+
+                <div class="small text-muted mt-3">
+
+                    <strong>
+                        {{ days_until_claim }}
+                        day{{ days_until_claim|pluralize }} remaining.
+                    </strong>
+
+                </div>
+
+            {% endif %}
+
+            {% if claim_eligibility_date %}
+
+                <div class="small text-muted mt-2">
+                    Expected claim eligibility date:
+                    <strong>
+                        {{ claim_eligibility_date|date:"j F Y" }}
+                    </strong>
+                </div>
+
+            {% else %}
+
+                <div class="small text-warning mt-3">
+                    Your activation date has not been recorded.
+                    Please contact the administrator.
+                </div>
+
+            {% endif %}
+
         {% endif %}
 
     </div>
 
 </div>
 
-{% else %}
 
 <!-- ================================================= -->
+<!-- CLAIM ELIGIBILITY / FORM -->
+<!-- ================================================= -->
 
+{% if cooling_off_blocked %}
+
+    <div class="card shadow-sm mb-4 border-warning">
+
+        <div class="card-header bg-warning-subtle">
+            <strong>Claim submission not yet available</strong>
+        </div>
+
+        <div class="card-body">
+
+            <p class="mb-0">
+                You cannot submit a claim until your configured
+                cooling-off period has been completed.
+                Please check the progress above.
+            </p>
+
+        </div>
+
+    </div>
+
+{% else %}
+
+
+<!-- ================================================= -->
 <!-- FORM -->
-
 <!-- ================================================= -->
 
 <form
