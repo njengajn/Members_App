@@ -23,6 +23,7 @@ from backend.members.views_admin.admin_members import (
     membership_history,
     update_member_status,
     bulk_update_dependants,
+    update_member_cooling_off,
 )
 
 from .views_admin.admin_audit import (
@@ -191,7 +192,9 @@ urlpatterns = [
     ),
 
     path("members/<int:member_id>/toggle-portal-access/",toggle_member_portal_access, name="toggle_member_portal_access",),
-    
+    path("members/<int:member_id>/update-cooling-off/", update_member_cooling_off,
+         name="update_member_cooling_off",
+         ),
 
     # ======================
     # CLAIMS

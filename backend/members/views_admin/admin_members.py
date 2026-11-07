@@ -29,6 +29,7 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from backend.members.models import MembershipStatusHistory
+from django.views.decorators.http import require_POST
 
 
 
@@ -497,6 +498,82 @@ def update_member_status(request, member_id):
         "members_admin:admin_member_detail",
         member_id=member.id,
     )
+
+@admin_required
+@require_POST
+def update_member_cooling_off(request, member_id):
+    """
+    Update only the member's claim cooling-off period.
+
+    This operation must not alter membership status,
+    activation date, UID, portal access or dependant permissions.
+    """
+
+    member = get_object_or_404(Member, id=member_id)
+
+    raw_value = request.POST.get("cooling_off", "").strip()
+
+    try:
+        new_value = int(raw_value)
+    except (TypeError, ValueError):
+        messages.error(
+            request,
+            "Enter a valid whole number of days.",
+        )
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
+
+    # PositiveIntegerField supports zero or greater.
+    if new_value < 0 or new_value > 2147483647:
+        messages.error(
+            request,
+            "The cooling-off period must be between 0 and 2147483647 days.",
+        )
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
+
+    old_value = member.cooling_off
+
+    if old_value == new_value:
+        messages.info(
+            request,
+            "The cooling-off period has not changed.",
+        )
+        return redirect(
+            "members_admin:admin_member_detail",
+            member_id=member.id,
+        )
+
+    # Update only this field. Do not invoke Member.save()
+    # or any membership lifecycle operations.
+    Member.objects.filter(pk=member.pk).update(
+        cooling_off=new_value
+    )
+
+    AuditLog.log_action(
+        admin=request.user,
+        action=AuditLog.ACTION_MEMBER_COOLING_OFF,
+        member=member,
+        message=(
+            f"Claim cooling-off period changed from "
+            f"{old_value} days to {new_value} days."
+        ),
+    )
+
+    messages.success(
+        request,
+        f"Claim cooling-off period updated to {new_value} days.",
+    )
+
+    return redirect(
+        "members_admin:admin_member_detail",
+        member_id=member.id,
+    )
+
 
 # ======================================================
 # ADMIN MEMBER DETAIL

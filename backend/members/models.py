@@ -14,6 +14,7 @@ from django.contrib.auth import get_user_model
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.db.models import Q
+from django.core.validators import MinValueValidator
 
 
 class Organization(models.Model):
@@ -137,6 +138,8 @@ class Member(models.Model):
     is_portal_access_enabled = models.BooleanField(default=True)
     retirement_reason = models.CharField(max_length=255, blank=True, null=True) 
     subscription_year = models.PositiveIntegerField(blank=True, null=True)
+    cooling_off = models.PositiveIntegerField(default=180, validators=[MinValueValidator(0)],
+    help_text="Claim cooling-off period in days.")
     retired_reason = models.TextField(blank=True, null=True)
     """
     Timestamp member was retired.
@@ -467,32 +470,44 @@ class Member(models.Model):
             self.subscription_year == required_year
         )
 
-       
     @property
-    def can_make_claim(self):
+    def claim_eligibility_date(self):
         """
-        Returns True only when the member is currently ACTIVE
-        and has completed the 180-day claim cooling-off period.
+        Date the member completes their individual claim
+        cooling-off period.
         """
 
         if self.status != self.STATUS_ACTIVE:
-            return False
+            return None
 
         if not self.joined_at:
+            return None
+
+        return self.joined_at + timedelta(days=self.cooling_off)
+
+
+    @property
+    def can_make_claim(self):
+        """
+        Returns True only when the member is ACTIVE
+        and has completed their individual cooling-off period.
+        """
+
+        eligibility_date = self.claim_eligibility_date
+
+        if not eligibility_date:
             return False
 
-        return timezone.now() >= (
-            self.joined_at + timedelta(days=180)
-        )
-    
+        return timezone.now() >= eligibility_date
+
 
     @property
     def membership_age_days(self):
         """
         Number of days since the member's current activation.
 
-        Pending members have no active membership period.
-        Retired members are not currently active.
+        Pending and retired members have no active
+        membership period.
         """
 
         if self.status != self.STATUS_ACTIVE:
@@ -502,58 +517,50 @@ class Member(models.Model):
             return None
 
         return (timezone.now() - self.joined_at).days
-    
-    @property
-    def claim_eligibility_date(self):
-        """
-        Date the currently active member completes
-        the 180-day claim cooling-off period.
-        """
-
-        if self.status != self.STATUS_ACTIVE:
-            return None
-
-        if not self.joined_at:
-            return None
-
-        return self.joined_at + timedelta(days=180)
 
 
-    
     @property
     def claim_progress_percent(self):
         """
-        Progress through the 180-day cooling-off period.
+        Progress through the member's individual
+        cooling-off period.
 
-        Returns:
-            int: 0-100
+        Returns an integer between 0 and 100.
         """
+
+        if self.status != self.STATUS_ACTIVE:
+            return 0
+
         if not self.joined_at:
             return 0
 
+        if self.cooling_off <= 0:
+            return 100
+
         days = self.membership_age_days or 0
 
-        return min(round((days / 180) * 100), 100)
+        return min(
+            round((days / self.cooling_off) * 100),
+            100
+        )
 
 
     @property
     def days_until_claim(self):
         """
-        Number of days remaining before the currently active
-        member becomes eligible to submit a claim.
+        Number of days remaining before the member
+        becomes eligible to submit a claim.
         """
 
-        if self.status != self.STATUS_ACTIVE:
+        if not self.claim_eligibility_date:
             return None
 
-        if not self.joined_at:
-            return None
-
-        remaining = 180 - (
+        remaining = self.cooling_off - (
             self.membership_age_days or 0
         )
 
         return max(remaining, 0)
+
 
  #phone uniqueness constraint
     class Meta:
@@ -2069,6 +2076,7 @@ class AuditLog(models.Model):
     ACTION_PAYMENT_PROOF_UPLOADED = "payment_proof_uploaded"
     ACTION_CLAIM_APPROVED = "claim_approved"
     ACTION_CLAIM_REJECTED = "claim_rejected"
+    ACTION_MEMBER_COOLING_OFF = "member_cooling_off_change"
 
     ACTION_CHOICES = [
         (ACTION_MEMBER_STATUS, "Member Status Change"),
@@ -2080,6 +2088,7 @@ class AuditLog(models.Model):
         (ACTION_PAYMENT_PROOF_UPLOADED, "Payment Proof Uploaded"),
         (ACTION_CLAIM_APPROVED, "Claim Approved"),
         (ACTION_CLAIM_REJECTED, "Claim Rejected"),
+        (ACTION_MEMBER_COOLING_OFF, "Member Cooling-off Period Change"),
     ]
 
     # =====================================================

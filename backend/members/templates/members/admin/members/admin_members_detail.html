@@ -537,7 +537,8 @@
                                 class="btn btn-danger btn-sm"
                                 onclick="
                                     return retireMember(
-                                        {{ member.id }}
+                                        {{ member.id }},
+                                        {{ member.cooling_off }}
                                     );
                                 "
                             >
@@ -595,6 +596,7 @@
                                         method="post"
                                         action="{% url 'members_admin:update_member_status' member.id %}"
                                         id="memberStatusForm"
+                                        onsubmit="return confirmMemberStatusChange(this);"
                                     >
 
                                         {% csrf_token %}
@@ -607,12 +609,12 @@
                                             Update member status
                                         </label>
 
-
                                         <select
                                             name="status"
                                             id="memberStatusSelect"
                                             class="form-select w-100"
                                             data-current-status="{{ member.status }}"
+                                            data-cooling-off-days="{{ member.cooling_off }}"
                                             required
                                             {% if request.user == member.user %}
                                                 disabled
@@ -703,6 +705,82 @@
                                 </div>
 
                             </div>
+
+                <!-- ================================================= -->
+                <!-- CLAIM COOLING-OFF PERIOD -->
+                <!-- ================================================= -->
+
+                <div class="card bg-light mb-3">
+
+                    <div class="card-body">
+
+                        <form
+                            method="post"
+                            action="{% url 'members_admin:update_member_cooling_off' member.id %}"
+                            id="memberCoolingOffForm"
+                            data-current-cooling-off="{{ member.cooling_off }}"
+                            data-member-status="{{ member.status }}"
+                            data-joined-at="{{ member.joined_at|date:'Y-m-d' }}"
+                            onsubmit="return confirmMemberCoolingOffChange(this);"
+                        >
+
+                            {% csrf_token %}
+
+                            <label
+                                for="memberCoolingOff"
+                                class="form-label fw-bold"
+                            >
+                                Claim cooling-off period
+                            </label>
+
+                            <div class="input-group">
+
+                                <input
+                                    type="number"
+                                    name="cooling_off"
+                                    id="memberCoolingOff"
+                                    class="form-control"
+                                    value="{{ member.cooling_off }}"
+                                    min="0"
+                                    max="2147483647"
+                                    step="1"
+                                    required
+                                    {% if request.user == member.user %}
+                                        disabled
+                                    {% endif %}
+                                >
+
+                                <span class="input-group-text">
+                                    days
+                                </span>
+
+                            </div>
+
+                            <div class="form-text mt-2">
+                                The waiting period starts from the member's
+                                activation date. Set to 0 to waive the waiting
+                                period.
+                            </div>
+
+                            <div class="d-grid mt-3">
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-outline-primary"
+                                    {% if request.user == member.user %}
+                                        disabled
+                                    {% endif %}
+                                >
+                                    Save Cooling-off Period
+                                </button>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                </div>
 
 
                             <!-- ================================================= -->
@@ -2170,79 +2248,276 @@ function openDependantUpdate(
 
 
 /* =========================================================
-   MEMBER STATUS
+   MEMBER STATUS CONFIRMATION
    ========================================================= */
 
 function confirmMemberStatusChange(form) {
 
-    const select =
-        form.querySelector(
-            "#memberStatusSelect"
-        );
+    const select = form.querySelector("#memberStatusSelect");
 
+    if (!select) {
+        return false;
+    }
 
-    const newStatus =
-        select.value;
+    const newStatus = select.value;
+    const oldStatus = select.dataset.currentStatus;
 
+    const coolingOffDays = parseInt(
+        select.dataset.coolingOffDays,
+        10
+    );
 
     if (!newStatus) {
+        alert("Please choose a member status before updating.");
+        return false;
+    }
 
+    // No status transition is taking place.
+    if (newStatus === oldStatus) {
+        return false;
+    }
+
+    const labels = {
+        pending: "PENDING",
+        approved: "APPROVED",
+        active: "ACTIVE",
+        retired: "RETIRED"
+    };
+
+    const statusLabel = labels[newStatus] || newStatus.toUpperCase();
+
+    let warning = "MEMBERSHIP STATUS CONFIRMATION\n\n";
+
+    warning +=
+        "You are about to change this member's status from " +
+        (labels[oldStatus] || oldStatus.toUpperCase()) +
+        " to " + statusLabel + ".\n\n";
+
+    // -----------------------------------------------------
+    // APPROVAL
+    // -----------------------------------------------------
+
+    if (oldStatus === "pending" && newStatus === "approved") {
+
+        warning +=
+            "APPROVAL\n\n" +
+            "The member's application will be approved.\n\n" +
+            "Approval does NOT activate the membership.\n" +
+            "The member will remain inactive until the " +
+            "membership payment is completed and activation occurs.\n\n";
+
+        warning +=
+            "Configured claim cooling-off period: " +
+            coolingOffDays + " days.\n\n";
+
+        warning +=
+            "The cooling-off period starts only when the member " +
+            "is activated. Approval does not start the waiting period.\n\n";
+    }
+
+    // -----------------------------------------------------
+    // ACTIVATION OR REACTIVATION
+    // -----------------------------------------------------
+
+    else if (
+        newStatus === "active" &&
+        (oldStatus === "approved" || oldStatus === "retired")
+    ) {
+
+        warning +=
+            "MEMBERSHIP ACTIVATION\n\n";
+
+        if (oldStatus === "retired") {
+            warning +=
+                "This member is being reactivated.\n\n";
+        }
+
+        warning +=
+            "Active status represents an activated membership.\n" +
+            "Please ensure the membership payment has been " +
+            "completed before proceeding.\n\n";
+
+        warning +=
+            "Configured claim cooling-off period: " +
+            coolingOffDays + " days.\n\n";
+
+        if (coolingOffDays === 0) {
+            warning +=
+                "There is no cooling-off waiting period. " +
+                "Claim eligibility will follow the existing " +
+                "claim eligibility rules from activation.\n\n";
+        } else {
+            warning +=
+                "The waiting period starts from the activation date. " +
+                "Claim eligibility will be calculated using the " +
+                "configured " + coolingOffDays + "-day period.\n\n";
+        }
+
+        warning +=
+            "Activation will set the member's activation date. " +
+            "For reactivation, the existing lifecycle process " +
+            "will apply its activation-date rules.\n\n";
+    }
+
+    // -----------------------------------------------------
+    // RETIREMENT THROUGH STATUS FORM
+    // -----------------------------------------------------
+
+    else if (newStatus === "retired" && oldStatus === "active") {
+
+        warning +=
+            "MEMBER RETIREMENT\n\n" +
+            "The member's status will change to RETIRED.\n\n" +
+            "The existing status-update retirement process " +
+            "will also apply its dependant retirement handling.\n\n" +
+            "The configured cooling-off period will not be deleted.\n" +
+            "The member's existing activation history will be preserved.\n\n";
+    }
+
+    else {
+        warning +=
+            "Please review this status change carefully.\n\n";
+    }
+
+    warning +=
+        "Do you want to continue?";
+
+    return confirm(warning);
+}
+
+
+/* =========================================================
+   CLAIM COOLING-OFF PERIOD CONFIRMATION
+   ========================================================= */
+
+function confirmMemberCoolingOffChange(form) {
+
+    const input = form.querySelector(
+        "#memberCoolingOff"
+    );
+
+    if (!input) {
+        return false;
+    }
+
+    const oldDays = parseInt(
+        form.dataset.currentCoolingOff,
+        10
+    );
+
+    const newDays = Number(input.value);
+
+    if (
+        !Number.isInteger(newDays) ||
+        newDays < 0 ||
+        newDays > 2147483647
+    ) {
         alert(
-            "Please choose a member status before updating."
+            "Enter a valid whole number of days, " +
+            "between 0 and 2147483647."
         );
 
         return false;
     }
 
+    if (newDays === oldDays) {
+        return true;
+    }
 
-    const labels = {
-
-        pending: "PENDING",
-
-        approved: "APPROVED",
-
-        active: "ACTIVE",
-
-        retired: "RETIRED"
-
-    };
-
-
-    const statusLabel =
-        labels[newStatus] ||
-        newStatus;
-
+    const memberStatus = form.dataset.memberStatus;
+    const joinedAt = form.dataset.joinedAt;
 
     let warning =
-        "WARNING\n\n" +
-        "You are about to change this member's status to " +
-        statusLabel +
-        ".\n\n";
-
-
-    if (newStatus === "approved") {
-
-        warning +=
-            "Approval does not activate the membership. " +
-            "The member will remain inactive until the " +
-            "membership payment is completed.\n\n";
-
-    }
-
-
-    if (newStatus === "active") {
-
-        warning +=
-            "Active status represents an activated membership. " +
-            "Ensure the membership payment has been completed " +
-            "before manually activating the member.\n\n";
-
-    }
-
+        "CLAIM COOLING-OFF PERIOD CHANGE\n\n";
 
     warning +=
-        "Please confirm that you want to continue.";
+        "Current cooling-off period: " +
+        oldDays + " days\n";
 
+    warning +=
+        "New cooling-off period: " +
+        newDays + " days\n\n";
+
+    // -----------------------------------------------------
+    // ZERO-DAY WAITING PERIOD
+    // -----------------------------------------------------
+
+    if (newDays === 0) {
+
+        warning +=
+            "You are setting the cooling-off period to ZERO.\n\n" +
+            "This removes the cooling-off waiting period. " +
+            "Other claim eligibility rules will still apply.\n\n";
+    }
+
+    // -----------------------------------------------------
+    // MEMBER NOT YET ACTIVE
+    // -----------------------------------------------------
+
+    if (memberStatus !== "active") {
+
+        warning +=
+            "This member is not currently active.\n\n" +
+            "The new cooling-off period will apply when " +
+            "the member is activated.\n\n";
+    }
+
+    // -----------------------------------------------------
+    // ACTIVE MEMBER
+    // -----------------------------------------------------
+
+    else if (joinedAt) {
+
+        warning +=
+            "This member is already active.\n\n" +
+            "The existing activation date will be retained. " +
+            "The revised cooling-off period will be calculated " +
+            "from that existing date.\n\n";
+
+        // Calculate the revised eligibility date using
+        // date-only UTC arithmetic to avoid timezone shifts.
+        const parts = joinedAt.split("-").map(Number);
+
+        if (parts.length === 3 && parts.every(Number.isFinite)) {
+
+            const eligibilityDate = new Date(
+                Date.UTC(
+                    parts[0],
+                    parts[1] - 1,
+                    parts[2]
+                )
+            );
+
+            eligibilityDate.setUTCDate(
+                eligibilityDate.getUTCDate() + newDays
+            );
+
+            const formattedDate =
+                eligibilityDate.toLocaleDateString(
+                    "en-GB",
+                    { timeZone: "UTC" }
+                );
+
+            warning +=
+                "Revised expected claim eligibility date: " +
+                formattedDate + "\n\n";
+        }
+    }
+
+    else {
+
+        warning +=
+            "No activation date is currently recorded. " +
+            "Claim eligibility will be calculated when " +
+            "the member has an activation date.\n\n";
+    }
+
+    warning +=
+        "This change will not alter membership status, " +
+        "activation date, UID, portal access or dependant permissions.\n\n";
+
+    warning +=
+        "Do you want to save this change?";
 
     return confirm(warning);
 }
