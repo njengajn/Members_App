@@ -1,3 +1,4 @@
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
@@ -9,19 +10,24 @@ from backend.members.services.payment_lifecycle import (
 
 class Command(BaseCommand):
     help = (
-        "Process eligible overdue subscription requests "
-        "through the shared payment lifecycle service."
+        "Process eligible overdue subscription and claim "
+        "payment requests through the shared payment lifecycle service."
     )
 
     @staticmethod
     def get_eligible_requests(now):
         """
-        Select only requests eligible for automatic subscription
-        retirement processing. The shared service performs the
-        final eligibility checks for each member.
+        Select closed, reconciled and overdue subscription
+        and claim payment requests.
+
+        The shared service performs the final settlement
+        and member eligibility checks.
         """
         return PaymentRequest.objects.filter(
-            request_type="subscription",
+            request_type__in=[
+                "subscription",
+                "claim",
+            ],
             status=PaymentRequest.STATUS_CLOSED,
             is_reconciled=True,
             due_date__lt=now,
@@ -47,7 +53,8 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                "Subscription retirement processing completed. "
+                "Overdue subscription and claim payment "
+                "retirement processing completed. "
                 f"Requests processed: {processed_count}; "
                 f"requests skipped: {skipped_count}."
             )

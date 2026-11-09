@@ -396,8 +396,24 @@ class Member(models.Model):
         # RESTORE DEPENDANTS
         # =====================================
 
-        self.dependants.update(
-            status="active"
+        # Restore only living dependants who are eligible for activation.
+        self.dependants.filter(
+            life_status=Dependant.LIFE_STATUS_ALIVE
+        ).exclude(
+            relationship=Dependant.TYPE_PARENT,
+            parent_status__in=[
+                Dependant.PARENT_DECEASED,
+                Dependant.PARENT_UNKNOWN,
+            ],
+        ).update(
+            status=Dependant.STATUS_ACTIVE
+        )
+
+        # Deceased dependants must always remain retired.
+        self.dependants.filter(
+            life_status=Dependant.LIFE_STATUS_DECEASED
+        ).update(
+            status=Dependant.STATUS_RETIRED
         )
 
         # =====================================
@@ -642,6 +658,18 @@ class Dependant(models.Model):
     ]
 
     # ======================================================
+    # DEPENDANT LIFE STATUS
+    # ======================================================
+
+    LIFE_STATUS_ALIVE = "ALIVE"
+    LIFE_STATUS_DECEASED = "DECEASED"
+
+    LIFE_STATUS_CHOICES = [
+        (LIFE_STATUS_ALIVE, "Alive"),
+        (LIFE_STATUS_DECEASED, "Deceased"),
+    ]
+
+    # ======================================================
     # PARENT STATUS
     # ======================================================
     #
@@ -765,6 +793,14 @@ class Dependant(models.Model):
         null=True,
     )
 
+    life_status = models.CharField(
+        max_length=12,
+        choices=LIFE_STATUS_CHOICES,
+        default=LIFE_STATUS_ALIVE,
+        db_index=True,
+        help_text="Records whether the dependant is alive or deceased."
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
     )
@@ -774,6 +810,12 @@ class Dependant(models.Model):
         blank=True,
         db_index=True,
         help_text="Date and time the dependant was last edited."
+    )
+
+    deceased_at = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date of death, where known."
     )
 
     def full_name(self):
@@ -808,13 +850,37 @@ class Dependant(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Enforce the UNKNOWN-parent business rule at model level.
+        Enforce dependant life-status and UNKNOWN-parent business rules.
 
-        This is an additional safety net for normal .save() calls.
-        Activation views/services still contain explicit guards,
-        because QuerySet.update() bypasses model.save().
+        Once a dependant is marked deceased, normal model saves must
+        not allow the life status to be changed back to ALIVE.
+
+        Deceased and UNKNOWN-parent dependants must remain retired.
         """
 
+        update_fields = kwargs.get("update_fields")
+
+        # Prevent a previously deceased dependant from being restored
+        # to ALIVE through an ordinary model save.
+        if self.pk:
+            previous = (
+                type(self).objects
+                .filter(pk=self.pk)
+                .values("life_status")
+                .first()
+            )
+
+            if (
+                previous
+                and previous["life_status"] == self.LIFE_STATUS_DECEASED
+            ):
+                self.life_status = self.LIFE_STATUS_DECEASED
+
+        # A deceased dependant must always remain administratively retired.
+        if self.life_status == self.LIFE_STATUS_DECEASED:
+            self.status = self.STATUS_RETIRED
+
+        # Preserve the existing UNKNOWN-parent business rule.
         if (
             self.relationship == self.TYPE_PARENT
             and self.parent_status == self.PARENT_UNKNOWN
@@ -832,8 +898,32 @@ class Dependant(models.Model):
             # UNKNOWN parents can never be active or pending.
             self.status = self.STATUS_RETIRED
 
+        # Ensure forced changes are included when update_fields is supplied.
+        if update_fields is not None:
+            update_fields = set(update_fields)
+
+            if self.life_status == self.LIFE_STATUS_DECEASED:
+                update_fields.update({"life_status", "status"})
+
+            if (
+                self.relationship == self.TYPE_PARENT
+                and self.parent_status == self.PARENT_UNKNOWN
+            ):
+                update_fields.update({
+                    "first_name",
+                    "middle_name",
+                    "surname",
+                    "dob",
+                    "country",
+                    "county",
+                    "sub_county_town",
+                    "status",
+                })
+
+            kwargs["update_fields"] = update_fields
+
         super().save(*args, **kwargs)
-    
+
 # ======================================================
 # ADDRESS MODEL
 # ======================================================
@@ -985,12 +1075,21 @@ class Claim(models.Model):
     def __str__(self):
 
         # If dependant is the cause
-        if self.cause_type == self.CLAIM_CAUSER_DEPENDANT and self.causer_dependant:
-            return f"Claim - {self.causer_dependant.full_name}"
+        if (
+            self.cause_type == self.CLAIM_CAUSER_DEPENDANT
+            and self.causer_dependant
+        ):
+            return (
+                f"Claim - Dependant: "
+                f"{self.causer_dependant}"
+            )
 
         # Default: member
         if self.member:
-            return f"Claim - {self.member.member_uid} {self.member.full_name}"
+            return (
+                f"Claim - {self.member.member_uid} "
+                f"{self.member.full_name}"
+            )
 
         return f"Claim #{self.id}"
     

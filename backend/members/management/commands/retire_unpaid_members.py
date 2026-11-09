@@ -1,3 +1,4 @@
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
@@ -9,15 +10,16 @@ from backend.members.services.payment_lifecycle import (
 
 class Command(BaseCommand):
     """
-    Process eligible annual subscription requests after June begins.
+    Process eligible annual subscription and claim payment
+    requests after June begins.
 
-    Retirement eligibility and execution are delegated to the shared
-    request-specific payment lifecycle service.
+    Retirement eligibility and execution are delegated to the
+    shared request-specific payment lifecycle service.
     """
 
     help = (
-        "Process eligible overdue annual subscription requests "
-        "through the shared payment lifecycle service."
+        "Process eligible overdue annual subscription and claim "
+        "payment requests through the shared payment lifecycle service."
     )
 
     def handle(self, *args, **kwargs):
@@ -33,9 +35,12 @@ class Command(BaseCommand):
             return
 
         # Preserve the existing current-calendar-year scope.
-        # A missing request is not evidence of non-payment.
+        # Process both subscription and claim requests.
         requests = PaymentRequest.objects.filter(
-            request_type="subscription",
+            request_type__in=[
+                "subscription",
+                "claim",
+            ],
             status=PaymentRequest.STATUS_CLOSED,
             is_reconciled=True,
             due_date__lt=now,
@@ -58,7 +63,8 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                "Annual subscription retirement processing completed. "
+                "Annual subscription and claim payment "
+                "retirement processing completed. "
                 f"Requests processed: {processed_count}; "
                 f"requests skipped: {skipped_count}."
             )

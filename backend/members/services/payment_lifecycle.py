@@ -22,6 +22,9 @@ from backend.members.models import (
 from backend.members.services.member_status_service import (
     retire_member,
 )
+from backend.members.services.dependant_status_service import (
+    mark_dependant_deceased,
+)
 
 # =========================================================
 # PAYMENT LIFECYCLE ENGINE
@@ -122,13 +125,14 @@ def process_reconciled_payment_request(
     CLAIM REQUESTS
     - Require an approved settlement.
     - The settlement preparer cannot approve their own settlement.
-    - Member-causer: retire the member and all dependants through
-      Member.retire().
-    - Dependant-causer: retire only the identified dependant.
+    - Member-causer: retire the member and all dependants.
+    - Dependant-causer: mark only the identified dependant deceased.
+    - After the due date, also process explicitly unpaid contributors.
 
     SUBSCRIPTION REQUESTS
-    - Require closure, reconciliation, an overdue due date,
-      an active targeted member, and explicit unpaid status.
+    - Require closure and reconciliation.
+    - Process only overdue requests.
+    - Retire active targeted members explicitly marked unpaid.
     - Never retire a member with evidence of payment.
 
     MEMBERSHIP AND OTHER REQUESTS
@@ -137,7 +141,6 @@ def process_reconciled_payment_request(
     Processing is request-specific and idempotent.
     Manual administrative retirement remains separate.
     """
-    from django.utils import timezone
 
     # Lock only the PaymentRequest row.
     # Do not join nullable member/claim relationships in this
@@ -162,6 +165,7 @@ def process_reconciled_payment_request(
     # CLAIM RETIREMENT
     # ==========================================================
     if payment_request.request_type == "claim":
+
         if claim is None:
             return False
 
@@ -195,12 +199,10 @@ def process_reconciled_payment_request(
                     admin_user=performed_by,
                 )
 
-            return True
-
         # ------------------------------------------------------
         # DEPENDANT-CAUSER
         # ------------------------------------------------------
-        if claim.cause_type == Claim.CLAIM_CAUSER_DEPENDANT:
+        elif claim.cause_type == Claim.CLAIM_CAUSER_DEPENDANT:
             dependant = claim.causer_dependant
 
             # Never substitute the parent member if the dependant
@@ -208,28 +210,31 @@ def process_reconciled_payment_request(
             if dependant is None:
                 return False
 
-            if dependant.status != "retired":
-                dependant.status = "retired"
-                dependant.save(update_fields=["status"])
+            # A verified dependant death claim has now passed
+            # settlement approval and reconciliation checks.
+            mark_dependant_deceased(dependant)
 
-            return True
-
-        # Unknown cause types must never trigger retirement.
-        return False
+        else:
+            # Unknown cause types must never trigger retirement.
+            return False
 
     # ==========================================================
-    # NON-CLAIM RETIREMENT
+    # NON-PAYMENT RETIREMENT
     # ==========================================================
-    # Only subscriptions can trigger automatic non-payment
-    # retirement. Membership and Other requests are excluded.
-    if payment_request.request_type != "subscription":
+    # Only claim and subscription requests can trigger
+    # non-payment retirement.
+    if payment_request.request_type not in (
+        "claim",
+        "subscription",
+    ):
         return True
 
-    # Subscription requests must be reconciled first.
+    # A claim-causer retirement may already have been completed.
+    # Do not process unpaid contributors until reconciliation.
     if not payment_request.is_reconciled:
-        return False
+        return True
 
-    # Only overdue subscriptions can trigger retirement.
+    # Only overdue requests can trigger non-payment retirement.
     if (
         payment_request.due_date is None
         or payment_request.due_date >= timezone.now()
@@ -237,86 +242,116 @@ def process_reconciled_payment_request(
         return True
 
     # ----------------------------------------------------------
-    # DETERMINE TARGET MEMBERS
+    # DETERMINE MEMBERS FROM SAVED RECONCILIATION SNAPSHOTS
     # ----------------------------------------------------------
-    if payment_request.viewable_by_all:
-        target_members = Member.objects.filter(
-            status=Member.STATUS_ACTIVE,
+    # These snapshots preserve the original target population
+    # and the unpaid outcome established during reconciliation.
+    #
+    # Do not reconstruct targets from current active members.
+    # Do not infer unpaid members from current membership status.
+    target_ids = set(
+        payment_request.targeted_members.values_list(
+            "pk",
+            flat=True,
         )
-    elif payment_request.selected_members.exists():
-        target_members = payment_request.selected_members.filter(
-            status=Member.STATUS_ACTIVE,
+    )
+
+    unpaid_ids = set(
+        payment_request.unpaid_members.values_list(
+            "pk",
+            flat=True,
         )
-    elif payment_request.member_id:
-        target_members = Member.objects.filter(
-            pk=payment_request.member_id,
-            status=Member.STATUS_ACTIVE,
-        )
-    else:
-        # No identifiable target: do not infer one.
+    )
+
+    # A member must be both originally targeted and explicitly
+    # recorded as unpaid during reconciliation.
+    eligible_ids = target_ids & unpaid_ids
+
+    if not eligible_ids:
         return True
 
     # ----------------------------------------------------------
     # COLLECT ALL EVIDENCE THAT A MEMBER HAS PAID
     # ----------------------------------------------------------
     paid_ids = set(
-        payment_request.paid_members.values_list("pk", flat=True)
+        payment_request.paid_members.filter(
+            pk__in=eligible_ids,
+        ).values_list(
+            "pk",
+            flat=True,
+        )
     )
 
     paid_ids.update(
         Payment.objects.filter(
             payment_request=payment_request,
             status=Payment.STATUS_COMPLETED,
-        ).values_list("member_id", flat=True)
+            member_id__in=eligible_ids,
+        ).values_list(
+            "member_id",
+            flat=True,
+        )
     )
 
     paid_ids.update(
         MemberPaymentStatus.objects.filter(
             payment_request=payment_request,
             status=MemberPaymentStatus.STATUS_PAID,
-        ).values_list("member_id", flat=True)
+            member_id__in=eligible_ids,
+        ).values_list(
+            "member_id",
+            flat=True,
+        )
     )
+
+    # A member must have been explicitly recorded as unpaid
+    # and must have no evidence of payment.
+    retire_ids = eligible_ids - paid_ids
 
     # ----------------------------------------------------------
-    # RETIRE ONLY EXPLICITLY UNPAID ACTIVE TARGETS
+    # RETIRE ELIGIBLE MEMBERS AND RECORD AUDIT LOG
     # ----------------------------------------------------------
-    unpaid_ids = set(
-        MemberPaymentStatus.objects.filter(
-            payment_request=payment_request,
-            status=MemberPaymentStatus.STATUS_UNPAID,
-        ).values_list("member_id", flat=True)
-    )
+    members_to_check = Member.objects.filter(
+        pk__in=retire_ids,
+    ).order_by("pk")
 
-    eligible_ids = set(
-        target_members.values_list("pk", flat=True)
-    )
+    for member in members_to_check:
 
-    retire_ids = eligible_ids & unpaid_ids - paid_ids
-
-    for member in target_members.filter(pk__in=retire_ids):
         # Recheck current status before applying retirement.
         member.refresh_from_db(fields=["status"])
 
         if member.status != Member.STATUS_ACTIVE:
             continue
 
+        retirement_reason = (
+            "non_payment_claim"
+            if payment_request.request_type == "claim"
+            else "non_payment_subscription"
+        )
+
         member.retire(
-            reason="non_payment_subscription",
+            reason=retirement_reason,
             payment_request=payment_request,
             admin_user=performed_by,
         )
 
+        # IMPORTANT:
+        # Preserve this AuditLog entry.
+        # Member.retire() and the MembershipStatusHistory record
+        # do not replace this separate audit record.
         AuditLog.objects.create(
             action="member_retired_non_payment",
             target_member=member,
             message=(
                 "Member retired for non-payment of overdue "
-                f"subscription request #{payment_request.pk}."
+                f"{payment_request.request_type} request "
+                f"#{payment_request.pk}."
             ),
             admin=performed_by,
         )
 
     return True
+
 
 # ==========================================================
 # RISK MEMBERS

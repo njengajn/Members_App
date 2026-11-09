@@ -139,17 +139,22 @@ def is_protected_parent(dependant):
         }
     )
 
-
 def activate_eligible_dependants(dependants):
     """
-    Activate eligible dependants while explicitly preventing
-    DECEASED and UNKNOWN parents from becoming ACTIVE.
+    Activate eligible living dependants.
 
-    QuerySet.update() is used here deliberately for the bulk
-    operation, so the protected rows must be excluded explicitly.
+    Prevent deceased dependants and UNKNOWN/DECEASED parents
+    from becoming ACTIVE.
+
+    QuerySet.update() is used deliberately for bulk operations,
+    so all protected records must be explicitly excluded.
     """
 
     protected = dependants.filter(
+        life_status=Dependant.LIFE_STATUS_DECEASED
+    )
+
+    protected_parents = dependants.filter(
         relationship=Dependant.TYPE_PARENT,
         parent_status__in=[
             Dependant.PARENT_DECEASED,
@@ -157,20 +162,30 @@ def activate_eligible_dependants(dependants):
         ],
     )
 
+    # Combine both protection conditions.
+    protected_ids = protected.values("pk").union(
+        protected_parents.values("pk")
+    )
+
     eligible = dependants.exclude(
-        pk__in=protected.values("pk")
+        pk__in=protected_ids
+    ).filter(
+        life_status=Dependant.LIFE_STATUS_ALIVE
     )
 
     eligible.update(
         status=Dependant.STATUS_ACTIVE
     )
 
-    # Even if bad historical data exists, a lifecycle activation
-    # must never leave a protected parent ACTIVE.
+    # Deceased dependants must always remain retired.
     protected.update(
         status=Dependant.STATUS_RETIRED
     )
 
+    # Preserve the existing UNKNOWN/DECEASED parent protection.
+    protected_parents.update(
+        status=Dependant.STATUS_RETIRED
+    )
 
 def retire_member(
     member,

@@ -2,7 +2,6 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
-
 from backend.core import settings
 from backend.members import models
 from backend.members.models import (
@@ -25,7 +24,7 @@ from reportlab.platypus import (
     Paragraph,
     Spacer
 )
-
+from backend.members.services.member_status_service import (activate_eligible_dependants,)
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from backend.members.models import MembershipStatusHistory
@@ -252,6 +251,7 @@ def get_member_status_transition_error(
         f"with Retired → Active permitted for reactivation."
     )
 
+
 # ======================================================
 # UPDATE MEMBER STATUS
 # ======================================================
@@ -277,11 +277,14 @@ def update_member_status(request, member_id):
     • UID is allocated automatically by Member.save()
       on the first transition to ACTIVE.
     • Existing UID is retained on reactivation.
-    • All eligible dependants are activated when the member becomes ACTIVE.
-    • A deceased parent dependant is always kept retired.
+    • All eligible living dependants are activated when
+      the member becomes ACTIVE.
+    • Deceased dependants are always kept retired.
+    • Parents with DECEASED or UNKNOWN parent status
+      are kept retired.
     • Retired members and dependants are set to retired.
-    • Portal access remains an independent permission and is
-      NOT changed by this status operation.
+    • Portal access remains an independent permission and
+      is NOT changed by this status operation.
     """
 
     member = get_object_or_404(
@@ -319,7 +322,7 @@ def update_member_status(request, member_id):
         )
 
     old_status = member.status
-    
+
     # --------------------------------------------------
     # MEMBERSHIP LIFECYCLE GUARD
     # --------------------------------------------------
@@ -389,27 +392,21 @@ def update_member_status(request, member_id):
             # On reactivation this is deliberately
             # reset to the new activation date.
             #
+
             member.joined_at = timezone.now()
 
             # ------------------------------------------
-            # ACTIVATE DEPENDANTS
+            # ACTIVATE ELIGIBLE DEPENDANTS
             # ------------------------------------------
-            # A deceased parent is permanently retired and must
-            # never be activated as part of the member lifecycle.
-            # All other dependants follow the member activation.
+            #
+            # The central service protects:
+            # • Deceased dependants
+            # • Parents with DECEASED parent status
+            # • Parents with UNKNOWN parent status
+            #
 
-            member.dependants.exclude(
-                relationship="PARENT",
-                parent_status="DECEASED",
-            ).update(
-                status="active"
-            )
-
-            member.dependants.filter(
-                relationship="PARENT",
-                parent_status="DECEASED",
-            ).update(
-                status="retired"
+            activate_eligible_dependants(
+                member.dependants.all()
             )
 
             # ------------------------------------------
@@ -477,6 +474,7 @@ def update_member_status(request, member_id):
     #
     # Member.save() handles first-time UID allocation.
     #
+
     member.save()
 
     AuditLog.log_action(
@@ -733,17 +731,109 @@ def member_card_view(request, pk):
 
 @admin_required
 def update_dependant_status(request, dependant_id):
-    dependant = get_object_or_404(Dependant, id=dependant_id)
+    dependant = get_object_or_404(
+        Dependant,
+        id=dependant_id,
+    )
 
     if request.method == "POST":
+
         new_status = request.POST.get("status")
 
-        if new_status in ["active", "inactive"]:
-            dependant.status = new_status
-            dependant.save()
-            messages.success(request, "Dependant status updated.")
-        else:
-            messages.error(request, "Invalid status.")
+        # ------------------------------------------
+        # VALIDATE DEPENDANT STATUS
+        # ------------------------------------------
+
+        allowed_statuses = {
+            Dependant.STATUS_PENDING,
+            Dependant.STATUS_ACTIVE,
+            Dependant.STATUS_RETIRED,
+        }
+
+        if new_status not in allowed_statuses:
+            messages.error(
+                request,
+                "Invalid dependant status.",
+            )
+
+            return redirect(
+                "members_admin:admin_member_detail",
+                member_id=dependant.member.id,
+            )
+
+        # ------------------------------------------
+        # PROTECT DECEASED DEPENDANTS
+        # ------------------------------------------
+
+        if (
+            dependant.life_status == Dependant.LIFE_STATUS_DECEASED
+            and new_status in {
+                Dependant.STATUS_PENDING,
+                Dependant.STATUS_ACTIVE,
+            }
+        ):
+            messages.error(
+                request,
+                "A deceased dependant cannot be restored to pending or active status.",
+            )
+
+            return redirect(
+                "members_admin:admin_member_detail",
+                member_id=dependant.member.id,
+            )
+
+        # ------------------------------------------
+        # PROTECT UNKNOWN PARENTS
+        # ------------------------------------------
+
+        if (
+            dependant.relationship == Dependant.TYPE_PARENT
+            and dependant.parent_status == Dependant.PARENT_UNKNOWN
+            and new_status in {
+                Dependant.STATUS_PENDING,
+                Dependant.STATUS_ACTIVE,
+            }
+        ):
+            messages.error(
+                request,
+                "An unknown parent cannot be assigned pending or active status.",
+            )
+
+            return redirect(
+                "members_admin:admin_member_detail",
+                member_id=dependant.member.id,
+            )
+
+        # ------------------------------------------
+        # PROTECT DECEASED PARENTS
+        # ------------------------------------------
+
+        if (
+            dependant.relationship == Dependant.TYPE_PARENT
+            and dependant.parent_status == Dependant.PARENT_DECEASED
+            and new_status == Dependant.STATUS_ACTIVE
+        ):
+            messages.error(
+                request,
+                "A dependant recorded as a deceased parent cannot be activated.",
+            )
+
+            return redirect(
+                "members_admin:admin_member_detail",
+                member_id=dependant.member.id,
+            )
+
+        # ------------------------------------------
+        # UPDATE STATUS
+        # ------------------------------------------
+
+        dependant.status = new_status
+        dependant.save()
+
+        messages.success(
+            request,
+            "Dependant status updated.",
+        )
 
     return redirect(
         "members_admin:admin_member_detail",
@@ -758,55 +848,156 @@ def update_dependant_status(request, dependant_id):
 @admin_required
 def update_dependant_inline(request, dependant_id):
     """
-    Inline dependant update (FIXED — matches URL)
+    Inline dependant status update.
+
+    Enforces dependant lifecycle and life-status protections.
     """
 
-    dependant = get_object_or_404(Dependant, id=dependant_id)
+    dependant = get_object_or_404(
+        Dependant,
+        id=dependant_id,
+    )
 
     if request.method == "POST":
 
-        # -----------------------------------
+        # ------------------------------------------
         # BLOCK IF MEMBER RETIRED
-        # -----------------------------------
-        if dependant.member.status == "retired":
-            messages.error(request, "Cannot modify dependant of retired member.")
+        # ------------------------------------------
+
+        if dependant.member.status == Member.STATUS_RETIRED:
+            messages.error(
+                request,
+                "Cannot modify dependant of retired member.",
+            )
+
             return redirect(
                 "members_admin:admin_member_detail",
                 member_id=dependant.member.id,
             )
 
-        # -----------------------------------
-        # UPDATE FIELDS (SAFE)
-        # -----------------------------------
+        # ------------------------------------------
+        # VALIDATE STATUS
+        # ------------------------------------------
 
         old_status = dependant.status
-        new_status = request.POST.get("status", dependant.status)
+        new_status = request.POST.get(
+            "status",
+            dependant.status,
+        )
+
+        allowed_statuses = {
+            Dependant.STATUS_PENDING,
+            Dependant.STATUS_ACTIVE,
+            Dependant.STATUS_RETIRED,
+        }
+
+        if new_status not in allowed_statuses:
+            messages.error(
+                request,
+                "Invalid dependant status.",
+            )
+
+            return redirect(
+                "members_admin:admin_member_detail",
+                member_id=dependant.member.id,
+            )
+
+        # ------------------------------------------
+        # PROTECT DECEASED DEPENDANTS
+        # ------------------------------------------
+
+        if (
+            dependant.life_status == Dependant.LIFE_STATUS_DECEASED
+            and new_status in {
+                Dependant.STATUS_PENDING,
+                Dependant.STATUS_ACTIVE,
+            }
+        ):
+            messages.error(
+                request,
+                "A deceased dependant cannot be restored to pending or active status.",
+            )
+
+            return redirect(
+                "members_admin:admin_member_detail",
+                member_id=dependant.member.id,
+            )
+
+        # ------------------------------------------
+        # PROTECT UNKNOWN PARENTS
+        # ------------------------------------------
+
+        if (
+            dependant.relationship == Dependant.TYPE_PARENT
+            and dependant.parent_status == Dependant.PARENT_UNKNOWN
+            and new_status in {
+                Dependant.STATUS_PENDING,
+                Dependant.STATUS_ACTIVE,
+            }
+        ):
+            messages.error(
+                request,
+                "An unknown parent cannot be assigned pending or active status.",
+            )
+
+            return redirect(
+                "members_admin:admin_member_detail",
+                member_id=dependant.member.id,
+            )
+
+        # ------------------------------------------
+        # PROTECT DECEASED PARENTS
+        # ------------------------------------------
+
+        if (
+            dependant.relationship == Dependant.TYPE_PARENT
+            and dependant.parent_status == Dependant.PARENT_DECEASED
+            and new_status == Dependant.STATUS_ACTIVE
+        ):
+            messages.error(
+                request,
+                "A dependant recorded as a deceased parent cannot be activated.",
+            )
+
+            return redirect(
+                "members_admin:admin_member_detail",
+                member_id=dependant.member.id,
+            )
+
+        # ------------------------------------------
+        # SAVE STATUS
+        # ------------------------------------------
 
         dependant.status = new_status
 
-        # -----------------------------------
-        # SAVE
-        # -----------------------------------
-
-        dependant.save(update_fields=["status"])
-
-        AuditLog.log_action(
-            admin=request.user,
-            action=AuditLog.ACTION_DEPENDANT_UPDATE,
-            member=dependant.member,
-            message=(
-                f"Dependant {dependant.id} status changed "
-                f"from {old_status} to {new_status}"
-            ),
+        dependant.save(
+            update_fields=["status"]
         )
 
-        messages.success(request, "Dependant status updated successfully.")
+        # ------------------------------------------
+        # AUDIT LOG
+        # ------------------------------------------
+
+        if old_status != new_status:
+            AuditLog.log_action(
+                admin=request.user,
+                action=AuditLog.ACTION_DEPENDANT_UPDATE,
+                member=dependant.member,
+                message=(
+                    f"Dependant {dependant.id} status changed "
+                    f"from {old_status} to {new_status}"
+                ),
+            )
+
+        messages.success(
+            request,
+            "Dependant status updated successfully.",
+        )
 
     return redirect(
         "members_admin:admin_member_detail",
         member_id=dependant.member.id,
     )
-
 
 # ======================================================
 # NEXT OF KIN

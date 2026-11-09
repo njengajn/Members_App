@@ -1,4 +1,3 @@
-# backend/members/views_admin/admin_payments.py
 from django.db import transaction
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages

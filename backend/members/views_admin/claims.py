@@ -72,22 +72,6 @@ def approve_claim_view(request, claim_id):
 
     return redirect("members_admin:admin_claims_list")
 
-
-@admin_required
-def approve_claimNotSure(request, claim_id):
-
-    claim = get_object_or_404(Claim, id=claim_id)
-
-    claim.status = "approved"
-    claim.save()
-
-    messages.success(request, "Claim approved.")
-    
-    return redirect("members_admin:claims")
-
-
-
-
 @staff_member_required
 def claims_list(request):
     """

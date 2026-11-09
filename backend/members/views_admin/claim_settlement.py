@@ -247,6 +247,46 @@ def reconcile_claim(request, request_id):
                         payment_request.id,
                     )
 
+                # Use the original target population saved when the
+                # payment request was created.
+                target_member_ids = set(
+                    payment_request.targeted_members.values_list(
+                        "id",
+                        flat=True,
+                    )
+                )
+
+                # Never infer historical targets from current members.
+                if not target_member_ids:
+                    messages.error(
+                        request,
+                        (
+                            "Claim reconciliation cannot proceed because "
+                            "this payment request has no saved target "
+                            "population. Establish the original target "
+                            "members before continuing."
+                        ),
+                    )
+                    return redirect(
+                        "members_admin:admin_payment_detail",
+                        payment_request.id,
+                    )
+
+                # Calculate paid members using the existing source,
+                # restricted to the original target population.
+                paid_member_ids = set(
+                    payment_request.paid_members.filter(
+                        id__in=target_member_ids,
+                    ).values_list(
+                        "id",
+                        flat=True,
+                    )
+                )
+
+                unpaid_member_ids = (
+                    target_member_ids - paid_member_ids
+                )
+
                 instances = formset.save(commit=False)
 
                 for obj in instances:
@@ -257,8 +297,26 @@ def reconcile_claim(request, request_id):
                 for obj in formset.deleted_objects:
                     obj.delete()
 
+                # Record the unpaid outcome and reconciliation.
+                # This does NOT approve the settlement or retire anyone.
+                payment_request.unpaid_members.set(
+                    unpaid_member_ids
+                )
+
+                payment_request.is_reconciled = True
+                payment_request.reconciled_by = request.user
+                payment_request.reconciled_at = timezone.now()
+                payment_request.save(
+                    update_fields=[
+                        "is_reconciled",
+                        "reconciled_by",
+                        "reconciled_at",
+                        "updated_at",
+                    ],
+                )
+
                 # Record preparation, not approval.
-                # Do not retire the claim's causer in this function.
+                # Claim retirement remains subject to settlement approval.
                 settlement.notes = notes
                 settlement.prepared_by = request.user
                 settlement.is_approved = False
@@ -607,13 +665,7 @@ def approve_claim_settlement(request, settlement_id):
     )
 
     claim.status = Claim.STATUS_SETTLED
-    claim.settlement_date = approved_at
-    claim.save(
-        update_fields=[
-            "status",
-            "settlement_date",
-        ],
-    )
+    claim.save(update_fields=["status"])
 
     # Apply claim-specific retirement to this request only.
     # If processing fails, roll back the approval and claim updates.

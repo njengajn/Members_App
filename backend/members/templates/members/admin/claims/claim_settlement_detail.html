@@ -7,10 +7,30 @@
 
   <!-- BASIC INFO -->
   <div class="card p-3 mb-4">
-    <p><strong>Claim:</strong> {{ settlement.claim }}</p>
-    <p><strong>Payment Request:</strong> #{{ settlement.claim.payment_request.id }}</p>
-    <p><strong>Causer:</strong> {{ settlement.claim.causer_full_name }}</p>
-    <p><strong>Settlement Date:</strong> {{ settlement.settlement_date }}</p>
+      <p>
+          <strong>Claim:</strong>
+          {{ settlement.claim }}
+      </p>
+
+      <p>
+          <strong>Payment Request:</strong>
+          #{{ settlement.claim.payment_request.id }}
+      </p>
+
+      <p>
+          <strong>Causer:</strong>
+
+          {% if settlement.claim.cause_type == "dependant" and settlement.claim.causer_dependant %}
+              Dependant: {{ settlement.claim.causer_dependant }}
+          {% else %}
+              {{ settlement.claim.causer_full_name }}
+          {% endif %}
+      </p>
+
+      <p>
+          <strong>Settlement Date:</strong>
+          {{ settlement.settlement_date }}
+      </p>
   </div>
 
   <!-- SUMMARY CARD -->
