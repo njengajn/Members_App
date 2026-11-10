@@ -29,8 +29,11 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from backend.members.models import MembershipStatusHistory
 from django.views.decorators.http import require_POST
-
-
+from django.core.paginator import Paginator
+from django.db.models import Q, F, Value, CharField
+from django.db.models.functions import Concat
+from django.http import HttpResponse
+from django.template.loader import render_to_string
 
 # ======================================================
 # HELPERS
@@ -1776,21 +1779,78 @@ def export_members_pdf(request):
 
 @staff_member_required
 def membership_history(request):
+    """
+    Display searchable and paginated membership history.
 
+    Search covers the complete history, not just the current
+    members list or currently active members.
+
+    Search fields:
+    - Member UID
+    - Member name
+    - Member email
+
+    Page sizes:
+    - 25
+    - 50
+    - 100
+    """
+
+    search_query = request.GET.get("q", "").strip()
+
+    # Only permit the three supported page sizes.
+    allowed_page_sizes = [25, 50, 100]
+
+    try:
+        page_size = int(request.GET.get("per_page", 25))
+    except (TypeError, ValueError):
+        page_size = 25
+
+    if page_size not in allowed_page_sizes:
+        page_size = 25
+
+    # Start with the complete membership history.
     records = (
         MembershipStatusHistory.objects
         .select_related(
             "member",
-            "performed_by"
+            "performed_by",
+        )
+        .annotate(
+            member_search_name=Concat(
+                F("member__first_name"),
+                Value(" "),
+                F("member__middle_name"),
+                Value(" "),
+                F("member__surname"),
+                output_field=CharField(),
+            )
         )
         .order_by("-created_at")
     )
+
+    # Search the complete history before pagination.
+    if search_query:
+        records = records.filter(
+            Q(member__member_uid__icontains=search_query)
+            | Q(member_search_name__icontains=search_query)
+            | Q(member__email__icontains=search_query)
+        )
+
+    # Paginate the filtered history.
+    paginator = Paginator(records, page_size)
+
+    page_number = request.GET.get("page", 1)
+    records_page = paginator.get_page(page_number)
 
     return render(
         request,
         "members/admin/members/membership_history.html",
         {
-            "records": records,
+            "records": records_page,
+            "search_query": search_query,
+            "page_size": page_size,
+            "page_sizes": allowed_page_sizes,
         },
     )
     

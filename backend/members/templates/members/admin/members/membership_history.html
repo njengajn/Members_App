@@ -2,82 +2,434 @@
 
 {% block content %}
 
-<div class="container-fluid">
+<div class="container-fluid membership-history-page">
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <!-- PAGE HEADER -->
+    <div class="d-flex justify-content-between align-items-center
+                flex-wrap gap-2 mb-3">
 
-        <h3 class="mb-0">
-            Membership History
-        </h3>
+        <h3 class="mb-0">Membership History</h3>
 
         <a href="{% url 'members_admin:admin_members_list' %}"
            class="btn btn-secondary">
-
             Back to Members
-
         </a>
 
     </div>
 
-    <div class="card shadow-sm">
 
-        <div class="card-body p-0">
+    <!-- SEARCH AND PAGE SIZE -->
+    <div class="card shadow-sm mb-3">
 
-            <div class="table-responsive">
+        <div class="card-body">
 
-                <table class="table table-striped align-middle mb-0">
+            <form method="get"
+                  id="membershipHistorySearchForm"
+                  action="{% url 'members_admin:membership_history' %}"
+                  class="row g-3 align-items-end">
 
-                    <thead class="table-dark">
+                <div class="col-12 col-lg-7">
 
-                        <tr>
-                            <th>UID</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Action</th>
-                            <th>Reason</th>
-                            <th>Performed By</th>
-                            <th>Date</th>
-                        </tr>
+                    <label for="historySearch"
+                           class="form-label fw-semibold">
+                        Search Membership History
+                    </label>
 
-                    </thead>
+                    <input
+                        type="search"
+                        name="q"
+                        id="historySearch"
+                        class="form-control"
+                        placeholder="Search by UID, name or email"
+                        value="{{ search_query }}"
+                        autocomplete="off"
+                    >
 
-                    <tbody>
+                </div>
 
-                        {% for r in records %}
 
-                        <tr>
+                <div class="col-12 col-sm-5 col-lg-2">
 
-                            <td>
-                                {{ r.member.member_uid }}
-                            </td>
+                    <label for="pageSize"
+                           class="form-label fw-semibold">
+                        Records per page
+                    </label>
 
-                            <td>
-                                {{ r.member.full_name }}
-                            </td>
+                    <select
+                        name="per_page"
+                        id="pageSize"
+                        class="form-select"
+                    >
 
-                            <td>
-                                {{ r.member.email }}
-                            </td>
+                        {% for size in page_sizes %}
 
-                            <td>
+                            <option value="{{ size }}"
+                                {% if page_size == size %}selected{% endif %}>
+                                {{ size }}
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <div class="col-12 col-sm-7 col-lg-3">
+
+                    <div class="d-flex gap-2">
+
+                        <button type="submit"
+                                class="btn btn-primary flex-grow-1">
+
+                            <i class="fas fa-search me-1"></i>
+                            Search
+
+                        </button>
+
+                        <a href="{% url 'members_admin:membership_history' %}"
+                           id="membershipHistoryReset"
+                           class="btn btn-outline-secondary">
+
+                            Reset
+
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- DYNAMIC RESULTS CONTAINER -->
+    <div id="membershipHistoryResults"
+         aria-live="polite"
+         aria-busy="false">
+
+
+        <!-- RESULTS SUMMARY AND TOP PAGINATION -->
+        <div class="membership-history-results-header mb-3">
+
+            <div class="membership-history-summary">
+
+                <div class="text-muted small">
+
+                    {% if search_query %}
+
+                        Search results for:
+                        <strong>{{ search_query }}</strong>
+
+                    {% else %}
+
+                        All membership history records
+
+                    {% endif %}
+
+                </div>
+
+
+                <div class="text-muted small">
+
+                    {% if records.paginator.count %}
+
+                        Showing
+                        {{ records.start_index }}–{{ records.end_index }}
+                        of {{ records.paginator.count }} records
+
+                    {% else %}
+
+                        0 records
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+            <!-- TOP PAGINATION -->
+            {% if records.paginator.num_pages > 1 %}
+
+                <nav aria-label="Membership history top pagination">
+
+                    <ul class="pagination pagination-sm
+                               flex-wrap mb-0">
+
+                        {% if records.has_previous %}
+
+                            <li class="page-item">
+
+                                <a class="page-link"
+                                   data-history-page
+                                   href="?q={{ search_query|urlencode }}&per_page={{ page_size }}&page={{ records.previous_page_number }}">
+                                    Previous
+                                </a>
+
+                            </li>
+
+                        {% else %}
+
+                            <li class="page-item disabled">
+                                <span class="page-link">Previous</span>
+                            </li>
+
+                        {% endif %}
+
+
+                        {% for num in records.paginator.page_range %}
+
+                            {% if num == records.number %}
+
+                                <li class="page-item active"
+                                    aria-current="page">
+
+                                    <span class="page-link">
+                                        {{ num }}
+                                    </span>
+
+                                </li>
+
+                            {% elif num > records.number|add:"-3" and num < records.number|add:"3" %}
+
+                                <li class="page-item">
+
+                                    <a class="page-link"
+                                       data-history-page
+                                       href="?q={{ search_query|urlencode }}&per_page={{ page_size }}&page={{ num }}">
+                                        {{ num }}
+                                    </a>
+
+                                </li>
+
+                            {% endif %}
+
+                        {% endfor %}
+
+
+                        {% if records.has_next %}
+
+                            <li class="page-item">
+
+                                <a class="page-link"
+                                   data-history-page
+                                   href="?q={{ search_query|urlencode }}&per_page={{ page_size }}&page={{ records.next_page_number }}">
+                                    Next
+                                </a>
+
+                            </li>
+
+                        {% else %}
+
+                            <li class="page-item disabled">
+                                <span class="page-link">Next</span>
+                            </li>
+
+                        {% endif %}
+
+                    </ul>
+
+                </nav>
+
+            {% endif %}
+
+        </div>
+
+
+        <!-- DESKTOP TABLE -->
+        <div class="card shadow-sm mb-3 d-none d-md-block">
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table class="table table-striped table-hover
+                                  align-middle mb-0 membership-history-table">
+
+                        <thead class="table-dark">
+
+                            <tr>
+                                <th>UID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Action</th>
+                                <th>Reason</th>
+                                <th>Performed By</th>
+                                <th>Date</th>
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            {% for r in records %}
+
+                                <tr>
+
+                                    <td class="text-nowrap">
+                                        {{ r.member.member_uid }}
+                                    </td>
+
+                                    <td>
+                                        {{ r.member.full_name }}
+                                    </td>
+
+                                    <td>
+                                        {{ r.member.email }}
+                                    </td>
+
+                                    <td class="text-nowrap">
+
+                                        {% if r.action == "retired" %}
+
+                                            <span class="badge bg-danger">
+                                                Retired
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="badge bg-success">
+                                                Reactivated
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                    <td>
+                                        {{ r.reason|default:"-" }}
+                                    </td>
+
+                                    <td>
+
+                                        {% if r.performed_by %}
+                                            {{ r.performed_by }}
+                                        {% else %}
+                                            System
+                                        {% endif %}
+
+                                    </td>
+
+                                    <td class="text-nowrap">
+                                        {{ r.created_at|date:"d M Y H:i" }}
+                                    </td>
+
+                                </tr>
+
+                            {% empty %}
+
+                                <tr>
+
+                                    <td colspan="7"
+                                        class="text-center text-muted py-4">
+
+                                        {% if search_query %}
+                                            No membership history records
+                                            matched your search.
+                                        {% else %}
+                                            No membership history found.
+                                        {% endif %}
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- MOBILE HISTORY CARDS -->
+        <div class="membership-history-mobile d-md-none">
+
+            {% for r in records %}
+
+                <div class="card shadow-sm membership-history-card mb-3">
+
+                    <div class="card-body">
+
+                        <div class="d-flex justify-content-between
+                                    align-items-start gap-2 mb-3">
+
+                            <div class="membership-history-member">
+
+                                <div class="fw-semibold">
+                                    {{ r.member.full_name }}
+                                </div>
+
+                                <div class="text-muted small">
+                                    {{ r.member.member_uid }}
+                                </div>
+
+                            </div>
+
+                            <div class="flex-shrink-0">
 
                                 {% if r.action == "retired" %}
+
                                     <span class="badge bg-danger">
                                         Retired
                                     </span>
+
                                 {% else %}
+
                                     <span class="badge bg-success">
                                         Reactivated
                                     </span>
+
                                 {% endif %}
 
-                            </td>
+                            </div>
 
-                            <td>
+                        </div>
+
+
+                        <div class="membership-history-detail">
+
+                            <span class="membership-history-label">
+                                Email
+                            </span>
+
+                            <span class="membership-history-value">
+                                {{ r.member.email|default:"-" }}
+                            </span>
+
+                        </div>
+
+
+                        <div class="membership-history-detail">
+
+                            <span class="membership-history-label">
+                                Reason
+                            </span>
+
+                            <span class="membership-history-value">
                                 {{ r.reason|default:"-" }}
-                            </td>
+                            </span>
 
-                            <td>
+                        </div>
+
+
+                        <div class="membership-history-detail">
+
+                            <span class="membership-history-label">
+                                Performed By
+                            </span>
+
+                            <span class="membership-history-value">
 
                                 {% if r.performed_by %}
                                     {{ r.performed_by }}
@@ -85,39 +437,552 @@
                                     System
                                 {% endif %}
 
-                            </td>
+                            </span>
 
-                            <td>
+                        </div>
+
+
+                        <div class="membership-history-detail">
+
+                            <span class="membership-history-label">
+                                Date
+                            </span>
+
+                            <span class="membership-history-value">
                                 {{ r.created_at|date:"d M Y H:i" }}
-                            </td>
+                            </span>
 
-                        </tr>
+                        </div>
 
-                        {% empty %}
+                    </div>
 
-                        <tr>
+                </div>
 
-                            <td colspan="7"
-                                class="text-center text-muted py-4">
+            {% empty %}
 
-                                No membership history found.
+                <div class="card shadow-sm">
 
-                            </td>
+                    <div class="card-body text-center text-muted py-4">
 
-                        </tr>
+                        {% if search_query %}
+                            No membership history records matched
+                            your search.
+                        {% else %}
+                            No membership history found.
+                        {% endif %}
 
-                        {% endfor %}
+                    </div>
 
-                    </tbody>
+                </div>
 
-                </table>
+            {% endfor %}
+
+        </div>
+
+
+        <!-- BOTTOM PAGINATION -->
+        {% if records.paginator.num_pages > 1 %}
+
+            <div class="card shadow-sm mb-3">
+
+                <div class="card-footer bg-white">
+
+                    <nav aria-label="Membership history bottom pagination">
+
+                        <ul class="pagination pagination-sm
+                                   justify-content-center flex-wrap mb-0">
+
+                            {% if records.has_previous %}
+
+                                <li class="page-item">
+
+                                    <a class="page-link"
+                                       data-history-page
+                                       href="?q={{ search_query|urlencode }}&per_page={{ page_size }}&page={{ records.previous_page_number }}">
+                                        Previous
+                                    </a>
+
+                                </li>
+
+                            {% else %}
+
+                                <li class="page-item disabled">
+                                    <span class="page-link">Previous</span>
+                                </li>
+
+                            {% endif %}
+
+
+                            {% for num in records.paginator.page_range %}
+
+                                {% if num == records.number %}
+
+                                    <li class="page-item active"
+                                        aria-current="page">
+
+                                        <span class="page-link">
+                                            {{ num }}
+                                        </span>
+
+                                    </li>
+
+                                {% elif num > records.number|add:"-3" and num < records.number|add:"3" %}
+
+                                    <li class="page-item">
+
+                                        <a class="page-link"
+                                           data-history-page
+                                           href="?q={{ search_query|urlencode }}&per_page={{ page_size }}&page={{ num }}">
+                                            {{ num }}
+                                        </a>
+
+                                    </li>
+
+                                {% endif %}
+
+                            {% endfor %}
+
+
+                            {% if records.has_next %}
+
+                                <li class="page-item">
+
+                                    <a class="page-link"
+                                       data-history-page
+                                       href="?q={{ search_query|urlencode }}&per_page={{ page_size }}&page={{ records.next_page_number }}">
+                                        Next
+                                    </a>
+
+                                </li>
+
+                            {% else %}
+
+                                <li class="page-item disabled">
+                                    <span class="page-link">Next</span>
+                                </li>
+
+                            {% endif %}
+
+                        </ul>
+
+                    </nav>
+
+                </div>
 
             </div>
 
-        </div>
+        {% endif %}
 
     </div>
 
 </div>
+
+
+<style>
+
+    /* PAGE CONTAINER */
+    .membership-history-page {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+
+    /* DESKTOP TABLE */
+    .membership-history-table {
+        min-width: 950px;
+    }
+
+    .membership-history-table th,
+    .membership-history-table td {
+        vertical-align: middle;
+    }
+
+    .membership-history-table td {
+        overflow-wrap: anywhere;
+    }
+
+
+    /* RESULTS SUMMARY AND TOP PAGINATION */
+    .membership-history-results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .membership-history-summary {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+    }
+
+
+    /* MOBILE CARDS */
+    .membership-history-mobile {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .membership-history-card {
+        width: 100%;
+        min-width: 0;
+        border-radius: 8px;
+    }
+
+    .membership-history-card .card-body {
+        padding: 14px;
+    }
+
+    .membership-history-member {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .membership-history-detail {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 9px 0;
+        border-top: 1px solid #eeeeee;
+        min-width: 0;
+    }
+
+    .membership-history-label {
+        color: #6c757d;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+    .membership-history-value {
+        font-size: 0.9rem;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        min-width: 0;
+    }
+
+
+    /* PAGINATION */
+    .membership-history-page .pagination {
+        gap: 3px;
+    }
+
+
+    /* DYNAMIC LOADING */
+    #membershipHistoryResults {
+        transition: opacity 0.15s ease-in-out;
+    }
+
+    #membershipHistoryResults.is-loading {
+        opacity: 0.55;
+        pointer-events: none;
+    }
+
+
+    /* MOBILE */
+    @media (max-width: 767.98px) {
+
+        .membership-history-page {
+            padding-left: 10px;
+            padding-right: 10px;
+            overflow-x: clip;
+        }
+
+        .membership-history-page h3 {
+            font-size: 1.25rem;
+        }
+
+        .membership-history-page .pagination {
+            gap: 2px;
+        }
+
+        .membership-history-page .page-link {
+            padding: 0.35rem 0.55rem;
+        }
+
+        .membership-history-results-header {
+            align-items: flex-start;
+        }
+
+        .membership-history-results-header nav {
+            width: 100%;
+        }
+
+        .membership-history-results-header .pagination {
+            justify-content: flex-start;
+        }
+
+        .membership-history-mobile {
+            overflow-x: clip;
+        }
+
+    }
+
+</style>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const form = document.getElementById(
+        "membershipHistorySearchForm"
+    );
+
+    const results = document.getElementById(
+        "membershipHistoryResults"
+    );
+
+    const searchInput = document.getElementById(
+        "historySearch"
+    );
+
+    const pageSizeSelect = document.getElementById(
+        "pageSize"
+    );
+
+    const resetLink = document.getElementById(
+        "membershipHistoryReset"
+    );
+
+    if (!form || !results || !searchInput || !pageSizeSelect) {
+        return;
+    }
+
+    let debounceTimer = null;
+    let activeController = null;
+    let requestNumber = 0;
+
+
+    function buildUrl(page = 1) {
+
+        const url = new URL(
+            form.action,
+            window.location.origin
+        );
+
+        const query = searchInput.value.trim();
+
+        if (query) {
+            url.searchParams.set("q", query);
+        }
+
+        url.searchParams.set(
+            "per_page",
+            pageSizeSelect.value
+        );
+
+        url.searchParams.set("page", page);
+
+        return url;
+    }
+
+
+    async function loadResults(url, updateHistory = true) {
+
+        clearTimeout(debounceTimer);
+
+        if (activeController) {
+            activeController.abort();
+        }
+
+        const controller = new AbortController();
+        activeController = controller;
+
+        const currentRequest = ++requestNumber;
+
+        results.classList.add("is-loading");
+        results.setAttribute("aria-busy", "true");
+
+        try {
+
+            const response = await fetch(url.toString(), {
+                method: "GET",
+                credentials: "same-origin",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                signal: controller.signal
+            });
+
+            if (!response.ok) {
+                throw new Error(
+                    "Membership history request failed: " +
+                    response.status
+                );
+            }
+
+            // The view returns the complete existing template.
+            // Extract only its results container.
+            const html = await response.text();
+
+            const parser = new DOMParser();
+
+            const documentResponse = parser.parseFromString(
+                html,
+                "text/html"
+            );
+
+            const updatedResults =
+                documentResponse.getElementById(
+                    "membershipHistoryResults"
+                );
+
+            if (!updatedResults) {
+                throw new Error(
+                    "Membership history results container " +
+                    "was not found in the response."
+                );
+            }
+
+            // Ignore responses belonging to an older search.
+            if (currentRequest !== requestNumber) {
+                return;
+            }
+
+            results.innerHTML = updatedResults.innerHTML;
+
+            if (updateHistory) {
+                window.history.pushState(
+                    {},
+                    "",
+                    url.pathname + url.search
+                );
+            }
+
+        } catch (error) {
+
+            if (error.name !== "AbortError") {
+
+                console.error(
+                    "Membership history dynamic update failed:",
+                    error
+                );
+
+                // Preserve normal functionality if AJAX fails.
+                window.location.assign(url.toString());
+
+            }
+
+        } finally {
+
+            if (currentRequest === requestNumber) {
+
+                activeController = null;
+
+                results.classList.remove("is-loading");
+
+                results.setAttribute("aria-busy", "false");
+
+            }
+
+        }
+
+    }
+
+
+    // SEARCH WHILE TYPING.
+    // Wait until typing pauses before requesting results.
+    searchInput.addEventListener("input", function () {
+
+        clearTimeout(debounceTimer);
+
+        debounceTimer = setTimeout(function () {
+            loadResults(buildUrl(1));
+        }, 400);
+
+    });
+
+
+    // UPDATE RESULTS IMMEDIATELY WHEN PAGE SIZE CHANGES.
+    pageSizeSelect.addEventListener("change", function () {
+
+        clearTimeout(debounceTimer);
+
+        loadResults(buildUrl(1));
+
+    });
+
+
+    // SEARCH BUTTON.
+    // Keep normal form submission as a fallback when JavaScript
+    // is unavailable, but use dynamic loading when it is available.
+    form.addEventListener("submit", function (event) {
+
+        event.preventDefault();
+
+        clearTimeout(debounceTimer);
+
+        loadResults(buildUrl(1));
+
+    });
+
+
+    // RESET SEARCH.
+    if (resetLink) {
+
+        resetLink.addEventListener("click", function (event) {
+
+            event.preventDefault();
+
+            clearTimeout(debounceTimer);
+
+            searchInput.value = "";
+            pageSizeSelect.value = "25";
+
+            loadResults(
+                new URL(resetLink.href, window.location.origin)
+            );
+
+        });
+
+    }
+
+
+    // PAGINATION.
+    // Event delegation continues working when the results HTML
+    // is replaced after each request.
+    results.addEventListener("click", function (event) {
+
+        const link = event.target.closest(
+            "a[data-history-page]"
+        );
+
+        if (!link || !results.contains(link)) {
+            return;
+        }
+
+        event.preventDefault();
+
+        clearTimeout(debounceTimer);
+
+        const url = new URL(
+            link.href,
+            window.location.origin
+        );
+
+        loadResults(url);
+
+    });
+
+
+    // BROWSER BACK AND FORWARD.
+    window.addEventListener("popstate", function () {
+
+        const url = new URL(window.location.href);
+
+        searchInput.value =
+            url.searchParams.get("q") || "";
+
+        pageSizeSelect.value =
+            url.searchParams.get("per_page") || "25";
+
+        loadResults(url, false);
+
+    });
+
+});
+</script>
 
 {% endblock %}
