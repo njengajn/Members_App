@@ -1,18 +1,164 @@
+
 {% extends "members/members_base.html" %}
+{% load static %}
+
 {% block title %}Login{% endblock %}
+
 {% block content %}
 
-<div class="row justify-content-center">
-  <div class="col-md-6">
+<style>
+  .login-page {
+    min-height: 60vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+  }
 
-    <div class="card p-4 shadow-sm border-0">
+  .login-card {
+    width: 100%;
+    max-width: 410px;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 14px;
+    box-shadow: 0 5px 22px rgba(0, 0, 0, 0.07);
+    overflow: hidden;
+  }
 
-      <h3 class="mb-3 text-center">Login</h3>
+  .login-header {
+    text-align: center;
+    padding: 1rem 1.5rem 0;
+  }
+
+  .login-logo {
+    width: 68px;
+    height: 68px;
+    object-fit: contain;
+    margin-bottom: 0.5rem;
+  }
+
+  .login-heading {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #263746;
+    margin-bottom: 0.2rem;
+  }
+
+  .login-subheading {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 0;
+  }
+
+  .login-body {
+    padding: 0.4rem 1.5rem 1.25rem;
+  }
+
+  .login-card .form-label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #344054;
+    margin-bottom: 0.3rem;
+  }
+
+  .login-card .form-control {
+    min-height: 40px;
+    border-radius: 7px;
+    font-size: 0.9rem;
+  }
+
+  .login-card .input-group .form-control {
+    border-radius: 7px 0 0 7px;
+  }
+
+  .login-card .password-visibility-toggle {
+    min-width: 68px;
+    border-radius: 0 7px 7px 0;
+    font-size: 0.82rem;
+    padding: 0.35rem 0.6rem;
+  }
+
+  .login-card .form-control:focus {
+    border-color: #198754;
+    box-shadow: 0 0 0 0.15rem rgba(25, 135, 84, 0.12);
+  }
+
+  .login-submit {
+    min-height: 42px;
+    border-radius: 7px;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .login-links {
+    border-top: 1px solid #edf0f2;
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    text-align: center;
+    font-size: 0.85rem;
+  }
+
+  .login-links a {
+    text-decoration: none;
+  }
+
+  .login-links a:hover {
+    text-decoration: underline;
+  }
+
+  .login-alert {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+  }
+
+  @media (max-width: 576px) {
+    .login-page {
+      min-height: auto;
+      padding: 0.75rem;
+    }
+
+    .login-header {
+      padding-top: 1rem;
+    }
+
+    .login-body {
+      padding: 0.75rem 1.1rem 1rem;
+    }
+
+    .login-logo {
+      width: 60px;
+      height: 60px;
+    }
+  }
+</style>
+
+<div class="login-page">
+  <div class="login-card">
+
+    <!-- LOGO AND HEADING -->
+    <div class="login-header">
+
+      <img
+        src="{% static 'images/kro_logo_web.jpg' %}"
+        alt="KRO logo"
+        class="login-logo"
+      >
+
+      <h3 class="login-heading">Welcome Back</h3>
+
+      <p class="login-subheading">
+        Sign in to access your membership account.
+      </p>
+
+    </div>
+
+    <div class="login-body">
 
       <!-- ALERT AREA -->
       {% if messages %}
         {% for message in messages %}
-          <div class="alert alert-warning py-2">
+          <div class="alert alert-warning login-alert" role="alert">
             {{ message }}
           </div>
         {% endfor %}
@@ -22,15 +168,55 @@
         {% csrf_token %}
 
         <!-- USERNAME -->
-        <div class="mb-3">
-          <label class="form-label">Username</label>
-          <input name="username" class="form-control" required>
+        <div class="mb-2">
+          <label for="login_username" class="form-label">
+            Username
+          </label>
+
+          <input
+            type="text"
+            id="login_username"
+            name="username"
+            class="form-control"
+            placeholder="Enter your username"
+            autocomplete="username"
+            required
+            autofocus
+          >
         </div>
 
         <!-- PASSWORD -->
         <div class="mb-2">
-          <label class="form-label">Password</label>
-          <input type="password" name="password" class="form-control" required>
+
+          <label for="login_password" class="form-label">
+            Password
+          </label>
+
+          <div class="input-group">
+
+            <input
+              type="password"
+              id="login_password"
+              name="password"
+              class="form-control"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              required
+            >
+
+            <button
+              type="button"
+              class="btn btn-outline-secondary password-visibility-toggle"
+              data-password-target="login_password"
+              aria-controls="login_password"
+              aria-pressed="false"
+              aria-label="Show password"
+            >
+              Show
+            </button>
+
+          </div>
+
         </div>
 
         <!-- ATTEMPTS WARNING -->
@@ -44,31 +230,46 @@
 
         <!-- CAPTCHA -->
         {% if show_captcha %}
-        <div class="mt-3 p-2 border rounded bg-light">
-          <small class="text-muted d-block mb-2">
-            Security check required
-          </small>
-          <div class="g-recaptcha" data-sitekey="{{ RECAPTCHA_SITE_KEY }}"></div>
-        </div>
+          <div class="mt-2 mb-2 p-2 border rounded bg-light">
+
+            <small class="text-muted d-block mb-2">
+              Security check required
+            </small>
+
+            <div
+              class="g-recaptcha"
+              data-sitekey="{{ RECAPTCHA_SITE_KEY }}"
+            ></div>
+
+          </div>
         {% endif %}
 
-        <!-- BUTTON -->
-        <button class="btn btn-success w-100 mt-3" type="submit">
+        <!-- LOGIN BUTTON -->
+        <button
+          class="btn btn-success w-100 login-submit mt-2"
+          type="submit"
+        >
           Login
         </button>
 
       </form>
 
       <!-- LINKS -->
-      <div class="text-center mt-3">
+      <div class="login-links">
 
-        <a href="{% url 'members:password_reset' %}" class="d-block small">
+        <a
+          href="{% url 'members:password_reset' %}"
+          class="d-block mb-2"
+        >
           Forgot password?
         </a>
 
-        <p class="mt-2 mb-0">
+        <p class="mb-0">
           Don’t have an account?
-          <a href="{% url 'members:register_step_1' %}" class="text-danger fw-bold">
+          <a
+            href="{% url 'members:register_step_1' %}"
+            class="text-danger fw-bold"
+          >
             Register here
           </a>
         </p>
@@ -79,6 +280,49 @@
   </div>
 </div>
 
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<!-- PASSWORD VISIBILITY -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  document.querySelectorAll(".password-visibility-toggle").forEach(function (button) {
+
+    button.addEventListener("click", function () {
+
+      const targetId = button.dataset.passwordTarget;
+      const passwordField = document.getElementById(targetId);
+
+      if (!passwordField) {
+        return;
+      }
+
+      const isVisible = passwordField.type === "text";
+
+      passwordField.type = isVisible ? "password" : "text";
+
+      button.textContent = isVisible ? "Show" : "Hide";
+
+      button.setAttribute(
+        "aria-pressed",
+        isVisible ? "false" : "true"
+      );
+
+      button.setAttribute(
+        "aria-label",
+        isVisible ? "Show password" : "Hide password"
+      );
+
+    });
+
+  });
+
+});
+</script>
+
+<!-- GOOGLE RECAPTCHA -->
+<script
+  src="https://www.google.com/recaptcha/api.js"
+  async
+  defer
+></script>
 
 {% endblock %}
