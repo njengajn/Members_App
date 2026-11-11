@@ -20,10 +20,7 @@ from .models import (
 from backend.members.models import ClaimSettlementDeduction
 from datetime import date
 from dateutil.relativedelta import relativedelta
-
-
 import re
-
 
 class UserRegistrationForm(UserCreationForm):
     """
@@ -570,6 +567,7 @@ DependantFormSet = inlineformset_factory(
         can_delete=True,
     )
 
+
 class ClaimForm(forms.ModelForm):
     """
     Claim form used by both member and admin claim creation.
@@ -591,24 +589,39 @@ class ClaimForm(forms.ModelForm):
     - Dependants with received/open claims are excluded.
     """
 
-    class Meta:
+    deceased_at = forms.DateField(
+        label="Date of death",
+        required=True,
+        input_formats=["%Y-%m-%d"],
+        widget=forms.DateInput(
+            attrs={
+                "type": "date",
+                "class": "form-control",
+            },
+            format="%Y-%m-%d",
+        ),
+        error_messages={
+            "required": "Please enter the date of death.",
+            "invalid": "Please enter a valid date of death.",
+        },
+    )
 
+    class Meta:
         model = Claim
 
         fields = [
             "cause_type",
             "causer_dependant",
             "claimer_is_next_of_kin",
+            "deceased_at",
         ]
 
         widgets = {
-
             "cause_type": forms.Select(
                 attrs={
                     "class": "form-select",
                 }
             ),
-
             "causer_dependant": forms.Select(
                 attrs={
                     "class": "form-select",
@@ -623,14 +636,12 @@ class ClaimForm(forms.ModelForm):
         selected_member=None,
         **kwargs
     ):
-
         super().__init__(
             *args,
             **kwargs
         )
 
         self.user = user
-
         self.selected_member = selected_member
 
         is_admin = bool(
@@ -641,13 +652,11 @@ class ClaimForm(forms.ModelForm):
         # ======================================================
         # BASE DEPENDANT QUERYSET
         # ======================================================
-        #
+
         # Preserve the existing protection against selecting:
-        #
         # - inactive dependants
         # - dependants with received claims
         # - dependants with open claims
-        # ======================================================
 
         base_qs = (
             Dependant.objects
@@ -665,9 +674,8 @@ class ClaimForm(forms.ModelForm):
         # ======================================================
         # MEMBER FLOW
         # ======================================================
-        #
+
         # Members can ONLY create dependant claims.
-        # ======================================================
 
         if (
             not is_admin
@@ -676,12 +684,10 @@ class ClaimForm(forms.ModelForm):
                 "member"
             )
         ):
-
             member = user.member
 
             # --------------------------------------------------
             # Do not allow the member to choose claim type.
-            #
             # The value is also enforced again in clean().
             # --------------------------------------------------
 
@@ -710,23 +716,19 @@ class ClaimForm(forms.ModelForm):
         # ======================================================
         # ADMIN FLOW
         # ======================================================
-        #
+
         # Admin can create:
-        #
         # - member-causer claim
         # - dependant-causer claim
-        # ======================================================
 
         else:
 
             # --------------------------------------------------
             # Preferred admin flow:
-            #
             # Use the member selected through the member search.
             # --------------------------------------------------
 
             if selected_member:
-
                 qs = (
                     base_qs.filter(
                         member=selected_member
@@ -735,7 +737,6 @@ class ClaimForm(forms.ModelForm):
 
             # --------------------------------------------------
             # Existing fallback preserved.
-            #
             # Supports the existing case where an admin also
             # has a Member record.
             # --------------------------------------------------
@@ -747,7 +748,6 @@ class ClaimForm(forms.ModelForm):
                     "member"
                 )
             ):
-
                 qs = (
                     base_qs.filter(
                         member=user.member
@@ -759,7 +759,6 @@ class ClaimForm(forms.ModelForm):
             # --------------------------------------------------
 
             else:
-
                 qs = (
                     Dependant.objects.none()
                 )
@@ -779,12 +778,24 @@ class ClaimForm(forms.ModelForm):
             f"{obj.first_name} {obj.surname}"
         )
 
+    def clean_deceased_at(self):
+        deceased_at = self.cleaned_data.get("deceased_at")
+
+        if (
+            deceased_at
+            and deceased_at > timezone.localdate()
+        ):
+            raise forms.ValidationError(
+                "The date of death cannot be in the future."
+            )
+
+        return deceased_at
+
     def clean(self):
         """
         Server-side validation.
 
         The views remain responsible for assigning:
-
         - claim.member
         - claim.causer_full_name
         - claim.claimer
@@ -811,12 +822,10 @@ class ClaimForm(forms.ModelForm):
         # ======================================================
         # MEMBER FLOW
         # ======================================================
-        #
+
         # Members can ONLY create dependant claims.
-        #
         # The server enforces the cause type regardless of the
         # hidden HTML input.
-        # ======================================================
 
         if (
             not is_admin
@@ -843,7 +852,6 @@ class ClaimForm(forms.ModelForm):
             # --------------------------------------------------
 
             if not dependant:
-
                 self.add_error(
                     "causer_dependant",
                     (
@@ -860,7 +868,6 @@ class ClaimForm(forms.ModelForm):
                 dependant.member_id
                 != self.user.member.id
             ):
-
                 self.add_error(
                     "causer_dependant",
                     (
@@ -884,7 +891,6 @@ class ClaimForm(forms.ModelForm):
                 == Claim.CLAIM_CAUSER_DEPENDANT
                 and not dependant
             ):
-
                 self.add_error(
                     "causer_dependant",
                     (
@@ -902,7 +908,6 @@ class ClaimForm(forms.ModelForm):
                 == Claim.CLAIM_CAUSER_MEMBER
                 and dependant
             ):
-
                 self.add_error(
                     "causer_dependant",
                     (
