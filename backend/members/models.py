@@ -997,6 +997,12 @@ class Claim(models.Model):
     claimer_is_next_of_kin = models.BooleanField(default=False)
     causer_dependant = models.ForeignKey(
         "Dependant", on_delete=models.SET_NULL, null=True, blank=True, related_name="caused_claims")
+    deceased_at = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Date of death",
+        help_text="The date of death recorded for this claim.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="claims_created", on_delete=models.SET_NULL, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
