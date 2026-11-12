@@ -189,6 +189,10 @@ def member_create_claim(request):
                         commit=False
                     )
 
+                    claim.deceased_at = (
+                        form.cleaned_data["deceased_at"]
+                    )
+
                     dependant = (
                         form.cleaned_data.get(
                             "causer_dependant"

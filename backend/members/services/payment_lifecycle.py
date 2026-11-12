@@ -18,13 +18,13 @@ from backend.members.models import (
     MemberPaymentStatus,
     Member,
     AuditLog,
-)
+    )
 from backend.members.services.member_status_service import (
     retire_member,
-)
+    )
 from backend.members.services.dependant_status_service import (
     mark_dependant_deceased,
-)
+    )
 
 # =========================================================
 # PAYMENT LIFECYCLE ENGINE
@@ -210,13 +210,22 @@ def process_reconciled_payment_request(
             if dependant is None:
                 return False
 
-            # A verified dependant death claim has now passed
-            # settlement approval and reconciliation checks.
-            mark_dependant_deceased(dependant)
+            # A dependant death claim must have a recorded date.
+            # Never substitute today's date or the settlement date.
+            if claim.deceased_at is None:
+                return False
 
-        else:
-            # Unknown cause types must never trigger retirement.
-            return False
+            # This point is reached only after the existing checks:
+            # - payment request is closed;
+            # - pending payment approvals have been cleared;
+            # - settlement exists and is approved;
+            # - separation of duties has been satisfied.
+            mark_dependant_deceased(
+                dependant,
+                deceased_at=claim.deceased_at,
+            )
+
+            return True
 
     # ==========================================================
     # NON-PAYMENT RETIREMENT

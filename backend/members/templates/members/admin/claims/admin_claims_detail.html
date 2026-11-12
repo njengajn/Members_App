@@ -343,6 +343,42 @@ Claim Details
 
                         </div>
 
+                    </div>
+
+
+                    <!-- ===================================================== -->
+                    <!-- DATE OF DEATH -->
+                    <!-- ===================================================== -->
+
+                    <div class="row mb-3">
+
+                        <div class="col-md-6">
+
+                            <strong>
+
+                                Date of Death
+
+                            </strong>
+
+
+                            <div>
+
+                                {% if claim.deceased_at %}
+
+                                    {{ claim.deceased_at|date:"d M Y" }}
+
+                                {% else %}
+
+                                    <span class="text-muted">-</span>
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
                     <hr>
 
 

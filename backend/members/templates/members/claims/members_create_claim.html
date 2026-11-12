@@ -291,7 +291,7 @@ Create Claim
         </div>
 
 
-        <!-- ------------------------------------- -->
+        <!---------------------------->
         <!-- DEPENDANT -->
         <!-- ------------------------------------- -->
 
@@ -322,6 +322,30 @@ Create Claim
 
         </div>
 
+        <!-- ------------------------------------- -->
+        <!-- DATE OF DEATH -->
+        <!-- ------------------------------------- -->
+
+        <div class="mb-3">
+
+            <label
+                for="{{ form.deceased_at.id_for_label }}"
+                class="form-label"
+            >
+                Date of death
+            </label>
+
+            {{ form.deceased_at }}
+
+            {% if form.deceased_at.errors %}
+
+                <div class="text-danger small mt-1">
+                    {{ form.deceased_at.errors }}
+                </div>
+
+            {% endif %}
+
+        </div>
 
     </div>
 

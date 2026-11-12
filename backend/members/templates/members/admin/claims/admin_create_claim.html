@@ -260,7 +260,7 @@
                         </div>
 
 
-                        <!-- ===================================== -->
+                       <!-- ===================================== -->
                         <!-- DEPENDANT -->
                         <!-- ===================================== -->
 
@@ -276,16 +276,38 @@
                                 Select Dependant
                             </label>
 
-
                             {{ form.causer_dependant }}
-
 
                             {% if form.causer_dependant.errors %}
 
                                 <div class="text-danger small mt-1">
-
                                     {{ form.causer_dependant.errors }}
+                                </div>
 
+                            {% endif %}
+
+                        </div>
+
+
+                        <!-- ===================================== -->
+                        <!-- DATE OF DEATH -->
+                        <!-- ===================================== -->
+
+                        <div class="admin-section">
+
+                            <label
+                                for="{{ form.deceased_at.id_for_label }}"
+                                class="form-label"
+                            >
+                                Date of death
+                            </label>
+
+                            {{ form.deceased_at }}
+
+                            {% if form.deceased_at.errors %}
+
+                                <div class="text-danger small mt-1">
+                                    {{ form.deceased_at.errors }}
                                 </div>
 
                             {% endif %}
