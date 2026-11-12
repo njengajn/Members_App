@@ -553,6 +553,10 @@ def admin_create_claim(request):
                         commit=False
                     )
 
+                    claim.deceased_at = (
+                        form.cleaned_data["deceased_at"]
+                    )
+
                     # ==========================================
                     # MEMBER CAUSER
                     # ==========================================
@@ -674,47 +678,38 @@ def admin_create_claim(request):
                     # DOCUMENTS
                     # ==========================================
 
-                    files = request.FILES.getlist(
-                        "documents"
-                    )
+                    files = request.FILES.getlist("documents")
+                    titles = request.POST.getlist("doc_title")
+                    descriptions = request.POST.getlist("doc_description")
 
-                    titles = request.POST.getlist(
-                        "doc_title"
-                    )
-
-                    descriptions = request.POST.getlist(
-                        "doc_description"
-                    )
-
-                    for i, uploaded_file in enumerate(
-                        files
-                    ):
-
+                    for i, uploaded_file in enumerate(files):
                         if not uploaded_file:
                             continue
 
                         title = (
                             titles[i].strip()
-                            if (
-                                i < len(titles)
-                                and titles[i].strip()
-                            )
-                            else (
-                                "Claim Supporting "
-                                f"Document {i + 1}"
-                            )
+                            if i < len(titles) and titles[i].strip()
+                            else f"Claim Supporting Document {i + 1}"
                         )
 
                         description = (
                             descriptions[i].strip()
-                            if (
-                                i < len(descriptions)
-                                and descriptions[i].strip()
-                            )
+                            if i < len(descriptions) and descriptions[i].strip()
                             else ""
                         )
 
-                        MemberDocument.objects.create(
+                        # Preserve the filename supplied by the user before processing.
+                        original_filename = uploaded_file.name
+
+                        # Apply the established document processing pipeline.
+                        processed_file = prepare_document_file(
+                            uploaded_file=uploaded_file,
+                            member=claim.member,
+                            document_title=title,
+                        )
+
+                        # Create the claim document using the processed file.
+                        document = MemberDocument(
                             member=claim.member,
                             dependant=(
                                 claim.causer_dependant
@@ -724,8 +719,17 @@ def admin_create_claim(request):
                             claim=claim,
                             title=title,
                             description=description,
-                            file=uploaded_file,
+                            file=processed_file,
+                            original_filename=original_filename,
                         )
+
+                        # Validate and save the document.
+                        document.full_clean()
+                        document.save()
+
+                        # Generate the thumbnail for the saved document.
+                        generate_document_thumbnail(document)
+
 
                 messages.success(
                     request,
