@@ -1,48 +1,52 @@
+
 {% extends "members/admin/admin_base.html" %}
 {% load static %}
 
 {% block content %}
 
-<div class="container-fluid mt-3">
+<div class="container-fluid mt-3 members-list-page">
 
-    <!-- HEADER -->
+    <!-- ====================================================== -->
+    <!-- PAGE HEADER -->
+    <!-- ====================================================== -->
+
     <div class="card shadow-sm mb-3">
+
         <div class="card-body">
 
             <div class="row align-items-center">
 
                 <div class="col-md-6">
+
                     <h3 class="mb-1">Members List</h3>
+
                     <small class="text-muted">
                         Manage registered members
                     </small>
-                </div>
-
-                <div class="d-flex justify-content-between align-items-center mb-3">
-
-                    <h3 class="mb-0">
-                        Members
-                    </h3>
-
-                    <a href="{% url 'members_admin:membership_history' %}"
-                    class="btn btn-outline-secondary">
-
-                        Membership History
-
-                    </a>
 
                 </div>
 
                 <div class="col-md-6 text-md-end mt-2 mt-md-0">
 
+                    <a href="{% url 'members_admin:membership_history' %}"
+                       class="btn btn-outline-secondary btn-sm">
+
+                        Membership History
+
+                    </a>
+
                     <a href="{% url 'members_admin:export_members_pdf' %}"
                        class="btn btn-danger btn-sm">
+
                         PDF
+
                     </a>
 
                     <a href="{% url 'members_admin:export_members_excel' %}"
                        class="btn btn-success btn-sm">
+
                         Excel
+
                     </a>
 
                 </div>
@@ -50,289 +54,216 @@
             </div>
 
         </div>
+
     </div>
 
-    <!-- FILTERS -->
+
+    <!-- ====================================================== -->
+    <!-- SEARCH, STATUS FILTER AND PAGE SIZE -->
+    <!-- ====================================================== -->
+
     <div class="card shadow-sm mb-3">
 
         <div class="card-body">
 
-            <div class="row g-2">
+            <form method="get"
+                  id="membersSearchForm"
+                  action="{% url 'members_admin:admin_members_list' %}"
+                  class="row g-3 align-items-end">
 
-                <div class="col-md-4">
 
-                    <!-- ====================================================== -->
-                    <!-- MEMBER STATUS FILTER -->
-                    <!-- ====================================================== -->
+                <!-- STATUS FILTER -->
 
-                    <select
-                        id="statusFilter"
-                        class="form-select"
-                    >
+                <div class="col-12 col-md-4">
 
-                        <option value="active" selected>
+                    <label for="statusFilter"
+                           class="form-label fw-semibold">
+
+                        Member Status
+
+                    </label>
+
+                    <select name="status"
+                            id="statusFilter"
+                            class="form-select">
+
+                        <option value="active"
+                            {% if selected_status == "active" %}selected{% endif %}>
+
                             Active Members
+
                         </option>
 
-                        <option value="approved">
+                        <option value="approved"
+                            {% if selected_status == "approved" %}selected{% endif %}>
+
                             Approved Members
+
                         </option>
 
-                        <option value="pending">
+                        <option value="pending"
+                            {% if selected_status == "pending" %}selected{% endif %}>
+
                             Pending Members
+
                         </option>
 
-                        <option value="retired">
+                        <option value="retired"
+                            {% if selected_status == "retired" %}selected{% endif %}>
+
                             Retired Members
+
                         </option>
 
-                        <option value="">
+                        <option value=""
+                            {% if selected_status == "" %}selected{% endif %}>
+
                             All Members
+
                         </option>
 
                     </select>
 
                 </div>
 
-                <div class="col-md-8">
 
-                    <input
-                        type="text"
-                        id="memberSearch"
-                        class="form-control"
-                        placeholder="Search UID, name or email..."
-                    >
+                <!-- MEMBER SEARCH -->
+
+                <div class="col-12 col-md-5">
+
+                    <label for="memberSearch"
+                           class="form-label fw-semibold">
+
+                        Search Members
+
+                    </label>
+
+                    <input type="search"
+                           name="q"
+                           id="memberSearch"
+                           class="form-control"
+                           placeholder="Search UID, name or email..."
+                           value="{{ search_query }}"
+                           autocomplete="off">
 
                 </div>
 
-            </div>
 
-        </div>
+                <!-- PAGE SIZE -->
 
-    </div>
+                <div class="col-6 col-md-1">
 
-    <!-- ========================================= -->
-    <!-- DESKTOP/TABLET TABLE ONLY -->
-    <!-- ========================================= -->
+                    <label for="pageSize"
+                           class="form-label fw-semibold">
 
-    <div class="d-none d-md-block">
+                        Show
 
-        <div class="card shadow-sm">
+                    </label>
 
-            <div class="card-body p-0">
+                    <select name="per_page"
+                            id="pageSize"
+                            class="form-select">
 
-                <div class="table-responsive">
+                        {% for size in page_sizes %}
 
-                    <table
-                        class="table table-hover mb-0"
-                        id="membersTable">
+                            <option value="{{ size }}"
+                                {% if page_size == size %}selected{% endif %}>
 
-                        <thead class="table-dark">
+                                {{ size }}
 
-                            <tr>
-                                <th>UID</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-
-                        </thead>
-
-                        <tbody>
-
-                        {% for member in members %}
-
-                            <tr
-                                class="member-record"
-                                data-status="{{ member.status }}">
-
-                                <td>{{ member.member_uid }}</td>
-
-                                <td>
-                                    {{ member.first_name }}
-                                    {{ member.middle_name }}
-                                    {{ member.surname }}
-                                </td>
-
-                                <td>{{ member.email }}</td>
-
-                                <td>
-
-                                    <span class="badge
-                                    {% if member.status == 'active' %}
-                                        bg-success
-                                    {% elif member.status == 'pending' %}
-                                        bg-warning text-dark
-                                    {% else %}
-                                        bg-secondary
-                                    {% endif %}
-                                    ">
-                                        {{ member.status|title }}
-                                    </span>
-
-                                </td>
-
-                                <td>
-
-                                    <a href="{% url 'members_admin:admin_member_detail' member.id %}"
-                                       class="btn btn-primary btn-sm">
-                                        View
-                                    </a>
-
-                                    <a href="{% url 'members_admin:admin_documents_list' member.id %}"
-                                       class="btn btn-info btn-sm">
-                                        Docs
-                                    </a>
-
-                                    {% if member.status == "active" %}
-
-                                        <button
-                                            class="btn btn-danger btn-sm"
-                                            onclick="return retireMember({{ member.id }});">
-                                            Retire
-                                        </button>
-
-                                    {% elif member.status == "retired" %}
-
-                                        <button
-                                            class="btn btn-warning btn-sm"
-                                            onclick="return restoreMember({{ member.id }});">
-                                            Restore
-                                        </button>
-
-                                    {% endif %}
-
-                                </td>
-
-                            </tr>
+                            </option>
 
                         {% endfor %}
 
-                        </tbody>
-
-                    </table>
+                    </select>
 
                 </div>
 
-            </div>
+
+                <!-- SEARCH AND RESET -->
+
+                <div class="col-6 col-md-2">
+
+                    <div class="d-flex gap-2">
+
+                        <button type="submit"
+                                class="btn btn-primary flex-grow-1">
+
+                            Search
+
+                        </button>
+
+                        <a href="{% url 'members_admin:admin_members_list' %}"
+                           id="membersReset"
+                           class="btn btn-outline-secondary">
+
+                            Reset
+
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </form>
 
         </div>
 
     </div>
 
-    <!-- ========================================= -->
-    <!-- MOBILE CARDS ONLY -->
-    <!-- ========================================= -->
 
-    <div class="d-block d-md-none">
+    <!-- ====================================================== -->
+    <!-- DYNAMIC RESULTS CONTAINER -->
+    <!-- ====================================================== -->
 
-        {% for member in members %}
+    <div id="membersListResults"
+         aria-live="polite"
+         aria-busy="false">
 
-        <div
-            class="card shadow-sm mb-3 member-record"
-            data-status="{{ member.status }}">
 
-            <div class="card-body">
+        <!-- ================================================== -->
+        <!-- RESULTS SUMMARY AND TOP PAGINATION -->
+        <!-- ================================================== -->
 
-                <div class="mb-2">
+        <div class="members-results-header mb-3">
 
-                    <small class="text-success fw-bold">
-                        UID
-                    </small>
+            <div class="members-results-summary">
 
-                    <div class="font-monospace">
-                        {{ member.member_uid }}
-                    </div>
+                <div class="text-muted small">
 
-                </div>
+                    {% if search_query %}
 
-                <div class="mb-2">
+                        Search results for:
+                        <strong>{{ search_query }}</strong>
 
-                    <small class="text-success fw-bold">
-                        NAME
-                    </small>
+                    {% else %}
 
-                    <div>
-                        {{ member.first_name }}
-                        {{ member.middle_name }}
-                        {{ member.surname }}
-                    </div>
+                        {% if selected_status %}
 
-                </div>
+                            {{ selected_status|title }} Members
 
-                <div class="mb-2">
-
-                    <small class="text-success fw-bold">
-                        EMAIL
-                    </small>
-
-                    <div style="word-break:break-word;">
-                        {{ member.email }}
-                    </div>
-
-                </div>
-
-                <div class="mb-3">
-
-                    <small class="text-success fw-bold">
-                        STATUS
-                    </small>
-
-                    <div>
-
-                        <span class="badge
-                        {% if member.status == 'active' %}
-                            bg-success
-                        {% elif member.status == 'pending' %}
-                            bg-warning text-dark
                         {% else %}
-                            bg-secondary
+
+                            All Members
+
                         {% endif %}
-                        ">
 
-                            {{ member.status|title }}
-
-                        </span>
-
-                    </div>
+                    {% endif %}
 
                 </div>
 
-                <div class="d-grid gap-2">
 
-                    <a href="{% url 'members_admin:admin_member_detail' member.id %}"
-                       class="btn btn-primary btn-sm">
+                <div class="text-muted small">
 
-                        View
+                    {% if members.paginator.count %}
 
-                    </a>
+                        Showing
+                        {{ members.start_index }}–{{ members.end_index }}
+                        of {{ members.paginator.count }} members
 
-                    <a href="{% url 'members_admin:admin_documents_list' member.id %}"
-                       class="btn btn-info btn-sm">
+                    {% else %}
 
-                        Docs
-
-                    </a>
-
-                    {% if member.status == "active" %}
-
-                        <button
-                            class="btn btn-danger btn-sm"
-                            onclick="return retireMember({{ member.id }});">
-
-                            Retire
-
-                        </button>
-
-                    {% elif member.status == "retired" %}
-
-                        <a href="{% url 'members_admin:restore_member' member.id %}"
-                           class="btn btn-warning btn-sm">
-
-                            Restore
-
-                        </a>
+                        0 members found
 
                     {% endif %}
 
@@ -340,65 +271,850 @@
 
             </div>
 
+
+            <!-- TOP PAGINATION -->
+
+            {% include "members/admin/members/members_pagination.html" with pagination_position="top" %}
+
         </div>
 
-        {% endfor %}
+
+        <!-- ================================================== -->
+        <!-- DESKTOP / TABLET TABLE -->
+        <!-- ================================================== -->
+
+        <div class="d-none d-md-block">
+
+            <div class="card shadow-sm mb-3">
+
+                <div class="card-body p-0">
+
+                    <div class="table-responsive">
+
+                        <table class="table table-hover mb-0"
+                               id="membersTable">
+
+                            <thead class="table-dark">
+
+                                <tr>
+
+                                    <th>UID</th>
+
+                                    <th>Name</th>
+
+                                    <th>Email</th>
+
+                                    <th>Status</th>
+
+                                    <th>Actions</th>
+
+                                </tr>
+
+                            </thead>
+
+
+                            <tbody>
+
+                                {% for member in members %}
+
+                                    <tr class="member-record"
+                                        data-status="{{ member.status }}">
+
+                                        <!-- UID -->
+
+                                        <td>
+                                            {{ member.member_uid }}
+                                        </td>
+
+
+                                        <!-- NAME -->
+
+                                        <td>
+
+                                            {{ member.first_name }}
+
+                                            {{ member.middle_name }}
+
+                                            {{ member.surname }}
+
+                                        </td>
+
+
+                                        <!-- EMAIL -->
+
+                                        <td>
+                                            {{ member.email }}
+                                        </td>
+
+
+                                        <!-- STATUS -->
+
+                                        <td>
+
+                                            <span class="badge
+
+                                                {% if member.status == 'active' %}
+
+                                                    bg-success
+
+                                                {% elif member.status == 'pending' %}
+
+                                                    bg-warning text-dark
+
+                                                {% else %}
+
+                                                    bg-secondary
+
+                                                {% endif %}
+
+                                            ">
+
+                                                {{ member.status|title }}
+
+                                            </span>
+
+                                        </td>
+
+
+                                        <!-- ACTIONS -->
+
+                                        <td class="text-nowrap">
+
+                                            <a href="{% url 'members_admin:admin_member_detail' member.id %}"
+                                               class="btn btn-primary btn-sm">
+
+                                                View
+
+                                            </a>
+
+
+                                            <a href="{% url 'members_admin:admin_documents_list' member.id %}"
+                                               class="btn btn-info btn-sm">
+
+                                                Docs
+
+                                            </a>
+
+
+                                            {% if member.status == "active" %}
+
+                                                <button
+                                                    class="btn btn-danger btn-sm"
+                                                    onclick="return retireMember({{ member.id }});">
+
+                                                    Retire
+
+                                                </button>
+
+
+                                            {% elif member.status == "retired" %}
+
+                                                <button
+                                                    class="btn btn-warning btn-sm"
+                                                    onclick="return restoreMember({{ member.id }});">
+
+                                                    Restore
+
+                                                </button>
+
+                                            {% endif %}
+
+                                        </td>
+
+                                    </tr>
+
+                                {% empty %}
+
+                                    <tr>
+
+                                        <td colspan="5"
+                                            class="text-center text-muted py-4">
+
+                                            No members found.
+
+                                        </td>
+
+                                    </tr>
+
+                                {% endfor %}
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ================================================== -->
+        <!-- MOBILE MEMBER CARDS -->
+        <!-- ================================================== -->
+
+        <div class="d-block d-md-none">
+
+            {% for member in members %}
+
+                <div class="card shadow-sm mb-3 member-record"
+                     data-status="{{ member.status }}">
+
+                    <div class="card-body">
+
+
+                        <!-- UID -->
+
+                        <div class="mb-2">
+
+                            <small class="text-success fw-bold">
+
+                                UID
+
+                            </small>
+
+                            <div class="font-monospace">
+
+                                {{ member.member_uid }}
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- NAME -->
+
+                        <div class="mb-2">
+
+                            <small class="text-success fw-bold">
+
+                                NAME
+
+                            </small>
+
+                            <div>
+
+                                {{ member.first_name }}
+
+                                {{ member.middle_name }}
+
+                                {{ member.surname }}
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- EMAIL -->
+
+                        <div class="mb-2">
+
+                            <small class="text-success fw-bold">
+
+                                EMAIL
+
+                            </small>
+
+                            <div style="word-break:break-word;">
+
+                                {{ member.email }}
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- STATUS -->
+
+                        <div class="mb-3">
+
+                            <small class="text-success fw-bold">
+
+                                STATUS
+
+                            </small>
+
+                            <div>
+
+                                <span class="badge
+
+                                    {% if member.status == 'active' %}
+
+                                        bg-success
+
+                                    {% elif member.status == 'pending' %}
+
+                                        bg-warning text-dark
+
+                                    {% else %}
+
+                                        bg-secondary
+
+                                    {% endif %}
+
+                                ">
+
+                                    {{ member.status|title }}
+
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- MEMBER ACTIONS -->
+
+                        <div class="d-grid gap-2">
+
+
+                            <a href="{% url 'members_admin:admin_member_detail' member.id %}"
+                               class="btn btn-primary btn-sm">
+
+                                View
+
+                            </a>
+
+
+                            <a href="{% url 'members_admin:admin_documents_list' member.id %}"
+                               class="btn btn-info btn-sm">
+
+                                Docs
+
+                            </a>
+
+
+                            {% if member.status == "active" %}
+
+                                <button
+                                    class="btn btn-danger btn-sm"
+                                    onclick="return retireMember({{ member.id }});">
+
+                                    Retire
+
+                                </button>
+
+
+                            {% elif member.status == "retired" %}
+
+                                <a href="{% url 'members_admin:restore_member' member.id %}"
+                                   class="btn btn-warning btn-sm">
+
+                                    Restore
+
+                                </a>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            {% empty %}
+
+                <div class="card shadow-sm mb-3">
+
+                    <div class="card-body text-center text-muted py-4">
+
+                        No members found.
+
+                    </div>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+
+        <!-- ================================================== -->
+        <!-- BOTTOM PAGINATION -->
+        <!-- ================================================== -->
+
+        {% if members.paginator.num_pages > 1 %}
+
+            <div class="card shadow-sm mb-3">
+
+                <div class="card-body">
+
+                    {% include "members/admin/members/members_pagination.html" with pagination_position="bottom" %}
+
+                </div>
+
+            </div>
+
+        {% endif %}
+
 
     </div>
+    <!-- END DYNAMIC RESULTS CONTAINER -->
+
 
 </div>
+
+
+<!-- ========================================================== -->
+<!-- PAGE STYLING -->
+<!-- ========================================================== -->
+
+<style>
+
+    .members-list-page {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+
+    /* RESULTS HEADER */
+
+    .members-results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+
+    .members-results-summary {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+    }
+
+
+    /* DESKTOP TABLE */
+
+    #membersTable th,
+    #membersTable td {
+        vertical-align: middle;
+    }
+
+
+    /* PAGINATION */
+
+    .members-list-page .pagination {
+        gap: 3px;
+    }
+
+
+    /* LOADING FEEDBACK */
+
+    #membersListResults {
+        transition: opacity 0.15s ease-in-out;
+    }
+
+
+    #membersListResults.is-loading {
+        opacity: 0.55;
+        pointer-events: none;
+    }
+
+
+    /* MOBILE */
+
+    @media (max-width: 767.98px) {
+
+        .members-list-page {
+            padding-left: 10px;
+            padding-right: 10px;
+            overflow-x: clip;
+        }
+
+
+        .members-list-page h3 {
+            font-size: 1.25rem;
+        }
+
+
+        .members-results-header {
+            align-items: flex-start;
+        }
+
+
+        .members-list-page .pagination {
+            gap: 2px;
+        }
+
+
+        .members-list-page .page-link {
+            padding: 0.35rem 0.55rem;
+        }
+
+
+        .members-list-page .card {
+            min-width: 0;
+        }
+
+    }
+
+</style>
+
+
+<!-- ========================================================== -->
+<!-- AJAX SEARCH AND PAGINATION -->
+<!-- ========================================================== -->
+
 <script>
 
-const searchBox =
-    document.getElementById("memberSearch");
+document.addEventListener("DOMContentLoaded", function () {
 
-const statusFilter =
-    document.getElementById("statusFilter");
+    const form = document.getElementById("membersSearchForm");
 
-function filterMembers() {
+    const results = document.getElementById("membersListResults");
 
-    const search =
-        searchBox.value.toLowerCase();
+    const searchInput = document.getElementById("memberSearch");
 
-    const status =
-        statusFilter.value;
+    const statusFilter = document.getElementById("statusFilter");
 
-    document
-        .querySelectorAll(".member-record")
-        .forEach(item => {
+    const pageSizeSelect = document.getElementById("pageSize");
 
-            const text =
-                item.innerText.toLowerCase();
+    const resetLink = document.getElementById("membersReset");
 
-            const rowStatus =
-                item.dataset.status;
 
-            const searchMatch =
-                text.includes(search);
+    if (!form || !results) {
+        return;
+    }
 
-            const statusMatch =
-                !status || rowStatus === status;
 
-            item.style.display =
-                searchMatch && statusMatch
-                ? ""
-                : "none";
+    let debounceTimer = null;
+
+    let activeController = null;
+
+    let requestNumber = 0;
+
+
+    // ======================================================
+    // BUILD REQUEST URL
+    // ======================================================
+
+    function buildUrl(page = 1) {
+
+        const url = new URL(
+            form.action,
+            window.location.origin
+        );
+
+        const query = searchInput.value.trim();
+
+        if (query) {
+
+            url.searchParams.set("q", query);
+
+        }
+
+        url.searchParams.set(
+            "status",
+            statusFilter.value
+        );
+
+        url.searchParams.set(
+            "per_page",
+            pageSizeSelect.value
+        );
+
+        url.searchParams.set("page", page);
+
+        return url;
+
+    }
+
+
+    // ======================================================
+    // LOAD RESULTS
+    // ======================================================
+
+    async function loadResults(url, updateHistory = true) {
+
+        clearTimeout(debounceTimer);
+
+
+        if (activeController) {
+
+            activeController.abort();
+
+        }
+
+
+        const controller = new AbortController();
+
+        activeController = controller;
+
+
+        const currentRequest = ++requestNumber;
+
+
+        results.classList.add("is-loading");
+
+        results.setAttribute("aria-busy", "true");
+
+
+        try {
+
+            const response = await fetch(url.toString(), {
+
+                method: "GET",
+
+                credentials: "same-origin",
+
+                headers: {
+
+                    "X-Requested-With": "XMLHttpRequest"
+
+                },
+
+                signal: controller.signal
+
+            });
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "Members request failed: " + response.status
+                );
+
+            }
+
+
+            const html = await response.text();
+
+
+            const parser = new DOMParser();
+
+
+            const documentResponse = parser.parseFromString(
+                html,
+                "text/html"
+            );
+
+
+            const updatedResults =
+                documentResponse.getElementById(
+                    "membersListResults"
+                );
+
+
+            if (!updatedResults) {
+
+                throw new Error(
+                    "Members results container not found."
+                );
+
+            }
+
+
+            // Ignore outdated requests
+
+            if (currentRequest !== requestNumber) {
+
+                return;
+
+            }
+
+
+            results.innerHTML = updatedResults.innerHTML;
+
+
+            if (updateHistory) {
+
+                window.history.pushState(
+                    {},
+                    "",
+                    url.pathname + url.search
+                );
+
+            }
+
+
+        } catch (error) {
+
+            if (error.name !== "AbortError") {
+
+                console.error(
+                    "Members list update failed:",
+                    error
+                );
+
+
+                // Fallback to normal page navigation
+
+                window.location.assign(url.toString());
+
+            }
+
+        } finally {
+
+            if (currentRequest === requestNumber) {
+
+                activeController = null;
+
+                results.classList.remove("is-loading");
+
+                results.setAttribute("aria-busy", "false");
+
+            }
+
+        }
+
+    }
+
+
+    // ======================================================
+    // SEARCH WHILE TYPING
+    // ======================================================
+
+    searchInput.addEventListener("input", function () {
+
+        clearTimeout(debounceTimer);
+
+
+        debounceTimer = setTimeout(function () {
+
+            loadResults(buildUrl(1));
+
+        }, 400);
+
+    });
+
+
+    // ======================================================
+    // STATUS FILTER
+    // ======================================================
+
+    statusFilter.addEventListener("change", function () {
+
+        loadResults(buildUrl(1));
+
+    });
+
+
+    // ======================================================
+    // PAGE SIZE
+    // ======================================================
+
+    pageSizeSelect.addEventListener("change", function () {
+
+        loadResults(buildUrl(1));
+
+    });
+
+
+    // ======================================================
+    // SEARCH FORM
+    // ======================================================
+
+    form.addEventListener("submit", function (event) {
+
+        event.preventDefault();
+
+        loadResults(buildUrl(1));
+
+    });
+
+
+    // ======================================================
+    // RESET
+    // ======================================================
+
+    if (resetLink) {
+
+        resetLink.addEventListener("click", function (event) {
+
+            event.preventDefault();
+
+
+            searchInput.value = "";
+
+            statusFilter.value = "active";
+
+            pageSizeSelect.value = "25";
+
+
+            loadResults(
+                new URL(resetLink.href, window.location.origin)
+            );
+
         });
-}
 
-searchBox.addEventListener(
-    "keyup",
-    filterMembers
-);
+    }
 
-statusFilter.addEventListener(
-    "change",
-    filterMembers
-);
 
-filterMembers();
+    // ======================================================
+    // PAGINATION
+    // ======================================================
+
+    results.addEventListener("click", function (event) {
+
+        const link = event.target.closest(
+            "a[data-members-page]"
+        );
+
+
+        if (!link || !results.contains(link)) {
+
+            return;
+
+        }
+
+
+        event.preventDefault();
+
+
+        const url = new URL(
+            link.href,
+            window.location.origin
+        );
+
+
+        loadResults(url);
+
+    });
+
+
+    // ======================================================
+    // BROWSER BACK AND FORWARD
+    // ======================================================
+
+    window.addEventListener("popstate", function () {
+
+        const url = new URL(window.location.href);
+
+
+        searchInput.value =
+            url.searchParams.get("q") || "";
+
+
+        statusFilter.value =
+            url.searchParams.has("status")
+                ? url.searchParams.get("status")
+                : "active";
+
+
+        pageSizeSelect.value =
+            url.searchParams.get("per_page") || "25";
+
+
+        loadResults(url, false);
+
+    });
+
+});
 
 </script>
+
+
+<!-- ========================================================== -->
+<!-- EXISTING MEMBER ACTIONS -->
+<!-- ========================================================== -->
+
 <script src="{% static 'js/admin_member_actions.js' %}"></script>
+
 
 {% endblock %}

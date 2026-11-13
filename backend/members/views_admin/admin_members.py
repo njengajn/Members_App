@@ -129,12 +129,101 @@ def edit_member(request, pk):
 
 @admin_required
 def admin_members_list(request):
-    members = Member.objects.all().order_by("-id")
+    """
+    Admin members list with searchable, filterable and paginated results.
+
+    Search covers:
+    - Member UID
+    - Full member name
+    - Email
+
+    Status filters:
+    - Active
+    - Approved
+    - Pending
+    - Retired
+    - All members
+
+    Page sizes:
+    - 25
+    - 50
+    - 100
+
+    Search and filtering are applied before pagination.
+    """
+
+    search_query = request.GET.get("q", "").strip()
+
+    # Supported page sizes
+    allowed_page_sizes = [25, 50, 100]
+
+    try:
+        page_size = int(request.GET.get("per_page", 25))
+    except (TypeError, ValueError):
+        page_size = 25
+
+    if page_size not in allowed_page_sizes:
+        page_size = 25
+
+    # Default to active members
+    allowed_statuses = {
+        "active",
+        "approved",
+        "pending",
+        "retired",
+        "",
+    }
+
+    selected_status = request.GET.get("status", "active")
+
+    if selected_status not in allowed_statuses:
+        selected_status = "active"
+
+    # Start with the complete members queryset
+    members = (
+        Member.objects
+        .annotate(
+            member_search_name=Concat(
+                F("first_name"),
+                Value(" "),
+                F("middle_name"),
+                Value(" "),
+                F("surname"),
+                output_field=CharField(),
+            )
+        )
+        .order_by("member_uid")
+    )
+
+    # Apply status filtering BEFORE pagination
+    if selected_status:
+        members = members.filter(status=selected_status)
+
+    # Apply search BEFORE pagination
+    if search_query:
+        members = members.filter(
+            Q(member_uid__icontains=search_query)
+            | Q(member_search_name__icontains=search_query)
+            | Q(email__icontains=search_query)
+        )
+
+    # Paginate filtered results
+    paginator = Paginator(members, page_size)
+
+    page_number = request.GET.get("page", 1)
+
+    members_page = paginator.get_page(page_number)
 
     return render(
         request,
         "members/admin/members/admin_members_list.html",
-        {"members": members},
+        {
+            "members": members_page,
+            "search_query": search_query,
+            "selected_status": selected_status,
+            "page_size": page_size,
+            "page_sizes": allowed_page_sizes,
+        },
     )
 
 # ======================================================
